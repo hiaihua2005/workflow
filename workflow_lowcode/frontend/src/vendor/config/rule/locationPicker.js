@@ -1,10 +1,11 @@
 /**
- * 定位 LocationPicker（Task 3-g，降级版）——表单设计器「基础组件」分组 vendor rule。
+ * 定位 LocationPicker v2（地图选点版）——表单设计器「基础组件」分组 vendor rule。
  *
- * 与 signaturePad.js 同构（menu:'main' + input + mask）；降级实现不依赖外部地图 SDK：
- * 经纬度数值录入（纬度 -90~90 / 经度 -180~180，精度 6 位）+ 粘贴解析 +
- * 「清空」按钮 + 格式化预览；值形态为 'lat,lng' 字符串或空串（VARCHAR 列直存）。
- * - props 面板：placeholder 已内建（粘贴框固定提示，无需配置）、disabled / clearable 开关
+ * 与 signaturePad.js 同构（menu:'main' + input + mask）；点击弹出 Leaflet 地图
+ * （高德 XYZ 瓦片免 key，GCJ-02），点选位置 → 可命名 → 确定写回；组件默认显示位置名称。
+ * 值形态：位置名称（命名后）| 'lat,lng'（未命名兑底，兼容 v1 坐标值）| ''（VARCHAR 直存）。
+ * - props 面板：placeholder / disabled / clearable；地图交互仅在预览/运行态
+ *   （画布 mask 遮罩，避免设计态误触弹窗）
  * - 各 prop 的 title 内联中文，不依赖 locale 新增词条（localeProps 找不到
  *   com.LocationPicker.props.* 时回退 title；主会话后续如补 locale 词条会自动覆盖）
  *
@@ -33,9 +34,10 @@ export default {
             type: name,
             field: uniqueId(),
             title: label,
-            info: '录入或粘贴经纬度（降级版，无地图选点）；值格式「纬度,经度」',
+            info: '点击弹出地图选点，可对位置命名；默认显示位置名称（未命名时按坐标保存）',
             $required: false,
             props: {
+                placeholder: '点击选择位置',
                 disabled: false,
                 clearable: true,
             },
@@ -43,6 +45,11 @@ export default {
     },
     props(_, { t }) {
         return localeProps(t, name + '.props', [
+            {
+                type: 'input',
+                field: 'placeholder',
+                title: '占位文案',
+            },
             {
                 type: 'switch',
                 field: 'disabled',

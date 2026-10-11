@@ -1,13 +1,40 @@
-// ----- Task 3-g: LocationPicker 定位（降级版）组件测试 -----
+// ----- LocationPicker v2（弹窗地图选点版）组件测试 -----
 // npx vitest run src/components/business/__tests__/LocationPicker.test.ts
 //
-// 覆盖：输入渲染（范围/精度）、modelValue 解析回显与预览、数值修改发射、
-// 粘贴解析（中英文逗号）、非法输入容错、越界钳制、清空。
+// 覆盖：触发框渲染（placeholder/名称值/坐标值回显）、openDialog 门控与回填、
+// initMap 地图初始化（mock leaflet：map/tileLayer/divIcon/marker）、地图 click 放标记、
+// confirmPick 值发射（命名 → 名称；未命名 → 'lat,lng' 兜底）、清空、v1 坐标值兼容。
+// leaflet 全模块 mock（jsdom 无真实 canvas/瓦片）；leaflet.css 由 vitest 自动置空。
 
-import { describe, it, expect } from 'vitest'
-import { nextTick } from 'vue'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+
+// leaflet mock：链式 stub，记录调用供断言
+const tileLayerStub = {
+  addTo: vi.fn().mockReturnThis(),
+}
+const markerStub = {
+  addTo: vi.fn().mockReturnThis(),
+  setLatLng: vi.fn().mockReturnThis(),
+}
+const mapStub = {
+  addLayer: vi.fn(),
+  on: vi.fn(),
+  setView: vi.fn().mockReturnThis(),
+  getZoom: vi.fn().mockReturnValue(4),
+  remove: vi.fn(),
+  invalidateSize: vi.fn(),
+}
+vi.mock('leaflet', () => ({
+  default: {
+    map: vi.fn(() => mapStub),
+    tileLayer: vi.fn(() => tileLayerStub),
+    divIcon: vi.fn(() => ({ el: document.createElement('div') })),
+    marker: vi.fn(() => markerStub),
+  },
+}))
+import L from 'leaflet'
 import LocationPicker from '../LocationPicker.vue'
 
 function createWrapper(props: any = {}) {
@@ -17,104 +44,157 @@ function createWrapper(props: any = {}) {
       ...props,
     },
     global: { plugins: [ElementPlus] },
+    attachTo: document.body,
   })
 }
 
-function inputNumbers(wrapper: any) {
-  return wrapper.findAllComponents({ name: 'ElInputNumber' })
-}
+beforeEach(() => {
+  vi.clearAllMocks()
+  document.body.innerHTML = ''
+})
 
-function pasteInput(wrapper: any) {
-  return wrapper.find('.location-picker__paste input')
-}
-
-describe('LocationPicker — 渲染', () => {
-  it('渲染纬度/经度两个数字输入（范围 -90~90 / -180~180，精度 6 位）与清空按钮、粘贴框', () => {
+describe('LocationPicker — 触发框渲染与值回显', () => {
+  it('空值显示 placeholder 与「点击选择位置」占位，样式 is-empty', () => {
     const wrapper = createWrapper()
-    const nums = inputNumbers(wrapper)
-    expect(nums.length).toBe(2)
-    expect(nums[0].props('min')).toBe(-90)
-    expect(nums[0].props('max')).toBe(90)
-    expect(nums[0].props('precision')).toBe(6)
-    expect(nums[1].props('min')).toBe(-180)
-    expect(nums[1].props('max')).toBe(180)
-    expect(nums[1].props('precision')).toBe(6)
-    expect(wrapper.find('.location-picker__clear').exists()).toBe(true)
-    expect(pasteInput(wrapper).exists()).toBe(true)
-  })
-
-  it('空值：预览显示「未设置坐标」，清空按钮禁用', () => {
-    const wrapper = createWrapper()
-    expect(wrapper.find('.location-picker__preview').text()).toBe('未设置坐标')
+    const trigger = wrapper.find('.location-picker__trigger')
+    expect(trigger.exists()).toBe(true)
+    expect(trigger.classes()).toContain('is-empty')
+    expect(trigger.find('.location-picker__text').text()).toBe('点击选择位置')
+    // 清空按钮在无值时禁用
     expect(wrapper.find('.location-picker__clear').attributes('disabled')).toBeDefined()
   })
 
-  it('modelValue 解析回显：输入框与格式化预览', () => {
-    const wrapper = createWrapper({ modelValue: '39.9042,116.4074' })
-    expect(inputNumbers(wrapper)[0].props('modelValue')).toBe(39.9042)
-    expect(inputNumbers(wrapper)[1].props('modelValue')).toBe(116.4074)
-    expect(wrapper.find('.location-picker__preview').text()).toBe('当前坐标：39.9042, 116.4074')
+  it('名称值原样显示（组件默认显示位置名称）', () => {
+    const wrapper = createWrapper({ modelValue: '总部仓库' })
+    expect(wrapper.find('.location-picker__trigger .location-picker__text').text()).toBe('总部仓库')
+    expect(wrapper.vm.displayText).toBe('总部仓库')
   })
 
-  it('clearable=false 不渲染清空按钮；disabled 时输入禁用', () => {
-    const wrapper = createWrapper({ clearable: false, disabled: true })
+  it('v1 坐标值兼容：显示为格式化坐标文本', () => {
+    const wrapper = createWrapper({ modelValue: '39.904200,116.407400' })
+    expect(wrapper.vm.displayText).toBe('39.9042, 116.4074')
+  })
+
+  it('disabled 时触发框不可点（is-disabled），清空按钮禁用', async () => {
+    const wrapper = createWrapper({ modelValue: '总部仓库', disabled: true })
+    await wrapper.find('.location-picker__trigger').trigger('click')
+    expect((wrapper.vm as any).dialogVisible).toBe(false)
+    expect(wrapper.find('.location-picker__clear').attributes('disabled')).toBeDefined()
+  })
+
+  it('clearable=false 不渲染清空按钮', () => {
+    const wrapper = createWrapper({ clearable: false })
     expect(wrapper.find('.location-picker__clear').exists()).toBe(false)
-    expect(inputNumbers(wrapper)[0].props('disabled')).toBe(true)
   })
 })
 
-describe('LocationPicker — 值发射', () => {
-  it('修改经度 → emit update:modelValue 与 change（去尾零规范化）', async () => {
-    const wrapper = createWrapper({ modelValue: '39.9042,116.4074' })
-    inputNumbers(wrapper)[1].vm.$emit('update:modelValue', 116.4)
-    await nextTick()
-    expect(wrapper.emitted('update:modelValue')![0][0]).toBe('39.9042,116.4')
-    expect(wrapper.emitted('change')![0][0]).toBe('39.9042,116.4')
+describe('LocationPicker — 清空', () => {
+  it('有值时清空：emit update:modelValue + change 空串', async () => {
+    const wrapper = createWrapper({ modelValue: '总部仓库' })
+    await wrapper.vm.handleClear()
+    expect(wrapper.emitted('update:modelValue')![0]).toEqual([''])
+    expect(wrapper.emitted('change')![0]).toEqual([''])
   })
 
-  it('仅设置纬度未设置经度时不发射（双向齐备才拼值）', async () => {
+  it('无值时清空不发射（幂等守卫）', async () => {
     const wrapper = createWrapper()
-    inputNumbers(wrapper)[0].vm.$emit('update:modelValue', 39.9)
-    await nextTick()
+    await wrapper.vm.handleClear()
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
-  })
-
-  it('清空按钮：emit 空串并复位预览', async () => {
-    const wrapper = createWrapper({ modelValue: '39.9042,116.4074' })
-    await wrapper.find('.location-picker__clear').trigger('click')
-    expect(wrapper.emitted('update:modelValue')![0][0]).toBe('')
-    expect(wrapper.emitted('change')![0][0]).toBe('')
-    await nextTick()
-    expect(wrapper.find('.location-picker__preview').text()).toBe('未设置坐标')
-  })
-
-  it('越界钳制：经度 200 → 180 后发射', async () => {
-    const wrapper = createWrapper({ modelValue: '39.9042,116.4074' })
-    inputNumbers(wrapper)[1].vm.$emit('update:modelValue', 200)
-    await nextTick()
-    expect(wrapper.emitted('update:modelValue')![0][0]).toBe('39.9042,180')
   })
 })
 
-describe('LocationPicker — 粘贴解析', () => {
-  it('粘贴「纬度,经度」自动拆分回填（中文逗号兼容）并清空粘贴框', async () => {
-    const wrapper = createWrapper()
-    pasteInput(wrapper).setValue('39.9042，116.4074')
-    await pasteInput(wrapper).trigger('input')
-    expect(wrapper.emitted('update:modelValue')![0][0]).toBe('39.9042,116.4074')
-    expect(wrapper.emitted('change')![0][0]).toBe('39.9042,116.4074')
-    await nextTick()
-    expect((pasteInput(wrapper).element as HTMLInputElement).value).toBe('')
-    expect(inputNumbers(wrapper)[0].props('modelValue')).toBe(39.9042)
+describe('LocationPicker — 弹窗与地图（leaflet mock）', () => {
+  it('openDialog 打开弹窗并回填：坐标值 → picked 定位、名称框空；名称值 → 名称回显、无 picked', () => {
+    const w1 = createWrapper({ modelValue: '39.9,116.4' })
+    w1.vm.openDialog()
+    expect(w1.vm.picked).toEqual({ lat: 39.9, lng: 116.4 })
+    expect(w1.vm.locationName).toBe('')
+
+    const w2 = createWrapper({ modelValue: '总部仓库' })
+    w2.vm.openDialog()
+    expect(w2.vm.picked).toBeNull()
+    expect(w2.vm.locationName).toBe('总部仓库')
   })
 
-  it('非法粘贴（非坐标文本/越界）忽略，不破坏当前值', async () => {
-    const wrapper = createWrapper({ modelValue: '39.9042,116.4074' })
-    pasteInput(wrapper).setValue('not-a-coord')
-    await pasteInput(wrapper).trigger('input')
-    pasteInput(wrapper).setValue('100,116') // 纬度越界
-    await pasteInput(wrapper).trigger('input')
+  it('initMap：L.map 初始化 + 高德瓦片 addTo + click 监听注册；已有坐标值创建 divIcon 标记', () => {
+    const wrapper = createWrapper({ modelValue: '39.9,116.4' })
+    wrapper.vm.openDialog()
+    wrapper.vm.initMap()
+    expect(L.map).toHaveBeenCalledTimes(1)
+    expect(L.map).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ zoom: 14 }))
+    expect(L.tileLayer).toHaveBeenCalledWith(
+      expect.stringContaining('webrd0{s}.is.autonavi.com'),
+      expect.objectContaining({ subdomains: ['1', '2', '3', '4'] }),
+    )
+    expect(mapStub.addLayer).toHaveBeenCalledWith(tileLayerStub)
+    expect(mapStub.on).toHaveBeenCalledWith('click', expect.any(Function))
+    expect(L.marker).toHaveBeenCalledWith([39.9, 116.4], expect.objectContaining({ icon: expect.anything() }))
+    expect(markerStub.addTo).toHaveBeenCalledWith(mapStub)
+    wrapper.vm.destroyMap?.()
+    expect(mapStub.remove).toHaveBeenCalled()
+  })
+
+  it('initMap 无值：中国中心 + zoom 4，不创建标记', () => {
+    const wrapper = createWrapper()
+    wrapper.vm.openDialog()
+    wrapper.vm.initMap()
+    expect(L.map).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ zoom: 4 }))
+    expect(L.marker).not.toHaveBeenCalled()
+    wrapper.vm.destroyMap?.()
+  })
+
+  it('地图 click 回调：placeMarker 更新 picked，首次点击创建新标记', () => {
+    const wrapper = createWrapper()
+    wrapper.vm.openDialog()
+    wrapper.vm.initMap()
+    const clickHandler = mapStub.on.mock.calls.find((c: any[]) => c[0] === 'click')![1]
+    clickHandler({ latlng: { lat: 31.2304, lng: 121.4737 } })
+    expect(wrapper.vm.picked).toEqual({ lat: 31.2304, lng: 121.4737 })
+    expect(L.marker).toHaveBeenCalledWith([31.2304, 121.4737], expect.objectContaining({ icon: expect.anything() }))
+  })
+
+  it('地图 click 回调：已有标记时复用 setLatLng（不重复创建）', () => {
+    const wrapper = createWrapper({ modelValue: '39.9,116.4' })
+    wrapper.vm.openDialog()
+    wrapper.vm.initMap()
+    expect(L.marker).toHaveBeenCalledTimes(1) // 初始回放标记
+    const clickHandler = mapStub.on.mock.calls.find((c: any[]) => c[0] === 'click')![1]
+    clickHandler({ latlng: { lat: 31.2304, lng: 121.4737 } })
+    expect(markerStub.setLatLng).toHaveBeenCalledWith([31.2304, 121.4737])
+    expect(L.marker).toHaveBeenCalledTimes(1) // 未重复创建
+  })
+
+  it('confirmPick：命名 → 保存位置名称（组件默认显示名称）', async () => {
+    const wrapper = createWrapper()
+    wrapper.vm.openDialog()
+    wrapper.vm.initMap()
+    const clickHandler = mapStub.on.mock.calls.find((c: any[]) => c[0] === 'click')![1]
+    clickHandler({ latlng: { lat: 31.2304, lng: 121.4737 } })
+    wrapper.vm.locationName = '上海仓库'
+    wrapper.vm.confirmPick()
+    expect(wrapper.emitted('update:modelValue')![0]).toEqual(['上海仓库'])
+    expect(wrapper.emitted('change')![0]).toEqual(['上海仓库'])
+  })
+
+  it('confirmPick：未命名 → 兜底保存「lat,lng」（与 v1 值格式一致，6 位去尾零）', async () => {
+    const wrapper = createWrapper()
+    wrapper.vm.openDialog()
+    wrapper.vm.initMap()
+    const clickHandler = mapStub.on.mock.calls.find((c: any[]) => c[0] === 'click')![1]
+    clickHandler({ latlng: { lat: 31.2304123456, lng: 121.4737 } })
+    wrapper.vm.confirmPick()
+    expect(wrapper.emitted('update:modelValue')![0]).toEqual(['31.230412,121.4737'])
+  })
+
+  it('confirmPick：未选点时确定守卫（不发射、不关弹窗）', () => {
+    const wrapper = createWrapper()
+    wrapper.vm.openDialog()
+    wrapper.vm.confirmPick()
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
-    expect(wrapper.find('.location-picker__preview').text()).toBe('当前坐标：39.9042, 116.4074')
+  })
+
+  it('destroyMap 幂等：未初始化时调用不抛错', () => {
+    const wrapper = createWrapper()
+    expect(() => (wrapper.vm as any).destroyMap?.()).not.toThrow()
   })
 })
