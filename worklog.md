@@ -6727,3 +6727,25 @@ Stage Summary:
 - 16 个本地提交（含 LocationPicker v3 坐标持久化修复 a52941fc 重写版、RelationCard 下拉化 d426d2aa 重写版、历次 db dump 备份）全部推上远程；121MB jar 保持仅本地备份（backups/jar/ 已恢复且被 ignore），远程仓库不再可能被大文件卡死
 - 注意：未推送提交的 SHA 已因 filter-branch 全部改变（如 a52941fc→新 SHA），后续引用旧 SHA 需以 git log 现查
 - PAT 已生效存于 .git/config；后续 push 直接可用，无需再要凭据
+---
+Task ID: relationcard-v2-live
+Agent: Z.ai Code (main session)
+Task: 用户「RelationCard 似乎没有什么作用，是否能设计一个正真能体现其作用的例子？」——组件从被动显示器升级为实时关联卡 + 全链路 E2E 演示
+
+Work Log:
+- 【根因诊断】v1 RelationCard 是「值的被动显示器」：值靠 LookupPicker/联动规则塞入、自己不取数、点击仅 emit 无人消费、单行文本摘要——本质是 LookupPicker 值的美化重复，故用户感觉无用
+- 【原料盘点】bizDataApi.detail(formKey,id) 接口已有；LookupPicker idField 写回机制已有；DataPicker（数据引用物料，FormDesigner.vue 动态 addComponent）值=记录 id 的 JSON 数组字符串；formCreateInject（prop 优先+inject 兜底）可跨字段取值；getFormDefinitionByKey 可拿列配置做字段中文 label 映射
+- 【v2 设计】新增三配置（sourceFormKey 源表单 Key / recordIdField 记录 ID 字段 / displayFields 摘要字段多选）→ 实时模式：监听 id → detail 拉最新整行 → 多字段摘要（label 自动映射）+「实时」徽标+刷新按钮+点击内置详情弹窗（全字段 descriptions+更新时间）；未配置=被动模式逐字保留 v1 行为（含不内置弹窗契约）；404→「关联记录不存在」警示态
+- 【共享解析器】lookupFetch.ts 新增 resolveRecordId：dataPicker id 数组/纯 id 字符串/对象 .id/JSON 对象/带引号字符串五形态归一，不可解析→null
+- 【关键 bug 修复】api.getValue 非响应式读取：computed 无依赖永不重算（E2E 实测选完客户卡片不更新定位）→ 补 api.on('change',(field,value)) 事件订阅驱动热更新（form-create core setValue 时 emit 已源码确认）；computed 仅留挂载时初值职责
+- 【MultiEdit 非原子再次踩坑】import 行已改、正文未改的混合态——重申：多段编辑用单独 Edit 或失败后必查现场
+- 【E2E 演示资产】表单A cust_rel_demo 客户档案（客户名称/客户状态 select 运行中|筹建中|已停用/负责人/联系电话，V1 发布）+3 条数据；表单B follow_rel_demo 跟进工单（跟进主题/客户 dataPicker→A 单选/跟进纪要/RelationCard 客户实时档案 recordIdField=dataPicker1791708613713）
+- 【设计器注入路径】数据引用配置弹窗依赖页面数据源绑定（本场景为空）→ 走「JSON 配置」发现只读 → 改用 API 通道：读 JSON 预览拿精确 rule 形态 → python 打补丁（dataPicker props.sourceFormKey/displayField/maxCount=1/columns/searchColumns + RelationCard props）→ PUT form-definitions 写回 → 重载设计器画布正常渲染
+- 【E2E 六连验证全绿】①选客户→卡片即时 运行中/张伟/0512-66881234 ②点击卡片→全字段详情弹窗 ③源数据改 已停用 后新建再选→卡片显示 已停用（实时非快照铁证）④编辑页重开→按存值 id 回显最新数据+客户 tag ⑤发布列映射正确（dataPicker id 列+_text 隐藏列+RelationCard JSON 列）⑥列表客户列显示解析文本
+- 【测试】RelationCard.test.ts 19 用例（resolveRecordId 3 组+实时模式 8 组含 mock detail/formDef/404/弹窗/刷新/被动兼容）；task3gRules 同步 v2 默认 props 断言；business+vendor 回归 460/460；vue-tsc 54=基线；eslint 0 error
+- 【收尾】commit 504de8c8 已 push（bc74624f..504de8c8）；演示资产保留供用户体验
+
+Stage Summary:
+- RelationCard 定位重构：「被动文本显示器」→「活的关联记录视图」——配置源表单后永远展示关联记录最新数据、不冗余存快照，这正是它与 LookupPicker 带回文本的本质区别；演示故事「客户档案↔跟进工单」已可体验（/biz-data/follow_rel_demo）
+- 组件、vendor 规则、列映射三层同改；未动后端（白名单已含 RelationCard）
+- 遗留观察：①RelationCard 字段列映射为 JSON 恒空列（列表可见但无值，未做隐藏处理避免范围膨胀）②数据引用配置弹窗的数据源绑定模式未覆盖（sourceFormKey 直连模式为主路径）③演示表单 A 编辑选项时 label/value 双列结构易误填（E2E 踩过一次）
