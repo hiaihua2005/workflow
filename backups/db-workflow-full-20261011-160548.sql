@@ -1,7 +1,7 @@
 /*M!999999\- enable the sandbox mode */ 
 -- MariaDB dump 10.19-11.8.6-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: 127.0.0.1    Database: workflow
+-- Host: localhost    Database: workflow
 -- ------------------------------------------------------
 -- Server version	11.8.6-MariaDB-0+deb13u1 from Debian
 
@@ -15,6 +15,14 @@
 /*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*M!100616 SET @OLD_NOTE_VERBOSITY=@@NOTE_VERBOSITY, NOTE_VERBOSITY=0 */;
+
+--
+-- Current Database: `workflow`
+--
+
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `workflow` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci */;
+
+USE `workflow`;
 
 --
 -- Table structure for table `act_evt_log`
@@ -1997,7 +2005,39 @@ INSERT INTO `flyway_schema_history` VALUES
 (8,'50','member group dedicated tables','SQL','V50__member_group_dedicated_tables.sql',143610301,'root','2026-10-09 00:05:46',7,1),
 (9,'51','sys attachment','SQL','V51__sys_attachment.sql',-1828141019,'root','2026-10-09 00:05:46',2,1),
 (10,'52','sys attachment image meta','SQL','V52__sys_attachment_image_meta.sql',1003945511,'root','2026-10-09 00:05:46',1,1),
-(11,'53','add logic flow menu','SQL','V53__add_logic_flow_menu.sql',-1564541405,'root','2026-10-09 00:05:46',1,1);
+(11,'53','add logic flow menu','SQL','V53__add_logic_flow_menu.sql',-1564541405,'root','2026-10-09 00:05:46',1,1),
+(12,'3','grant admin menus','SQL','V3__grant_admin_menus.sql',810571147,'root','2026-10-10 16:14:21',9,1),
+(13,'4','create wf node config','SQL','V4__create_wf_node_config.sql',479091283,'root','2026-10-10 16:14:21',4,1),
+(14,'5','create wf category','SQL','V5__create_wf_category.sql',1723544693,'root','2026-10-10 16:14:21',1,1),
+(15,'6','create wf process draft','SQL','V6__create_wf_process_draft.sql',664068881,'root','2026-10-10 16:14:21',5,1),
+(16,'7','add process management menus','SQL','V7__add_process_management_menus.sql',-2053080919,'root','2026-10-10 16:14:21',32,1),
+(17,'8','add last deployed at','SQL','V8__add_last_deployed_at.sql',1003492481,'root','2026-10-10 16:14:21',5,1),
+(18,'9','fix version and deployed at','SQL','V9__fix_version_and_deployed_at.sql',717164960,'root','2026-10-10 16:14:21',2,1),
+(19,'11','add category menu','SQL','V11__add_category_menu.sql',840182847,'root','2026-10-10 16:14:21',2,1),
+(20,'12','create form tables','SQL','V12__create_form_tables.sql',-1358903684,'root','2026-10-10 16:14:21',5,1),
+(21,'13','create wf task comment','SQL','V13__create_wf_task_comment.sql',-112966394,'root','2026-10-10 16:14:21',10,1),
+(22,'14','create wf task transfer','SQL','V14__create_wf_task_transfer.sql',726975210,'root','2026-10-10 16:14:21',1,1),
+(23,'15','add process category permissions','SQL','V15__add_process_category_permissions.sql',894892465,'root','2026-10-10 16:14:21',1,1),
+(24,'16','create wf task remind','SQL','V16__create_wf_task_remind.sql',1528080298,'root','2026-10-10 16:14:21',1,1),
+(25,'17','clear form def data','SQL','V17__clear_form_def_data.sql',-1322388170,'root','2026-10-10 16:14:21',1,1),
+(26,'18','add deployed config hash','SQL','V18__add_deployed_config_hash.sql',430291177,'root','2026-10-10 16:14:21',2,1),
+(27,'19','form def add type and column config','SQL','V19__form_def_add_type_and_column_config.sql',230383109,'root','2026-10-10 16:14:21',9,1),
+(28,'20','create wf page def','SQL','V20__create_wf_page_def.sql',333882923,'root','2026-10-10 16:14:21',5,1),
+(29,'21','merge form view menus','SQL','V21__merge_form_view_menus.sql',-522814584,'root','2026-10-10 16:14:21',1,1),
+(30,'22','add form id to data source','SQL','V22__add_form_id_to_data_source.sql',-1008722349,'root','2026-10-10 16:14:21',16,1),
+(31,'23','add page data source id','SQL','V23__add_page_data_source_id.sql',-492092031,'root','2026-10-10 16:14:21',29,1),
+(32,'24','create notification tables','SQL','V24__create_notification_tables.sql',1442754333,'root','2026-10-10 16:14:21',2,1),
+(33,'25','optimize retry index','SQL','V25__optimize_retry_index.sql',1850376939,'root','2026-10-10 16:14:21',1,1),
+(34,'26','add notification menus','SQL','V26__add_notification_menus.sql',2047030466,'root','2026-10-10 16:14:21',5,1),
+(35,'27','unify notification tenant type','SQL','V27__unify_notification_tenant_type.sql',1390673949,'root','2026-10-10 16:14:21',6,1),
+(36,'28','add message content type','SQL','V28__add_message_content_type.sql',-2141586872,'root','2026-10-10 16:14:21',2,1),
+(37,'29','add notification event definitions','SQL','V29__add_notification_event_definitions.sql',-103859050,'root','2026-10-10 16:14:21',7,1),
+(38,'30','add form def process key','SQL','V30__add_form_def_process_key.sql',2118263784,'root','2026-10-10 16:14:21',5,1),
+(39,'31','add source key unique','SQL','V31__add_source_key_unique.sql',260739803,'root','2026-10-10 16:14:21',2,1),
+(40,'32','seed workflow notification','SQL','V32__seed_workflow_notification.sql',2110666689,'root','2026-10-10 16:14:21',10,1),
+(41,'47','posts member group draft box','SQL','V47__posts_member_group_draft_box.sql',1622141536,'root','2026-10-10 16:14:21',11,1),
+(42,'48','node config uk version','SQL','V48__node_config_uk_version.sql',969157759,'root','2026-10-10 16:14:22',4,1),
+(43,'54','serial number','SQL','V54__serial_number.sql',1470816950,'root','2026-10-10 19:36:54',8,1);
 /*!40000 ALTER TABLE `flyway_schema_history` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -2053,7 +2093,7 @@ CREATE TABLE `msg_delivery_retry` (
   `recipient_id` bigint(20) NOT NULL,
   `retry_count` int(11) NOT NULL,
   `status` enum('DELETED','FAILED','PENDING','READ','SENT') NOT NULL,
-  `tenant_id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL COMMENT '租户ID',
   `updated_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_recipient` (`recipient_id`),
@@ -2096,7 +2136,7 @@ CREATE TABLE `msg_event_definition` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `UKolg4hnibtg7ilx604d443v28s` (`tenant_id`,`event_code`),
   KEY `idx_event_tenant_enabled` (`tenant_id`,`enabled`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2106,6 +2146,10 @@ CREATE TABLE `msg_event_definition` (
 SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `msg_event_definition` WRITE;
 /*!40000 ALTER TABLE `msg_event_definition` DISABLE KEYS */;
+INSERT INTO `msg_event_definition` VALUES
+(1,'WORKFLOW','2026-10-10 16:14:21.000000','system','用户任务分配给办理人时推送待办通知',0x01,'WF_TASK_ASSIGNED','工作流任务待办','default','2026-10-10 16:14:21.000000',NULL),
+(2,'WORKFLOW','2026-10-10 16:14:21.000000','system','流程实例全部审批完成时通知发起人',0x01,'WF_PROCESS_FINISHED','工作流办结通知','default','2026-10-10 16:14:21.000000',NULL),
+(3,'WORKFLOW','2026-10-10 16:14:21.000000','system','发起人对待办任务发起催办时通知办理人',0x01,'WF_TASK_REMINDED','工作流催办通知','default','2026-10-10 16:14:21.000000',NULL);
 /*!40000 ALTER TABLE `msg_event_definition` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -2132,7 +2176,7 @@ CREATE TABLE `msg_message` (
   `sender_type` varchar(32) NOT NULL,
   `status` enum('DELETED','FAILED','PENDING','READ','SENT') DEFAULT NULL,
   `template_code` varchar(64) NOT NULL,
-  `tenant_id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL COMMENT '租户ID',
   `title` varchar(255) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_tenant` (`tenant_id`),
@@ -2170,7 +2214,7 @@ CREATE TABLE `msg_recipient` (
   `phone` varchar(20) DEFAULT NULL,
   `sent_at` datetime(6) DEFAULT NULL,
   `status` enum('DELIVERED','FAILED','PENDING','READ','SENT') NOT NULL,
-  `tenant_id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL COMMENT '租户ID',
   `user_id` bigint(20) NOT NULL,
   `username` varchar(64) NOT NULL,
   PRIMARY KEY (`id`),
@@ -2209,7 +2253,7 @@ CREATE TABLE `msg_subscription_rule` (
   `enable` bit(1) NOT NULL,
   `event_code` varchar(64) NOT NULL,
   `priority` enum('HIGH','LOW','NORMAL','URGENT') DEFAULT NULL,
-  `tenant_id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL COMMENT '租户ID',
   PRIMARY KEY (`id`),
   KEY `idx_event_channel` (`event_code`,`channel`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
@@ -2247,12 +2291,12 @@ CREATE TABLE `msg_template` (
   `name` varchar(128) NOT NULL,
   `priority` enum('HIGH','LOW','NORMAL','URGENT') DEFAULT NULL,
   `template_code` varchar(64) NOT NULL,
-  `tenant_id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL COMMENT '租户ID',
   `title` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_tenant_template` (`tenant_id`,`template_code`),
   KEY `idx_channel` (`channel`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2262,6 +2306,10 @@ CREATE TABLE `msg_template` (
 SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `msg_template` WRITE;
 /*!40000 ALTER TABLE `msg_template` DISABLE KEYS */;
+INSERT INTO `msg_template` VALUES
+(1,'WORKFLOW','IN_APP','流程「${processName}」已流转至节点「${taskName}」，发起人：${initiatorName}，请及时处理。','TEXT','2026-10-10 16:14:21.000000',0x01,NULL,0x01,'工作流-任务待办通知','NORMAL','TPL_WF_TASK_ASSIGNED','default','您有新的待办任务：${taskName}'),
+(2,'WORKFLOW','IN_APP','您发起的流程「${processName}」（单号：${businessKey}）已全部审批完成。','TEXT','2026-10-10 16:14:21.000000',0x01,NULL,0x01,'工作流-办结通知','NORMAL','TPL_WF_PROCESS_FINISHED','default','您的流程「${processName}」已办结'),
+(3,'WORKFLOW','IN_APP','${senderName} 催促您尽快处理流程「${processName}」中的任务「${taskName}」。','TEXT','2026-10-10 16:14:21.000000',0x01,NULL,0x01,'工作流-催办通知','NORMAL','TPL_WF_TASK_REMINDED','default','催办提醒：${taskName}');
 /*!40000 ALTER TABLE `msg_template` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -2279,7 +2327,7 @@ CREATE TABLE `msg_user_subscription` (
   `channel` enum('APP','IN_APP','SMS','WECHAT_MINIPROGRAM','WECHAT_WORK') NOT NULL,
   `created_at` datetime(6) DEFAULT NULL,
   `subscribed` bit(1) NOT NULL,
-  `tenant_id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL COMMENT '租户ID',
   `updated_at` datetime(6) DEFAULT NULL,
   `user_id` bigint(20) NOT NULL,
   `username` varchar(64) NOT NULL,
@@ -2362,7 +2410,7 @@ CREATE TABLE `sys_dict_data` (
   `status` int(11) NOT NULL,
   `value` varchar(100) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2372,6 +2420,18 @@ CREATE TABLE `sys_dict_data` (
 SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `sys_dict_data` WRITE;
 /*!40000 ALTER TABLE `sys_dict_data` DISABLE KEYS */;
+INSERT INTO `sys_dict_data` VALUES
+(1,'2026-10-11 14:09:18.247661',NULL,0,'2026-10-11 14:09:18.247677',NULL,'customer_level','重要客户',1,1,'A'),
+(2,'2026-10-11 14:09:18.268103',NULL,0,'2026-10-11 14:09:18.268114',NULL,'customer_level','普通客户',2,1,'B'),
+(3,'2026-10-11 14:09:18.310523',NULL,0,'2026-10-11 14:09:18.310536',NULL,'customer_level','潜在客户',3,1,'C'),
+(4,'2026-10-11 14:15:15.206038',NULL,0,'2026-10-11 14:15:15.206051',NULL,'service_type','安装调试',0,1,'install'),
+(5,'2026-10-11 14:15:15.218800',NULL,0,'2026-10-11 14:15:15.218826',NULL,'service_type','定期巡检',1,1,'patrol'),
+(6,'2026-10-11 14:15:15.237576',NULL,0,'2026-10-11 14:15:15.237587',NULL,'service_type','故障维修',2,1,'repair'),
+(7,'2026-10-11 14:15:15.247042',NULL,0,'2026-10-11 14:15:15.247053',NULL,'service_type','培训支持',3,1,'training'),
+(8,'2026-10-11 14:24:58.411569',NULL,1,'2026-10-11 14:39:56.909878',NULL,'service_type','安装调试',1,1,'install'),
+(9,'2026-10-11 14:24:58.420763',NULL,1,'2026-10-11 14:39:56.929380',NULL,'service_type','维修保养',2,1,'repair'),
+(10,'2026-10-11 14:24:58.431522',NULL,1,'2026-10-11 14:39:56.949470',NULL,'service_type','定期巡检',3,1,'inspect'),
+(11,'2026-10-11 14:24:58.440181',NULL,1,'2026-10-11 14:39:56.968399',NULL,'service_type','操作培训',4,1,'training');
 /*!40000 ALTER TABLE `sys_dict_data` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -2397,7 +2457,7 @@ CREATE TABLE `sys_dict_type` (
   `status` int(11) NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `UKn09exsucyqm2v79fwvep1wtn9` (`dict_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2407,6 +2467,9 @@ CREATE TABLE `sys_dict_type` (
 SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `sys_dict_type` WRITE;
 /*!40000 ALTER TABLE `sys_dict_type` DISABLE KEYS */;
+INSERT INTO `sys_dict_type` VALUES
+(1,'2026-10-11 14:09:18.187864',NULL,0,'2026-10-11 14:09:18.187879',NULL,'customer_level','客户等级','组件演示-客户等级字典',1),
+(2,'2026-10-11 14:15:15.185083',NULL,0,'2026-10-11 14:15:15.185097',NULL,'service_type','服务类型',NULL,1);
 /*!40000 ALTER TABLE `sys_dict_type` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -2510,7 +2573,7 @@ CREATE TABLE `sys_menu` (
   `sort_order` int(11) DEFAULT NULL,
   `status` int(11) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=317 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=320 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2551,23 +2614,23 @@ INSERT INTO `sys_menu` VALUES
 (100,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,'Operation','流程管理',0,NULL,'/process',NULL,2,1),
 (101,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,'process/ProcessListPage','Document','流程定义',1,100,'/process/definition','process:definition:list',1,1),
 (102,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,'process/ProcessCenterPage','Files','流程中心',1,100,'/process/center','process:center:list',2,1),
-(103,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,'process/ProcessTodoPage','BellFilled','待办处理',1,100,'/process/todo','process:todo:list',3,1),
-(104,'2026-10-09 00:05:46.249000',NULL,0,'2026-10-09 00:05:46.249000',NULL,'process/ProcessDraftBoxPage','Files','草稿箱',1,100,'/process/drafts','process:drafts:list',4,1),
+(103,'2026-09-11 10:30:10.000000',NULL,0,'2026-10-10 16:14:21.983441',NULL,'process/ProcessTodoPage','BellFilled','待办处理',1,100,'/process/todo','process:todo:list',4,1),
+(104,'2026-10-10 16:14:21.983030',NULL,0,'2026-10-10 16:14:21.983030',NULL,'process/ProcessDraftBoxPage','Collection','草稿箱',1,100,'/process/drafts','process:draft:list',3,1),
 (110,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'流程创建',2,101,NULL,'process:definition:create',1,1),
 (111,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'流程部署',2,101,NULL,'process:definition:deploy',2,1),
 (112,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'流程删除',2,101,NULL,'process:definition:delete',3,1),
 (113,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'分类创建',2,104,NULL,'process:category:create',1,1),
 (114,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'分类编辑',2,104,NULL,'process:category:update',2,1),
 (115,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'分类删除',2,104,NULL,'process:category:delete',3,1),
-(120,'2026-09-11 10:30:10.000000',NULL,1,'2026-09-11 10:30:10.000000',NULL,NULL,'Tickets','表单管理',0,NULL,'/form',NULL,3,0),
-(121,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,'form/FormListPage','Document','表单列表',1,160,'/form','form:list',1,1),
+(120,'2026-09-11 10:30:10.000000',NULL,1,'2026-10-10 16:14:21.000000',NULL,NULL,'Tickets','表单管理',0,NULL,'/form',NULL,3,0),
+(121,'2026-09-11 10:30:10.000000',NULL,0,'2026-10-10 16:14:21.000000',NULL,'form/FormListPage','Document','表单列表',1,160,'/form','form:list',1,1),
 (130,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'表单创建',2,121,NULL,'form:create',1,1),
 (131,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'表单编辑',2,121,NULL,'form:edit',2,1),
 (132,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'表单发布',2,121,NULL,'form:publish',3,1),
 (133,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'表单删除',2,121,NULL,'form:delete',4,1),
-(140,'2026-09-11 10:30:10.000000',NULL,1,'2026-09-11 10:30:10.000000',NULL,NULL,'Grid','查询界面管理',0,NULL,'/page',NULL,4,0),
-(141,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,'page/PageListPage','Document','页面列表',1,160,'/page','page:list',1,1),
-(142,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,'dataSource/DataSourceListPage','Connection','数据源管理',1,160,'/data-source/list','data-source:list',2,1),
+(140,'2026-09-11 10:30:10.000000',NULL,1,'2026-10-10 16:14:21.000000',NULL,NULL,'Grid','查询界面管理',0,NULL,'/page',NULL,4,0),
+(141,'2026-09-11 10:30:10.000000',NULL,0,'2026-10-10 16:14:21.000000',NULL,'page/PageListPage','Document','页面列表',1,160,'/page','page:list',1,1),
+(142,'2026-09-11 10:30:10.000000',NULL,0,'2026-10-10 16:14:21.000000',NULL,'dataSource/DataSourceListPage','Connection','数据源管理',1,160,'/data-source/list','data-source:list',2,1),
 (150,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'页面创建',2,141,NULL,'page:create',1,1),
 (151,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'页面编辑',2,141,NULL,'page:edit',2,1),
 (152,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'页面发布',2,141,NULL,'page:publish',3,1),
@@ -2591,6 +2654,9 @@ INSERT INTO `sys_menu` VALUES
 (262,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'公告管理',2,260,NULL,'notification:announcement:manage',1,1),
 (263,'2026-09-11 10:30:10.000000',NULL,0,'2026-09-11 10:30:10.000000',NULL,NULL,NULL,'事件管理',2,261,NULL,'notification:event:manage',1,1),
 (300,'2026-10-09 00:05:46.249000',NULL,0,'2026-10-09 00:05:46.249000',NULL,'system/post/PostPage','User','岗位管理',1,1,'/system/post','system:post:list',6,1),
+(301,'2026-10-10 16:14:21.984038',NULL,0,'2026-10-10 16:14:21.984038',NULL,NULL,NULL,'岗位查询',2,300,NULL,'system:post:query',1,1),
+(302,'2026-10-10 16:14:21.984038',NULL,0,'2026-10-10 16:14:21.984038',NULL,NULL,NULL,'岗位新增',2,300,NULL,'system:post:create',2,1),
+(303,'2026-10-10 16:14:21.984038',NULL,0,'2026-10-10 16:14:21.984038',NULL,NULL,NULL,'岗位修改',2,300,NULL,'system:post:update',3,1),
 (304,'2026-09-15 18:42:37.587603',NULL,0,'2026-09-15 18:42:37.587603',NULL,'page/PageRenderer',NULL,'演示页面',1,160,'/page/test_page','page:read:test_page',0,1),
 (305,'2026-10-09 00:05:46.250000',NULL,0,'2026-10-09 00:05:46.270000',NULL,'system/member-group/MemberGroupPage','Connection','成员组管理',1,1,'/system/member-group','system:member-group:list',7,1),
 (306,'2026-10-03 01:29:54.395845',NULL,0,'2026-10-03 01:29:54.395861',NULL,'page/PageRenderer',NULL,'主页仪表盘',1,NULL,'/page/dashboard','page:read:dashboard',0,1),
@@ -2598,7 +2664,10 @@ INSERT INTO `sys_menu` VALUES
 (313,'2026-10-09 00:05:46.270000',NULL,0,'2026-10-09 00:05:46.270000',NULL,NULL,NULL,'成员组新增',2,305,NULL,'system:member-group:create',2,1),
 (314,'2026-10-09 00:05:46.270000',NULL,0,'2026-10-09 00:05:46.270000',NULL,NULL,NULL,'成员组修改',2,305,NULL,'system:member-group:update',3,1),
 (315,'2026-10-09 00:05:46.271000',NULL,0,'2026-10-09 00:05:46.271000',NULL,NULL,NULL,'成员组删除',2,305,NULL,'system:member-group:delete',4,1),
-(316,'2026-10-09 00:05:46.271000',NULL,0,'2026-10-09 00:05:46.271000',NULL,NULL,NULL,'成员维护',2,305,NULL,'system:member-group:member',5,1);
+(316,'2026-10-09 00:05:46.271000',NULL,0,'2026-10-09 00:05:46.271000',NULL,NULL,NULL,'成员维护',2,305,NULL,'system:member-group:member',5,1),
+(317,'2026-10-10 14:51:19.780829',NULL,0,'2026-10-10 14:51:19.780845',NULL,'page/PageRenderer',NULL,'表格增强E2E',1,NULL,'/page/table-enhance-e2e','page:read:table-enhance-e2e',0,1),
+(318,'2026-10-10 14:58:34.421971',NULL,1,'2026-10-10 14:58:45.577307',NULL,'page/PageRenderer',NULL,'表格增强E2E',1,NULL,'/page/table-enhance-e2e','page:read:table-enhance-e2e',0,1),
+(319,'2026-10-11 15:19:25.498182',NULL,0,'2026-10-11 15:19:25.498196',NULL,'page/PageRenderer',NULL,'组件演示·数据详情与步骤条',1,NULL,'/page/page_detail_steps_demo','page:read:page_detail_steps_demo',0,1);
 /*!40000 ALTER TABLE `sys_menu` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -2735,7 +2804,7 @@ CREATE TABLE `sys_role_menu` (
   `menu_id` bigint(20) NOT NULL,
   `role_id` bigint(20) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=111 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2813,7 +2882,6 @@ INSERT INTO `sys_role_menu` VALUES
 (82,262,1),
 (83,263,1),
 (87,304,1),
-(88,104,1),
 (89,300,1),
 (90,305,1),
 (91,312,1),
@@ -2823,7 +2891,14 @@ INSERT INTO `sys_role_menu` VALUES
 (95,316,1),
 (98,170,1),
 (99,171,1),
-(100,306,1);
+(100,306,1),
+(101,317,1),
+(102,318,1),
+(103,104,1),
+(104,301,1),
+(105,302,1),
+(106,303,1),
+(110,319,1);
 /*!40000 ALTER TABLE `sys_role_menu` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -3059,6 +3134,163 @@ COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
+-- Table structure for table `wf_biz_cust_demo`
+--
+
+DROP TABLE IF EXISTS `wf_biz_cust_demo`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wf_biz_cust_demo` (
+  `id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL,
+  `customerName` varchar(255) DEFAULT NULL,
+  `customerStatus` varchar(255) DEFAULT NULL,
+  `owner` varchar(255) DEFAULT NULL,
+  `phone` varchar(255) DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT 1,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `wf_biz_cust_demo`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `wf_biz_cust_demo` WRITE;
+/*!40000 ALTER TABLE `wf_biz_cust_demo` DISABLE KEYS */;
+INSERT INTO `wf_biz_cust_demo` VALUES
+('177eba8f5568491db45333e28ea3d0d6','default','南京重工装备','已停用','王强','025-87654321',1,NULL,NULL,NULL),
+('76e5f97ee8ef4eaab8520221d91ecd47','default',NULL,NULL,NULL,NULL,1,NULL,NULL,NULL),
+('b33dc099d8bd4a84af2831ea5b2c582e','default','杭州智联科技','筹建中','李静','0571-88992211',1,NULL,NULL,NULL),
+('eae44e6218af4ee683967ccb691af219','default','苏州精密机械有限公司','运行中','张伟','0512-66881234',1,NULL,NULL,NULL);
+/*!40000 ALTER TABLE `wf_biz_cust_demo` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `wf_biz_cust_rel_demo`
+--
+
+DROP TABLE IF EXISTS `wf_biz_cust_rel_demo`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wf_biz_cust_rel_demo` (
+  `id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL,
+  `Fyczmv3ks22dabc` varchar(255) DEFAULT NULL,
+  `Ffxemv3ksch9aec` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`Ffxemv3ksch9aec`)),
+  `Ffxemv3ksch9aec_text` varchar(255) DEFAULT NULL,
+  `Fzgimv3kskiaahc` varchar(255) DEFAULT NULL,
+  `Fqgomv3ksnqrakc` varchar(255) DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT 1,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `wf_biz_cust_rel_demo`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `wf_biz_cust_rel_demo` WRITE;
+/*!40000 ALTER TABLE `wf_biz_cust_rel_demo` DISABLE KEYS */;
+INSERT INTO `wf_biz_cust_rel_demo` VALUES
+('4813d6c853cb4e1ba392841dde2853e3','default','华东石化','\"已停用\"','已停用','张伟','0512-66881234',3,NULL,NULL,'2026-10-11 08:59:33'),
+('c720b7cad0684725b5a6aeb445b66931','default','长安物流','\"已停用\"','已停用','李娜','029-87654321',1,NULL,NULL,NULL),
+('d482f21fe9944974ab64ef7391dd29e5','default','鄂尔多斯矿业','\"筹建中\"','筹建中','王强','0477-1234567',1,NULL,NULL,NULL);
+/*!40000 ALTER TABLE `wf_biz_cust_rel_demo` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `wf_biz_e2enew_task`
+--
+
+DROP TABLE IF EXISTS `wf_biz_e2enew_task`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wf_biz_e2enew_task` (
+  `id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL,
+  `person_name` varchar(64) DEFAULT NULL,
+  `amount` decimal(18,2) DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT 1,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `Fv0omv3h07d5atc` varchar(64) DEFAULT NULL,
+  `Fdi2mv3gziozaec` varchar(255) DEFAULT NULL,
+  `Fdv8mv3gzvpgahc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`Fdv8mv3gzvpgahc`)),
+  `Fdv8mv3gzvpgahc_text` varchar(255) DEFAULT NULL,
+  `Fg1jmv3h00m0akc` varchar(255) DEFAULT NULL,
+  `F9pbmv3h01t7anc` varchar(255) DEFAULT NULL,
+  `Fruqmv3h038daqc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`Fruqmv3h038daqc`)),
+  `Fl7fmv3hdvaoawc` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `wf_biz_e2enew_task`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `wf_biz_e2enew_task` WRITE;
+/*!40000 ALTER TABLE `wf_biz_e2enew_task` DISABLE KEYS */;
+INSERT INTO `wf_biz_e2enew_task` VALUES
+('41323a0ad6804eb0bbac899914fa5887','default',NULL,NULL,5,NULL,NULL,'2026-10-11 08:03:33','BN202610110001','输入框','[\"3\"]','/选项201/选项101/选项01','北京市/北京市/东城区',NULL,NULL,'{\"name\":\"兰州拉面馆\",\"lat\":30.505107,\"lng\":114.393692}');
+/*!40000 ALTER TABLE `wf_biz_e2enew_task` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `wf_biz_follow_rel_demo`
+--
+
+DROP TABLE IF EXISTS `wf_biz_follow_rel_demo`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wf_biz_follow_rel_demo` (
+  `id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL,
+  `F69lmv3l1n2iabc` varchar(255) DEFAULT NULL,
+  `dataPicker1791708613713` text DEFAULT NULL,
+  `dataPicker1791708613713_text` text DEFAULT NULL,
+  `F917mv3l3tdeagc` varchar(255) DEFAULT NULL,
+  `Fvfbmv3l3wnlajc` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`Fvfbmv3l3wnlajc`)),
+  `version` int(11) NOT NULL DEFAULT 1,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `wf_biz_follow_rel_demo`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `wf_biz_follow_rel_demo` WRITE;
+/*!40000 ALTER TABLE `wf_biz_follow_rel_demo` DISABLE KEYS */;
+INSERT INTO `wf_biz_follow_rel_demo` VALUES
+('60ea2aea2da8436c9cb4e7dbcba8909a','default','华东石化年度巡检','[\"4813d6c853cb4e1ba392841dde2853e3\"]','[\"华东石化\"]','完成年度安全巡检，设备运行正常，下季度安排检修',NULL,4,NULL,NULL,'2026-10-11 14:13:56');
+/*!40000 ALTER TABLE `wf_biz_follow_rel_demo` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
 -- Table structure for table `wf_biz_leave_apply_biz`
 --
 
@@ -3096,6 +3328,120 @@ COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
+-- Table structure for table `wf_biz_loc_v3_e2e`
+--
+
+DROP TABLE IF EXISTS `wf_biz_loc_v3_e2e`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wf_biz_loc_v3_e2e` (
+  `id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL,
+  `Fagnmv3jgkrsabc` varchar(255) DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT 1,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `wf_biz_loc_v3_e2e`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `wf_biz_loc_v3_e2e` WRITE;
+/*!40000 ALTER TABLE `wf_biz_loc_v3_e2e` DISABLE KEYS */;
+/*!40000 ALTER TABLE `wf_biz_loc_v3_e2e` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `wf_biz_member_group`
+--
+
+DROP TABLE IF EXISTS `wf_biz_member_group`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wf_biz_member_group` (
+  `id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL,
+  `group_name` varchar(255) NOT NULL,
+  `description` text DEFAULT NULL,
+  `members` text DEFAULT NULL,
+  `members_text` text DEFAULT NULL,
+  `post_rules` text DEFAULT NULL,
+  `post_rules_text` text DEFAULT NULL,
+  `org_rules` text DEFAULT NULL,
+  `org_rules_text` text DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT 1,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='成员组（业务表单 member_group 数据）';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `wf_biz_member_group`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `wf_biz_member_group` WRITE;
+/*!40000 ALTER TABLE `wf_biz_member_group` DISABLE KEYS */;
+/*!40000 ALTER TABLE `wf_biz_member_group` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `wf_biz_onsite_service_demo`
+--
+
+DROP TABLE IF EXISTS `wf_biz_onsite_service_demo`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wf_biz_onsite_service_demo` (
+  `id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL,
+  `orderNo` varchar(64) DEFAULT NULL,
+  `topic` varchar(255) DEFAULT NULL,
+  `serviceType` varchar(255) DEFAULT NULL,
+  `serviceArea` varchar(255) DEFAULT NULL,
+  `siteLocation` varchar(255) DEFAULT NULL,
+  `siteNote` varchar(255) DEFAULT NULL,
+  `customerId` text DEFAULT NULL,
+  `customerId_text` text DEFAULT NULL,
+  `internalNote` varchar(255) DEFAULT NULL,
+  `revisit` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`revisit`)),
+  `revisit_text` varchar(255) DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT 1,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `wf_biz_onsite_service_demo`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `wf_biz_onsite_service_demo` WRITE;
+/*!40000 ALTER TABLE `wf_biz_onsite_service_demo` DISABLE KEYS */;
+INSERT INTO `wf_biz_onsite_service_demo` VALUES
+('317b9f6748734aad89650515dfa70f66','default','SVD202610110002',NULL,'repair','浙江省/杭州市/西湖区','{\"name\":\"客户厂区大门\",\"lat\":34.853256,\"lng\":101.601563}',NULL,'[\"4813d6c853cb4e1ba392841dde2853e3\"]','[\"华东石化\"]','客户设备清单需在签约后 3 个工作日内提供','[\"confirmed\"]','已确认回访计划',2,NULL,NULL,'2026-10-11 14:45:03'),
+('60709ea83bfe4afb94827800062222a9','default','SVD202610110001','产线传感器安装调试','install','江苏省/苏州市/姑苏区',NULL,NULL,NULL,'',NULL,NULL,NULL,1,NULL,NULL,NULL),
+('d26e9e53d7bb45f181b5e768f4a718b3','default','SVD202610110003','产线传感器安装调试','install','江苏省/苏州市/姑苏区','{\"name\":\"客户厂区大门\",\"lat\":34.853256,\"lng\":101.601563}','现场勘查完成，传感器点位已确认','[\"4813d6c853cb4e1ba392841dde2853e3\"]','[\"华东石化\"]','客户设备清单需在签约后 3 个工作日内提供','[\"confirmed\"]','已确认回访计划',1,NULL,NULL,NULL);
+/*!40000 ALTER TABLE `wf_biz_onsite_service_demo` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
 -- Table structure for table `wf_biz_person`
 --
 
@@ -3126,8 +3472,51 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `wf_biz_person` WRITE;
 /*!40000 ALTER TABLE `wf_biz_person` DISABLE KEYS */;
 INSERT INTO `wf_biz_person` VALUES
-('7567d2a6c0f843b990c0d59b609453f2','default','001','张三','[\"2\"]','/总公司/武汉分公司',2,NULL,NULL,'2026-09-11 15:20:06');
+('15e708ee1093452d98a677a9341f7353','default','IMP002','往返验证','\"QA部\"',NULL,1,NULL,NULL,NULL),
+('7567d2a6c0f843b990c0d59b609453f2','default','001','张三','[\"2\"]','/总公司/武汉分公司',2,NULL,NULL,'2026-09-11 15:20:06'),
+('918e21bf90684eb290b365a95325a986','default','IMP001','导入验证','\"测试部\"',NULL,1,NULL,NULL,NULL),
+('f435c8b15b0a454fb3513cc24356489e','default','IMP003','浏览器上传','\"验证部\"',NULL,1,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `wf_biz_person` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `wf_biz_visit_demo`
+--
+
+DROP TABLE IF EXISTS `wf_biz_visit_demo`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wf_biz_visit_demo` (
+  `id` varchar(64) NOT NULL,
+  `tenant_id` varchar(64) NOT NULL,
+  `visitNo` varchar(64) DEFAULT NULL,
+  `customerName` varchar(255) DEFAULT NULL,
+  `customerLevel` varchar(255) DEFAULT NULL,
+  `visitRegion` varchar(255) DEFAULT NULL,
+  `visitLocation` varchar(255) DEFAULT NULL,
+  `visitSummary` text DEFAULT NULL,
+  `competitor` varchar(255) DEFAULT NULL,
+  `followPlan` text DEFAULT NULL,
+  `relCustomer` text DEFAULT NULL,
+  `relCustomer_text` text DEFAULT NULL,
+  `version` int(11) NOT NULL DEFAULT 1,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `wf_biz_visit_demo`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `wf_biz_visit_demo` WRITE;
+/*!40000 ALTER TABLE `wf_biz_visit_demo` DISABLE KEYS */;
+/*!40000 ALTER TABLE `wf_biz_visit_demo` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
@@ -3193,7 +3582,8 @@ CREATE TABLE `wf_data_source` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_ds_tenant_name` (`tenant_id`,`name`),
   UNIQUE KEY `uk_ds_tenant_source_key` (`tenant_id`,`source_key`),
-  KEY `idx_ds_tenant_type` (`tenant_id`,`type`)
+  KEY `idx_ds_tenant_type` (`tenant_id`,`type`),
+  KEY `idx_wf_data_source_form_id` (`form_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -3206,17 +3596,25 @@ LOCK TABLES `wf_data_source` WRITE;
 /*!40000 ALTER TABLE `wf_data_source` DISABLE KEYS */;
 INSERT INTO `wf_data_source` VALUES
 ('089688bb7ce443e1a9ab56b7b62ab27d','2026-09-27 00:48:10.000000','system','299f7fcdfde04c309f8339772f44b604','ai_muimil5t78','费用报销审批流程表单 数据源',NULL,'ai_muimil5t78','ENABLED','default','WORKFLOW','2026-09-27 00:48:10.000000'),
+('096e15ce986f4dd289a0d1b9392941d2','2026-10-11 10:52:01.183887',NULL,NULL,'member_group','成员分组 数据源','{\"list\":{\"action\":\"/api/v1/biz-data/member_group\",\"method\":\"GET\",\"parse\":\"records\",\"totalParse\":\"total\"},\"create\":{\"action\":\"/api/v1/biz-data/member_group\",\"method\":\"POST\"},\"get\":{\"action\":\"/api/v1/biz-data/member_group/{id}\",\"method\":\"GET\"},\"update\":{\"action\":\"/api/v1/biz-data/member_group/{id}\",\"method\":\"PUT\"},\"delete\":{\"action\":\"/api/v1/biz-data/member_group/{id}\",\"method\":\"DELETE\"}}','member_group','ENABLED','default','FORM','2026-10-11 10:52:01.226753'),
 ('12cc1853648942ea8608dd53b4f43ee2','2026-09-24 13:05:27.000000','system','8a1c28f22312b38ba4414914e6b504cf','ai_xiaozhi_test','AI小智测试表单 数据源',NULL,'ai_xiaozhi_test','ENABLED','default','WORKFLOW','2026-09-24 13:05:27.000000'),
 ('1cc15d6e514842869f324fb13da0d9ce','2026-09-24 14:16:31.000000','system','9e24468dbcf5e57cdeeddcc7934e629f','ai_muf52ksu88','办公用品登记业务表单 数据源','{\"list\":{\"action\":\"/api/v1/biz-data/ai_muf52ksu88\",\"method\":\"GET\",\"parse\":\"records\",\"totalParse\":\"total\"},\"create\":{\"action\":\"/api/v1/biz-data/ai_muf52ksu88\",\"method\":\"POST\"},\"get\":{\"action\":\"/api/v1/biz-data/ai_muf52ksu88/{id}\",\"method\":\"GET\"},\"update\":{\"action\":\"/api/v1/biz-data/ai_muf52ksu88/{id}\",\"method\":\"PUT\"},\"delete\":{\"action\":\"/api/v1/biz-data/ai_muf52ksu88/{id}\",\"method\":\"DELETE\"}}','ai_muf52ksu88','ENABLED','default','FORM','2026-09-25 02:05:14.000000'),
+('1d92fcc347644f3e8f07d4fdf71f3201','2026-10-10 11:28:48.808004','system','9a9d579d70e94207b76c997953ba8400','e2enew_task','新节点E2E临时表单 数据源',NULL,'e2enew_task','ENABLED','default','FORM','2026-10-10 11:28:48.808014'),
 ('20f476f047ca4386bfd1365ea5516832','2026-09-11 14:51:23.835660','system','2c229e1269c74446950c2e8d5ce0dd0f','person','请假人员 数据源',NULL,'person','ENABLED','default','FORM','2026-09-11 14:51:23.835660'),
 ('3f014ac986314285ae2216bd24dc433e','2026-09-27 00:52:03.000000','system','e13dba23da7ce03c664dc626db550605','ai_muimnle734','办公用品领用流程表单 数据源',NULL,'ai_muimnle734','ENABLED','default','WORKFLOW','2026-09-27 00:52:03.000000'),
 ('40dae5b2311f4be9a4379a3022e23a52','2026-09-24 14:36:33.000000','system','648b850b40637d18d6dcdd90211a84fb','ai_muf5sckj12','会议室预约业务表单 数据源',NULL,'ai_muf5sckj12','ENABLED','default','FORM','2026-09-24 15:01:37.000000'),
 ('50613845c2674d1e9037b6986a6c163c','2026-09-27 00:51:01.000000','system','088678179269fbc56c5c157386ccbbb3','ai_muimm9du49','出差申请审批流程表单 数据源',NULL,'ai_muimm9du49','ENABLED','default','WORKFLOW','2026-09-27 00:51:01.000000'),
+('7efcd8f220a84e13a13b444b211782e4','2026-10-11 14:17:41.449344','system','0fb5ec0bf2674c2c913beb430853a91b','onsite_service_demo','现场服务工单-组件演示 数据源',NULL,'onsite_service_demo','ENABLED','default','FORM','2026-10-11 14:17:41.449353'),
 ('869f98e37736434e9e1d551dac877628','2026-09-27 00:43:12.000000','system','73fc3be4d32a2d1b704f022eb61d1f99','ai_muimc7p374','员工请假审批流程表单 数据源',NULL,'ai_muimc7p374','ENABLED','default','WORKFLOW','2026-09-27 00:43:12.000000'),
+('8d5e137ffad04c86abd9de93f7a695cf','2026-10-11 08:06:14.862673','system','3210c5ce0541489682722f0b76fb3a50','loc_v3_e2e','定位v3持久化E2E 数据源',NULL,'loc_v3_e2e','ENABLED','default','FORM','2026-10-11 08:06:14.862680'),
 ('91ec520d8f484b68b9307398fe2e15c0','2026-09-24 14:20:57.000000','system','579351c3534ce256077a37b017b91430','ai_muf58a5n38','员工报销申请 数据源',NULL,'ai_muf58a5n38','ENABLED','default','FORM','2026-09-24 15:00:55.000000'),
+('955eb5e149924191ab2d4b9e909d98e4','2026-10-11 14:09:18.462027','system','e8012c32c67c460583df0b8f24fd025d','visit_demo','客户拜访工单-组件演示 数据源',NULL,'visit_demo','ENABLED','default','FORM','2026-10-11 14:09:18.462035'),
+('977d6c2398734773ad0ff0de5aeb41fe','2026-10-11 14:16:35.735037','system','7e08fa60b7bb44ce906b12ebd6ff1bc7','cust_demo','客户档案-组件演示 数据源',NULL,'cust_demo','ENABLED','default','FORM','2026-10-11 14:16:35.735047'),
+('a4187314fe3342c1ac5d6d52cc099a18','2026-10-11 08:43:50.053320','system','fe5b9d00f241420884f468d61e0c31fe','cust_rel_demo','客户档案-关联演示 数据源',NULL,'cust_rel_demo','ENABLED','default','FORM','2026-10-11 08:43:50.053332'),
 ('a56b4b818d064127bd431c24ef90b03a','2026-09-11 10:49:28.260468','system','3761079572ed48158ccd31159a3ac7ae','leave_apply_biz','请假单-业务表单 数据源','{\"queryMode\":\"config\",\"joins\":[{\"alias\":\"j1\",\"targetFormKey\":\"person\",\"localField\":\"user_id\",\"foreignField\":\"id\",\"joinField\":\"name\",\"virtualKey\":\"leave_name\",\"label\":\"姓名-请假人\",\"sortable\":true,\"filterable\":true},{\"targetFormKey\":\"person\",\"localField\":\"user_id\",\"foreignField\":\"id\",\"joinField\":\"dept\",\"virtualKey\":\"leave_dept\",\"label\":\"部门-请假人\",\"sortable\":true,\"filterable\":true}]}','leave_apply_biz','ENABLED','default','FORM','2026-09-11 19:23:44.936285'),
 ('a9d5b0d6f0274d19b6f39937175620c3','2026-09-15 19:02:45.648946','system','dadf29ae8b54497eaa0d64447e87bbf6','baoxiaodan','报销单 数据源',NULL,'baoxiaodan','ENABLED','default','WORKFLOW','2026-09-15 19:02:45.648946'),
 ('cc78ce9ddc784f04ba4b8871285e5779','2026-09-24 15:33:58.000000','system','e6d2ffd44a6baf0d26f10a99d656c705','ai_muf7u70h84','会议室预约表单 数据源',NULL,'ai_muf7u70h84','ENABLED','default','FORM','2026-09-24 15:33:58.000000'),
+('d7311eac39334529bb1b62824cb3e10d','2026-10-11 08:53:10.988085','system','866315bf3cdb4effbfd25ed8b05e1d2a','follow_rel_demo','跟进工单-关联演示 数据源',NULL,'follow_rel_demo','ENABLED','default','FORM','2026-10-11 08:53:10.988095'),
 ('dda21b336e3d444d9370aa881316106b','2026-09-24 14:09:29.000000','system','e6ab86607aca0f4dce285f108687f67a','ai_muf4tjek39','员工请假业务表单 数据源',NULL,'ai_muf4tjek39','ENABLED','default','FORM','2026-09-24 15:26:21.000000'),
 ('ds-builtin-dept-tree','2026-10-09 00:05:46.000000','system',NULL,NULL,'组织机构','{\"list\":{\"action\":\"/api/v1/internal/system/dept-tree\",\"method\":\"GET\"}}','dept-tree','ENABLED','system','SYSTEM','2026-10-09 00:05:46.000000'),
 ('ds-builtin-process-definitions','2026-10-09 00:05:46.000000','system',NULL,NULL,'流程定义','{\"list\":{\"action\":\"/api/v1/internal/system/process/definitions\",\"method\":\"GET\"}}','process-definitions','ENABLED','system','SYSTEM','2026-10-09 00:05:46.000000'),
@@ -3341,18 +3739,32 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `wf_form_def` WRITE;
 /*!40000 ALTER TABLE `wf_form_def` DISABLE KEYS */;
 INSERT INTO `wf_form_def` VALUES
-('2c229e1269c74446950c2e8d5ce0dd0f','[{\"key\": \"code\", \"label\": \"人员编码\", \"scale\": null, \"length\": 255, \"unique\": true, \"indexed\": false, \"required\": true, \"columnType\": \"VARCHAR\", \"componentType\": \"input\"}, {\"key\": \"name\", \"label\": \"人员姓名\", \"scale\": null, \"length\": 255, \"unique\": false, \"indexed\": false, \"required\": true, \"columnType\": \"VARCHAR\", \"componentType\": \"input\"}, {\"key\": \"dept\", \"label\": \"所属部门\", \"scale\": null, \"length\": null, \"unique\": false, \"indexed\": false, \"required\": false, \"columnType\": \"JSON\", \"componentType\": \"elTreeSelect\"}, {\"key\": \"dept_text\", \"label\": \"所属部门（显示）\", \"scale\": null, \"hidden\": true, \"length\": 255, \"unique\": false, \"indexed\": false, \"required\": false, \"columnType\": \"VARCHAR\", \"componentType\": \"elTreeSelectText\"}]','2026-09-11 14:47:27.076157',NULL,'person','请假人员',NULL,1,'{\"rule\":[{\"type\":\"input\",\"field\":\"code\",\"title\":\"人员编码\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_F5xsmtwlgfp0afc\",\"name\":\"ref_Fh05mtwlgfp0agc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"input\"},{\"type\":\"input\",\"field\":\"name\",\"title\":\"人员姓名\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_Fmscmtwlgdfgacc\",\"name\":\"ref_Fgksmtwlgdfgadc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"input\"},{\"type\":\"elTreeSelect\",\"field\":\"dept\",\"title\":\"所属部门\",\"info\":\"\",\"effect\":{\"fetch\":\"\",\"datasource\":{\"dataSourceId\":\"ds_mtwljll5\",\"labelField\":\"label\",\"valueField\":\"id\",\"parentField\":\"parentId\"}},\"$required\":false,\"props\":{\"nodeKey\":\"value\",\"showCheckbox\":true,\"_optionType\":6},\"_fc_id\":\"id_F27smtwliv68aoc\",\"name\":\"ref_F44gmtwliv68apc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"elTreeSelect\"}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"请假人员\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"}},\"dataSources\":[{\"id\":\"ds_mtwljll5\",\"refId\":\"67043fe7960b4b2098e88b69330c8b62\",\"name\":\"部门树数据源\"}],\"actions\":[]}','PUBLISHED','default','BUSINESS','2026-09-11 14:51:23.835660',1),
+('0fb5ec0bf2674c2c913beb430853a91b','[{\"key\": \"orderNo\", \"label\": \"工单编号\", \"columnType\": \"VARCHAR\", \"length\": 64, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"AutoNumber\"}, {\"key\": \"topic\", \"label\": \"服务主题\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"input\"}, {\"key\": \"serviceType\", \"label\": \"服务类型\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"dictSelect\"}, {\"key\": \"serviceArea\", \"label\": \"服务地址\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"areaPicker\"}, {\"key\": \"siteLocation\", \"label\": \"现场定位\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"LocationPicker\"}, {\"key\": \"siteNote\", \"label\": \"现场纪要\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"input\"}, {\"key\": \"customerId\", \"label\": \"关联客户\", \"columnType\": \"TEXT\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"dataPicker\", \"pickerConfig\": \"{\\\"sourceFormKey\\\": \\\"cust_demo\\\", \\\"dataSourceId\\\": null, \\\"displayField\\\": \\\"customerName\\\", \\\"maxCount\\\": 1, \\\"pickerType\\\": \\\"dataPicker\\\"}\"}, {\"key\": \"customerId_text\", \"label\": \"关联客户（显示）\", \"columnType\": \"TEXT\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"dataPickerText\", \"hidden\": true}, {\"key\": \"internalNote\", \"label\": \"内部备注\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"input\"}, {\"key\": \"revisit\", \"label\": \"回访计划\", \"columnType\": \"JSON\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"checkbox\"}, {\"key\": \"revisit_text\", \"label\": \"回访计划（显示）\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"checkboxText\", \"hidden\": true}]','2026-10-11 14:17:41.395509',NULL,'onsite_service_demo','现场服务工单-组件演示',NULL,1,'{\"rule\": [{\"type\": \"StepsForm\", \"props\": {\"steps\": [{\"title\": \"基本信息\", \"description\": \"工单编号与服务内容\"}, {\"title\": \"现场信息\", \"description\": \"定位与现场纪要\"}, {\"title\": \"关联客户\", \"description\": \"选择客户查看实时档案\"}], \"active\": 0, \"direction\": \"horizontal\"}, \"style\": {\"width\": \"100%\"}, \"children\": [{\"type\": \"elCard\", \"props\": {\"header\": \"第一步：基本信息\"}, \"children\": [{\"type\": \"AutoNumber\", \"field\": \"orderNo\", \"title\": \"工单编号\", \"props\": {\"prefix\": \"SVD\", \"dateFormat\": \"yyyyMMdd\", \"resetPolicy\": \"day\", \"seqDigits\": 4}, \"info\": \"提交后由后端自动生成\"}, {\"type\": \"input\", \"field\": \"topic\", \"title\": \"服务主题\", \"props\": {\"placeholder\": \"如：2号产线传感器更换\"}}, {\"type\": \"dictSelect\", \"field\": \"serviceType\", \"title\": \"服务类型\", \"props\": {\"dictTypeCode\": \"service_type\", \"placeholder\": \"请选择服务类型\", \"clearable\": true}}, {\"type\": \"areaPicker\", \"field\": \"serviceArea\", \"title\": \"服务地址\", \"props\": {\"placeholder\": \"请选择省/市/区\", \"clearable\": true, \"showAllLevels\": true}}]}, {\"type\": \"elCard\", \"props\": {\"header\": \"第二步：现场信息\"}, \"children\": [{\"type\": \"LocationPicker\", \"field\": \"siteLocation\", \"title\": \"现场定位\", \"props\": {\"placeholder\": \"点击选择位置\", \"clearable\": true}}, {\"type\": \"input\", \"field\": \"siteNote\", \"title\": \"现场纪要\", \"props\": {\"type\": \"textarea\", \"rows\": 3, \"placeholder\": \"现场情况记录（多行）\"}}]}, {\"type\": \"elCard\", \"props\": {\"header\": \"第三步：关联客户\"}, \"children\": [{\"type\": \"dataPicker\", \"field\": \"customerId\", \"title\": \"关联客户\", \"props\": {\"sourceFormKey\": \"cust_demo\", \"displayField\": \"customerName\", \"maxCount\": 1}}, {\"type\": \"RelationCard\", \"field\": \"relCard\", \"title\": \"客户实时档案\", \"props\": {\"title\": \"客户实时档案\", \"globalDataSourceId\": \"977d6c2398734773ad0ff0de5aeb41fe\", \"recordIdField\": \"customerId\", \"displayFields\": [\"customerName\", \"customerStatus\", \"owner\", \"phone\"], \"clickable\": true, \"description\": \"数据实时来自客户数据源，源数据变更后自动展示最新值\"}}]}]}, {\"type\": \"DrawerContainer\", \"props\": {\"buttonText\": \"扩展信息\", \"buttonType\": \"primary\", \"plain\": true, \"title\": \"扩展信息\", \"size\": \"40%\"}, \"style\": {\"width\": \"100%\"}, \"children\": [{\"type\": \"input\", \"field\": \"internalNote\", \"title\": \"内部备注\", \"props\": {\"placeholder\": \"仅内部可见（存于抽屉容器）\"}}, {\"type\": \"checkbox\", \"field\": \"revisit\", \"title\": \"回访计划\", \"options\": [{\"label\": \"已确认回访计划\", \"value\": \"confirmed\"}, {\"label\": \"需要技术支持跟进\", \"value\": \"tech\"}]}]}], \"option\": {\"form\": {\"labelPosition\": \"right\", \"labelWidth\": \"110px\"}, \"submitBtn\": true, \"resetBtn\": false}}','PUBLISHED','1','BUSINESS','2026-10-11 14:17:41.449705',1),
+('2c229e1269c74446950c2e8d5ce0dd0f','[{\"key\":\"code\",\"label\":\"人员编码\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"name\",\"label\":\"人员姓名\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"dept\",\"label\":\"所属部门\",\"columnType\":\"JSON\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"elTreeSelect\"},{\"key\":\"dept_text\",\"label\":\"所属部门（显示）\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":true,\"componentType\":\"elTreeSelectText\"}]','2026-09-11 14:47:27.076157',NULL,'person','请假人员',NULL,1,'{\"rule\":[{\"type\":\"input\",\"field\":\"code\",\"title\":\"人员编码\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_F5xsmtwlgfp0afc\",\"name\":\"ref_Fh05mtwlgfp0agc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"name\",\"title\":\"人员姓名\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_Fmscmtwlgdfgacc\",\"name\":\"ref_Fgksmtwlgdfgadc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"elTreeSelect\",\"field\":\"dept\",\"title\":\"所属部门\",\"info\":\"\",\"effect\":{\"fetch\":\"\",\"datasource\":{\"dataSourceId\":\"ds_mtwljll5\",\"labelField\":\"label\",\"valueField\":\"id\",\"parentField\":\"parentId\"}},\"$required\":false,\"props\":{\"nodeKey\":\"value\",\"showCheckbox\":true,\"_optionType\":6},\"_fc_id\":\"id_F27smtwliv68aoc\",\"name\":\"ref_F44gmtwliv68apc\",\"_fc_drag_tag\":\"elTreeSelect\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"请假人员\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"},\"formName\":\"请假人员\"},\"dataSources\":[{\"id\":\"ds_mtwljll5\",\"refId\":\"ds-builtin-dept-tree\",\"name\":\"组织机构\"}],\"actions\":[]}','PUBLISHED','default','BUSINESS','2026-10-10 14:51:46.908716',1),
+('3210c5ce0541489682722f0b76fb3a50','[{\"key\":\"Fagnmv3jgkrsabc\",\"label\":\"定位\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"LocationPicker\"}]','2026-10-11 08:05:31.606206',NULL,'loc_v3_e2e','定位v3持久化E2E',NULL,1,'{\"rule\":[{\"type\":\"LocationPicker\",\"field\":\"Fagnmv3jgkrsabc\",\"title\":\"定位\",\"info\":\"点击弹出地图选点，可对位置命名；名称与坐标同时保存，重开可回放标记\",\"$required\":false,\"props\":{\"placeholder\":\"点击选择位置\",\"disabled\":false,\"clearable\":true},\"_fc_id\":\"id_Fcovmv3jgkrsacc\",\"name\":\"ref_Fuk1mv3jgkrsadc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"LocationPicker\"}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"定位v3持久化E2E\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"}},\"dataSources\":[],\"actions\":[]}','PUBLISHED','default','BUSINESS','2026-10-11 08:06:14.863145',1),
 ('3761079572ed48158ccd31159a3ac7ae','[{\"key\": \"leave_type\", \"label\": \"请假类别\", \"scale\": null, \"length\": null, \"unique\": false, \"indexed\": false, \"required\": false, \"columnType\": \"JSON\", \"componentType\": \"select\"}, {\"key\": \"leave_type_text\", \"label\": \"请假类别（显示）\", \"scale\": null, \"hidden\": true, \"length\": 255, \"unique\": false, \"indexed\": false, \"required\": false, \"columnType\": \"VARCHAR\", \"componentType\": \"selectText\"}, {\"key\": \"reason\", \"label\": \"请假原因\", \"scale\": null, \"length\": 255, \"unique\": false, \"indexed\": false, \"required\": false, \"columnType\": \"VARCHAR\", \"componentType\": \"input\"}, {\"key\": \"user_id\", \"label\": \"人员ID\", \"scale\": null, \"hidden\": true, \"length\": 255, \"unique\": false, \"indexed\": false, \"required\": false, \"columnType\": \"VARCHAR\", \"componentType\": \"input\"}, {\"key\": \"name\", \"label\": \"人员姓名\", \"scale\": null, \"length\": 255, \"unique\": false, \"indexed\": false, \"required\": false, \"columnType\": \"VARCHAR\", \"pickerConfig\": \"{\\\"displayField\\\":\\\"name\\\",\\\"mode\\\":\\\"single\\\",\\\"pickerType\\\":\\\"lookupPicker\\\"}\", \"componentType\": \"LookupPicker\"}]','2026-09-11 10:49:28.254947',NULL,'leave_apply_biz','请假单-业务表单',NULL,1,'{\"rule\":[{\"type\":\"select\",\"field\":\"leave_type\",\"title\":\"请假类别\",\"info\":\"\",\"effect\":{\"fetch\":\"\"},\"$required\":false,\"options\":[{\"label\":\"选项01\",\"value\":\"1\"},{\"label\":\"选项02\",\"value\":\"2\"},{\"label\":\"选项03\",\"value\":\"3\"}],\"_fc_id\":\"id_Faawmtwd2avoafc\",\"name\":\"ref_F6g2mtwd2avoagc\",\"_fc_drag_tag\":\"select\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"reason\",\"title\":\"请假原因\",\"info\":\"\",\"$required\":false,\"props\":{\"type\":\"textarea\"},\"_fc_id\":\"id_F932mtwd28i3acc\",\"name\":\"ref_Fy91mtwd28i3adc\",\"_fc_drag_tag\":\"textarea\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"user_id\",\"title\":\"人员ID\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_F39bmtwd4wr8akc\",\"name\":\"ref_F2vxmtwd4wr8alc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":true},{\"type\":\"LookupPicker\",\"field\":\"name\",\"title\":\"人员姓名\",\"props\":{\"columns\":[{\"prop\":\"code\",\"label\":\"人员编码\"},{\"prop\":\"name\",\"label\":\"人员姓名\"},{\"prop\":\"dept\",\"label\":\"所属部门\"}],\"returnFields\":{\"id\":\"user_id\",\"name\":\"name\"},\"dataSourceId\":\"ds_mtwlm13u\",\"displayField\":\"name\",\"searchColumns\":[\"name\",\"dept\"],\"idField\":\"user_id\"},\"_fc_id\":\"id_F0ofmtwd4iyoahc\",\"name\":\"ref_Foismtwd4iyoaic\",\"_fc_drag_tag\":\"LookupPicker\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"请假单-业务表单\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"},\"formName\":\"请假单-业务表单\"},\"dataSources\":[{\"id\":\"ds_mtwlm13u\",\"refId\":\"20f476f047ca4386bfd1365ea5516832\",\"name\":\"请假人员 数据源\"}],\"actions\":[]}','PUBLISHED','default','BUSINESS','2026-09-11 19:45:52.904046',1),
 ('579351c3534ce256077a37b017b91430','[{\"key\":\"applicant_name\",\"label\":\"报销人姓名\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"department\",\"label\":\"部门\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"reimbursement_type\",\"label\":\"报销类型\",\"columnType\":\"JSON\",\"length\":null,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"select\"},{\"key\":\"reimbursement_type_text\",\"label\":\"报销类型（显示）\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":true,\"componentType\":\"selectText\"},{\"key\":\"amount\",\"label\":\"金额\",\"columnType\":\"INT\",\"length\":null,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"inputNumber\"},{\"key\":\"attachment\",\"label\":\"附件\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"}]','2026-09-24 14:20:57.000000',NULL,'ai_muf58a5n38','员工报销申请',NULL,1,'{\"rule\":[{\"type\":\"input\",\"field\":\"applicant_name\",\"title\":\"报销人姓名\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写报销人姓名\"}],\"_fc_id\":\"id_F1jcmuf6lj9hc1c\",\"name\":\"ref_Fwjdmuf6lj9hc2c\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"department\",\"title\":\"部门\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写部门\"}],\"_fc_id\":\"id_Fv2lmuf6lj9hc3c\",\"name\":\"ref_F40ymuf6lj9hc4c\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"select\",\"field\":\"reimbursement_type\",\"title\":\"报销类型\",\"value\":null,\"options\":[{\"label\":\"差旅费\",\"value\":\"差旅费\"},{\"label\":\"办公费\",\"value\":\"办公费\"},{\"label\":\"招待费\",\"value\":\"招待费\"},{\"label\":\"其他\",\"value\":\"其他\"}],\"validate\":[{\"required\":true,\"message\":\"请选择报销类型\",\"mode\":\"required\"}],\"_fc_id\":\"id_Fzhcmuf6lj9hc5c\",\"name\":\"ref_F7evmuf6lj9hc6c\",\"_fc_drag_tag\":\"select\",\"display\":true,\"hidden\":false},{\"type\":\"inputNumber\",\"field\":\"amount\",\"title\":\"金额\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写金额\"}],\"_fc_id\":\"id_F8ztmuf6lj9ic9c\",\"name\":\"ref_F7bsmuf6lj9icac\",\"_fc_drag_tag\":\"inputNumber\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"attachment\",\"title\":\"附件\",\"value\":null,\"_fc_id\":\"id_F0y9muf6lj9icbc\",\"name\":\"ref_Fx8ymuf6lj9iccc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"员工报销申请\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"},\"formName\":\"员工报销申请\"},\"dataSources\":[],\"actions\":[]}','PUBLISHED','default','BUSINESS','2026-09-24 15:00:55.000000',1),
+('5c14d27b0f9c44ec930e9b0a62fb6800','[{\"key\":\"device_name\",\"label\":\"设备名称\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"fault_description\",\"label\":\"故障描述\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"reporter\",\"label\":\"报修人\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"urgency_level\",\"label\":\"紧急程度\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"select\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null}]','2026-10-11 15:01:50.680924',NULL,'ai_mv3ybmpz77','设备报修登记表单',NULL,NULL,'{\"rule\":[{\"type\":\"input\",\"field\":\"device_name\",\"title\":\"设备名称\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写设备名称\"}]},{\"type\":\"input\",\"field\":\"fault_description\",\"title\":\"故障描述\",\"value\":null,\"props\":{\"type\":\"textarea\"},\"validate\":[{\"required\":true,\"message\":\"请填写故障描述\"}]},{\"type\":\"input\",\"field\":\"reporter\",\"title\":\"报修人\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写报修人\"}]},{\"type\":\"select\",\"field\":\"urgency_level\",\"title\":\"紧急程度\",\"value\":null,\"options\":[{\"label\":\"高\",\"value\":\"高\"},{\"label\":\"中\",\"value\":\"中\"},{\"label\":\"低\",\"value\":\"低\"}],\"validate\":[{\"required\":true,\"message\":\"请选择紧急程度\"}]}]}','DRAFT','default','BUSINESS','2026-10-11 15:01:50.729359',1),
 ('648b850b40637d18d6dcdd90211a84fb','[{\"key\":\"meeting_room_name\",\"label\":\"会议室名称\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"booker_name\",\"label\":\"预约人\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"booking_date\",\"label\":\"预约日期\",\"columnType\":\"DATETIME\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"date\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"purpose\",\"label\":\"使用事由\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"inputTextarea\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null}]','2026-09-24 14:36:33.000000',NULL,'ai_muf5sckj12','会议室预约业务表单',NULL,NULL,'{\"rule\":[{\"type\":\"input\",\"field\":\"meeting_room_name\",\"title\":\"会议室名称\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写会议室名称\",\"mode\":\"required\"}],\"_fc_id\":\"id_F9fymuf6nsmxcec\",\"name\":\"ref_F5v8muf6nsmxcfc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"input\"},{\"type\":\"input\",\"field\":\"booker_name\",\"title\":\"预约人\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写预约人\",\"mode\":\"required\"}],\"_fc_id\":\"id_Fy0jmuf6nsmycgc\",\"name\":\"ref_Fcwwmuf6nsmychc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"input\"}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"会议室预约业务表单\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"}},\"dataSources\":[],\"actions\":[]}','DRAFT','default','BUSINESS','2026-09-24 15:01:37.000000',1),
+('654f63e9edc54e1d9fde68fc982de7cc',NULL,'2026-10-11 07:36:47.394393',NULL,'loc_rel_e2e','定位与关联卡片E2E',NULL,NULL,'{\"rule\":[{\"type\":\"LocationPicker\",\"field\":\"F36mmv3ifoc4abc\",\"title\":\"定位\",\"info\":\"点击弹出地图选点，可对位置命名；默认显示位置名称（未命名时按坐标保存）\",\"$required\":false,\"props\":{\"placeholder\":\"点击选择位置\",\"disabled\":false,\"clearable\":true},\"_fc_id\":\"id_Fwlpmv3ifoc4acc\",\"name\":\"ref_Flwomv3ifoc4adc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"LocationPicker\"},{\"type\":\"RelationCard\",\"field\":\"Fk0vmv3ifpapaec\",\"title\":\"关联记录卡片\",\"info\":\"只读展示已选关联记录（值形态对齐查找带回：显示文本或整行对象）\",\"$required\":false,\"props\":{\"displayField\":\"name\",\"clickable\":true},\"_fc_id\":\"id_Fa2pmv3ifpapafc\",\"name\":\"ref_Fmehmv3ifpapagc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"RelationCard\"}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"定位与关联卡片E2E\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"}},\"dataSources\":[],\"actions\":[]}','ARCHIVED','default','BUSINESS','2026-10-11 07:41:41.159710',1),
+('7e08fa60b7bb44ce906b12ebd6ff1bc7','[{\"key\": \"customerName\", \"label\": \"客户名称\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"input\"}, {\"key\": \"customerStatus\", \"label\": \"客户状态\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"select\"}, {\"key\": \"owner\", \"label\": \"负责人\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"input\"}, {\"key\": \"phone\", \"label\": \"联系电话\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"input\"}]','2026-10-11 14:15:37.682947',NULL,'cust_demo','客户档案-组件演示',NULL,1,'{\"rule\": [{\"type\": \"input\", \"field\": \"customerName\", \"title\": \"客户名称\", \"props\": {\"placeholder\": \"请输入客户名称\"}}, {\"type\": \"select\", \"field\": \"customerStatus\", \"title\": \"客户状态\", \"options\": [{\"label\": \"运行中\", \"value\": \"运行中\"}, {\"label\": \"筹建中\", \"value\": \"筹建中\"}, {\"label\": \"已停用\", \"value\": \"已停用\"}]}, {\"type\": \"input\", \"field\": \"owner\", \"title\": \"负责人\"}, {\"type\": \"input\", \"field\": \"phone\", \"title\": \"联系电话\"}], \"option\": {\"form\": {\"labelPosition\": \"right\", \"labelWidth\": \"100px\"}, \"submitBtn\": true, \"resetBtn\": false}}','PUBLISHED','1','BUSINESS','2026-10-11 14:16:35.735337',1),
+('866315bf3cdb4effbfd25ed8b05e1d2a','[{\"key\":\"F69lmv3l1n2iabc\",\"label\":\"跟进主题\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"dataPicker1791708613713\",\"label\":\"客户\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"dataPicker\",\"pickerConfig\":\"{\\\"sourceFormKey\\\":\\\"cust_rel_demo\\\",\\\"dataSourceId\\\":null,\\\"displayField\\\":\\\"Fyczmv3ks22dabc\\\",\\\"maxCount\\\":1,\\\"pickerType\\\":\\\"dataPicker\\\"}\"},{\"key\":\"dataPicker1791708613713_text\",\"label\":\"客户（显示）\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":true,\"componentType\":\"dataPickerText\"},{\"key\":\"F917mv3l3tdeagc\",\"label\":\"跟进纪要\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"}]','2026-10-11 08:49:55.470051',NULL,'follow_rel_demo','跟进工单-关联演示',NULL,1,'{\"rule\":[{\"type\":\"input\",\"field\":\"F69lmv3l1n2iabc\",\"title\":\"跟进主题\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_F7ctmv3l1n2iacc\",\"name\":\"ref_Fvjxmv3l1n2iadc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"dataPicker\",\"field\":\"dataPicker1791708613713\",\"title\":\"客户\",\"props\":{\"columns\":[\"Fyczmv3ks22dabc\",\"Ffxemv3ksch9aec\",\"Fzgimv3kskiaahc\",\"Fqgomv3ksnqrakc\"],\"searchColumns\":[\"Fyczmv3ks22dabc\"],\"sourceFormKey\":\"cust_rel_demo\",\"displayField\":\"Fyczmv3ks22dabc\",\"maxCount\":1},\"_fc_id\":\"id_Fsnpmv3l1qa9aec\",\"name\":\"ref_Fkxemv3l1qa9afc\",\"_fc_drag_tag\":\"dataPicker\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"F917mv3l3tdeagc\",\"title\":\"跟进纪要\",\"info\":\"\",\"$required\":false,\"props\":{\"type\":\"textarea\"},\"_fc_id\":\"id_Fbuqmv3l3tdeahc\",\"name\":\"ref_Fn9imv3l3tdeaic\",\"_fc_drag_tag\":\"textarea\",\"display\":true,\"hidden\":false},{\"type\":\"RelationCard\",\"field\":\"Fvfbmv3l3wnlajc\",\"title\":\"客户实时档案\",\"info\":\"关联记录卡片：配置「源表单 Key + 记录 ID 字段」后实时展示关联记录最新数据（多字段摘要+详情弹窗）；未配置时只读展示当前值\",\"$required\":false,\"props\":{\"displayFields\":[\"Fyczmv3ks22dabc\",\"Ffxemv3ksch9aec\",\"Fzgimv3kskiaahc\",\"Fqgomv3ksnqrakc\"],\"clickable\":true,\"title\":\"客户实时档案\",\"description\":\"选择客户后实时展示其最新档案（非快照）\",\"sourceFormKey\":\"cust_rel_demo\",\"recordIdField\":\"dataPicker1791708613713\",\"globalDataSourceId\":\"a4187314fe3342c1ac5d6d52cc099a18\",\"displayField\":\"Fyczmv3ks22dabc\"},\"_fc_id\":\"id_Foh1mv3l3wnlakc\",\"name\":\"ref_Fz61mv3l3wnlalc\",\"_fc_drag_tag\":\"RelationCard\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"跟进工单-关联演示\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"},\"formName\":\"跟进工单-关联演示\"},\"dataSources\":[],\"actions\":[]}','PUBLISHED','default','BUSINESS','2026-10-11 11:19:28.121756',1),
 ('8a1c28f22312b38ba4414914e6b504cf',NULL,'2026-09-24 13:05:27.000000',NULL,'ai_xiaozhi_test','AI小智测试表单',NULL,NULL,'[]','DRAFT','default','WORKFLOW','2026-09-24 13:05:27.000000',1),
+('9a9d579d70e94207b76c997953ba8400','[{\"key\":\"Fv0omv3h07d5atc\",\"label\":\"自动编号\",\"columnType\":\"VARCHAR\",\"length\":64,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"AutoNumber\"},{\"key\":\"Fdi2mv3gziozaec\",\"label\":\"输入框\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"Fdv8mv3gzvpgahc\",\"label\":\"树形选择\",\"columnType\":\"JSON\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"elTreeSelect\"},{\"key\":\"Fdv8mv3gzvpgahc_text\",\"label\":\"树形选择（显示）\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":true,\"componentType\":\"elTreeSelectText\"},{\"key\":\"Fg1jmv3h00m0akc\",\"label\":\"地址\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"areaPicker\"},{\"key\":\"F9pbmv3h01t7anc\",\"label\":\"字典下拉\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"dictSelect\"},{\"key\":\"Fl7fmv3hdvaoawc\",\"label\":\"定位\",\"columnType\":\"VARCHAR\",\"length\":64,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"LocationPicker\"},{\"key\":\"Fruqmv3h038daqc\",\"label\":\"关联记录卡片\",\"columnType\":\"JSON\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"RelationCard\"}]','2026-10-10 11:28:48.651883',NULL,'e2enew_task','新节点E2E临时表单',NULL,1,'{\"rule\":[{\"type\":\"AutoNumber\",\"field\":\"Fv0omv3h07d5atc\",\"title\":\"自动编号\",\"info\":\"编号在提交后由后端自动生成（前缀 + 日期 + 流水号），填写态只读\",\"$required\":false,\"props\":{\"prefix\":\"BN\",\"dateFormat\":\"yyyyMMdd\",\"resetPolicy\":\"day\",\"seqDigits\":4},\"_fc_id\":\"id_Flw6mv3h07d5auc\",\"name\":\"ref_Ff89mv3h07d5avc\",\"_fc_drag_tag\":\"AutoNumber\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"Fdi2mv3gziozaec\",\"title\":\"输入框\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_F5aqmv3gziozafc\",\"name\":\"ref_Frmvmv3gziozagc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"elTreeSelect\",\"field\":\"Fdv8mv3gzvpgahc\",\"title\":\"树形选择\",\"info\":\"\",\"effect\":{\"fetch\":\"\"},\"$required\":false,\"props\":{\"nodeKey\":\"value\",\"showCheckbox\":true,\"data\":[{\"label\":\"选项201\",\"value\":\"1\",\"children\":[{\"label\":\"选项101\",\"value\":\"2\",\"children\":[{\"label\":\"选项01\",\"value\":\"3\"},{\"label\":\"选项02\",\"value\":\"4\"},{\"label\":\"选项03\",\"value\":\"5\"}]},{\"label\":\"选项102\",\"value\":\"6\",\"children\":[{\"label\":\"选项01\",\"value\":\"7\"},{\"label\":\"选项02\",\"value\":\"8\"},{\"label\":\"选项03\",\"value\":\"9\"}]},{\"label\":\"选项103\",\"value\":\"10\",\"children\":[{\"label\":\"选项01\",\"value\":\"11\"},{\"label\":\"选项02\",\"value\":\"12\"},{\"label\":\"选项03\",\"value\":\"13\"}]}]},{\"label\":\"选项202\",\"value\":\"14\",\"children\":[{\"label\":\"选项101\",\"value\":\"15\",\"children\":[{\"label\":\"选项01\",\"value\":\"16\"},{\"label\":\"选项02\",\"value\":\"17\"},{\"label\":\"选项03\",\"value\":\"18\"}]},{\"label\":\"选项102\",\"value\":\"19\",\"children\":[{\"label\":\"选项01\",\"value\":\"20\"},{\"label\":\"选项02\",\"value\":\"21\"},{\"label\":\"选项03\",\"value\":\"22\"}]},{\"label\":\"选项103\",\"value\":\"23\",\"children\":[{\"label\":\"选项01\",\"value\":\"24\"},{\"label\":\"选项02\",\"value\":\"25\"},{\"label\":\"选项03\",\"value\":\"26\"}]}]},{\"label\":\"选项203\",\"value\":\"27\",\"children\":[{\"label\":\"选项101\",\"value\":\"28\",\"children\":[{\"label\":\"选项01\",\"value\":\"29\"},{\"label\":\"选项02\",\"value\":\"30\"},{\"label\":\"选项03\",\"value\":\"31\"}]},{\"label\":\"选项102\",\"value\":\"32\",\"children\":[{\"label\":\"选项01\",\"value\":\"33\"},{\"label\":\"选项02\",\"value\":\"34\"},{\"label\":\"选项03\",\"value\":\"35\"}]},{\"label\":\"选项103\",\"value\":\"36\",\"children\":[{\"label\":\"选项01\",\"value\":\"37\"},{\"label\":\"选项02\",\"value\":\"38\"},{\"label\":\"选项03\",\"value\":\"39\"}]}]}]},\"_fc_id\":\"id_Fv9hmv3gzvpgaic\",\"name\":\"ref_Fddjmv3gzvpgajc\",\"_fc_drag_tag\":\"elTreeSelect\",\"display\":true,\"hidden\":false},{\"type\":\"areaPicker\",\"field\":\"Fg1jmv3h00m0akc\",\"title\":\"地址\",\"info\":\"\",\"$required\":false,\"props\":{\"placeholder\":\"请选择省/市/区\",\"clearable\":true,\"showAllLevels\":true},\"_fc_id\":\"id_Fp0bmv3h00m0alc\",\"name\":\"ref_Fkaqmv3h00m0amc\",\"_fc_drag_tag\":\"areaPicker\",\"display\":true,\"hidden\":false},{\"type\":\"dictSelect\",\"field\":\"F9pbmv3h01t7anc\",\"title\":\"字典下拉\",\"info\":\"\",\"$required\":false,\"props\":{\"placeholder\":\"请选择\",\"clearable\":true,\"dictTypeCode\":\"product_spec\"},\"_fc_id\":\"id_Fkbzmv3h01t7aoc\",\"name\":\"ref_Fqpbmv3h01t7apc\",\"_fc_drag_tag\":\"dictSelect\",\"display\":true,\"hidden\":false},{\"type\":\"LocationPicker\",\"field\":\"Fl7fmv3hdvaoawc\",\"title\":\"定位\",\"info\":\"录入或粘贴经纬度（降级版，无地图选点）；值格式「纬度,经度」\",\"$required\":false,\"props\":{\"disabled\":false,\"clearable\":true},\"_fc_id\":\"id_Fr9kmv3hdvaoaxc\",\"name\":\"ref_Fexbmv3hdvaoayc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"LocationPicker\"},{\"type\":\"RelationCard\",\"field\":\"Fruqmv3h038daqc\",\"title\":\"关联记录卡片\",\"info\":\"只读展示已选关联记录（值形态对齐查找带回：显示文本或整行对象）\",\"$required\":false,\"props\":{\"clickable\":true},\"_fc_id\":\"id_Fvo9mv3h038darc\",\"name\":\"ref_Fdjxmv3h038dasc\",\"_fc_drag_tag\":\"RelationCard\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"新节点E2E临时表单\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"},\"formName\":\"新节点E2E临时表单\"},\"dataSources\":[],\"actions\":[]}','PUBLISHED','default','BUSINESS','2026-10-11 07:13:05.193609',1),
 ('9d2130c4f642deab4f27f09cbede4a9a',NULL,'2026-09-24 10:46:07.000000',NULL,'','暗色测试表单',NULL,NULL,'[]','ARCHIVED','default','WORKFLOW','2026-09-24 11:00:58.000000',1),
+('9d9df946af3c4ca4876cd1abca2fcaf1',NULL,'2026-10-11 08:14:37.976686',NULL,'location-e2e-v3','定位持久化E2E表单',NULL,NULL,'[]','DRAFT','default','BUSINESS','2026-10-11 08:14:37.976705',1),
 ('9dc27e83b084a95bb4230f60fd92bc34','[{\"key\":\"person_id\",\"label\":\"请假人id\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\",\"hidden\":true},{\"key\":\"person_name\",\"label\":\"请假人姓名\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"LookupPicker\",\"pickerConfig\":\"{\\\"displayField\\\":\\\"username\\\",\\\"mode\\\":\\\"single\\\",\\\"pickerType\\\":\\\"lookupPicker\\\"}\"},{\"key\":\"department\",\"label\":\"所属部门\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"position\",\"label\":\"职位\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"leave_start_date\",\"label\":\"请假开始日期\",\"columnType\":\"DATE\",\"length\":null,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"datePicker\"},{\"key\":\"leave_end_date\",\"label\":\"请假结束日期\",\"columnType\":\"DATE\",\"length\":null,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"datePicker\"},{\"key\":\"leave_type\",\"label\":\"请假类型\",\"columnType\":\"JSON\",\"length\":null,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"select\"},{\"key\":\"leave_type_text\",\"label\":\"请假类型（显示）\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":true,\"componentType\":\"selectText\"},{\"key\":\"leave_days\",\"label\":\"请假天数\",\"columnType\":\"INT\",\"length\":null,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"inputNumber\"},{\"key\":\"leave_reason\",\"label\":\"请假事由\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"textarea\"},{\"key\":\"contact_phone\",\"label\":\"紧急联系电话\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"is_approved\",\"label\":\"是否已获得主管批准\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"radio\"}]','2026-09-24 00:23:43.000000',NULL,'bill_test','测试表单',NULL,1,'{\"rule\":[{\"type\":\"input\",\"field\":\"person_id\",\"title\":\"请假人id\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_F5d7muf892qxayc\",\"name\":\"ref_Fa9tmuf892qxazc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":true},{\"type\":\"LookupPicker\",\"field\":\"person_name\",\"title\":\"请假人姓名\",\"props\":{\"columns\":[{\"prop\":\"username\",\"label\":\"用户名\"}],\"returnFields\":{},\"dataSourceId\":\"ds_mufbo50u\",\"displayField\":\"username\",\"searchColumns\":[\"username\",\"nickname\"],\"idField\":\"person_id\"},\"_fc_id\":\"id_Ftakmuf87tulavc\",\"name\":\"ref_F5xqmuf87tulawc\",\"_fc_drag_tag\":\"LookupPicker\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"department\",\"title\":\"所属部门\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写所属部门\"}],\"_fc_id\":\"id_Fy1umuf877w5adc\",\"name\":\"ref_F7frmuf877w5aec\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"position\",\"title\":\"职位\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写职位\"}],\"_fc_id\":\"id_Fa3lmuf877w5afc\",\"name\":\"ref_Ftvrmuf877w5agc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"datePicker\",\"field\":\"leave_start_date\",\"title\":\"请假开始日期\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请选择请假开始日期\",\"mode\":\"required\"}],\"_fc_id\":\"id_F0xqmuf877w5ahc\",\"name\":\"ref_Fgynmuf877w5aic\",\"_fc_drag_tag\":\"datePicker\",\"display\":true,\"hidden\":false},{\"type\":\"datePicker\",\"field\":\"leave_end_date\",\"title\":\"请假结束日期\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请选择请假结束日期\"}],\"_fc_id\":\"id_Fmzkmuf877w5ajc\",\"name\":\"ref_Fdkkmuf877w5akc\",\"_fc_drag_tag\":\"datePicker\",\"display\":true,\"hidden\":false},{\"type\":\"select\",\"field\":\"leave_type\",\"title\":\"请假类型\",\"value\":null,\"options\":[{\"label\":\"年假\",\"value\":\"annual\"},{\"label\":\"病假\",\"value\":\"sick\"},{\"label\":\"事假\",\"value\":\"personal\"},{\"label\":\"婚假\",\"value\":\"marriage\"},{\"label\":\"产假\",\"value\":\"maternity\"},{\"label\":\"其他\",\"value\":\"other\"}],\"validate\":[{\"required\":true,\"message\":\"请选择请假类型\"}],\"_fc_id\":\"id_Fblmmuf877w5alc\",\"name\":\"ref_Ffwdmuf877w5amc\",\"_fc_drag_tag\":\"select\",\"display\":true,\"hidden\":false},{\"type\":\"inputNumber\",\"field\":\"leave_days\",\"title\":\"请假天数\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写请假天数\"}],\"_fc_id\":\"id_Fwwfmuf877w5anc\",\"name\":\"ref_Fudfmuf877w5aoc\",\"_fc_drag_tag\":\"inputNumber\",\"display\":true,\"hidden\":false},{\"type\":\"textarea\",\"field\":\"leave_reason\",\"title\":\"请假事由\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写请假事由\"}],\"_fc_id\":\"id_Fechmuf877w5apc\",\"name\":\"ref_Flbgmuf877w5aqc\",\"_fc_drag_tag\":\"textarea\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"contact_phone\",\"title\":\"紧急联系电话\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写紧急联系电话\"}],\"_fc_id\":\"id_Fisxmuf877w5arc\",\"name\":\"ref_F5ltmuf877w5asc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"radio\",\"field\":\"is_approved\",\"title\":\"是否已获得主管批准\",\"value\":null,\"options\":[{\"label\":\"是\",\"value\":\"yes\"},{\"label\":\"否\",\"value\":\"no\"}],\"validate\":[{\"required\":true,\"message\":\"请选择是否已获得主管批准\"}],\"_fc_id\":\"id_Fzjqmuf877w5atc\",\"name\":\"ref_Fv2lmuf877w5auc\",\"_fc_drag_tag\":\"radio\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"测试表单\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"},\"formName\":\"测试表单\"},\"dataSources\":[{\"id\":\"ds_mufbo50u\",\"refId\":\"ds-builtin-user-tree\",\"name\":\"系统用户\"}],\"actions\":[]}','PUBLISHED','default','BUSINESS','2026-09-24 17:22:03.000000',1),
 ('9e24468dbcf5e57cdeeddcc7934e629f','[{\"key\":\"item_name\",\"label\":\"物品名称\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"quantity\",\"label\":\"数量\",\"columnType\":\"INT\",\"length\":null,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"inputNumber\"},{\"key\":\"unit_price\",\"label\":\"单价\",\"columnType\":\"INT\",\"length\":null,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"inputNumber\"},{\"key\":\"registration_date\",\"label\":\"登记日期\",\"columnType\":\"DATE\",\"length\":null,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"datePicker\"},{\"key\":\"remarks\",\"label\":\"备注\",\"columnType\":\"TEXT\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"}]','2026-09-24 14:16:31.000000',NULL,'ai_muf52ksu88','办公用品登记业务表单',NULL,1,'{\"rule\":[{\"type\":\"input\",\"field\":\"item_name\",\"title\":\"物品名称\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写物品名称\"}],\"_fc_id\":\"id_F9pumuf6p6ricmc\",\"name\":\"ref_Famfmuf6p6ricnc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"inputNumber\",\"field\":\"quantity\",\"title\":\"数量\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写数量\"}],\"_fc_id\":\"id_F4esmuf6p6ricoc\",\"name\":\"ref_Furfmuf6p6ricpc\",\"_fc_drag_tag\":\"inputNumber\",\"display\":true,\"hidden\":false},{\"type\":\"inputNumber\",\"field\":\"unit_price\",\"title\":\"单价\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写单价\"}],\"_fc_id\":\"id_Fqqhmuf6p6ricqc\",\"name\":\"ref_Fbinmuf6p6ricrc\",\"_fc_drag_tag\":\"inputNumber\",\"display\":true,\"hidden\":false},{\"type\":\"datePicker\",\"field\":\"registration_date\",\"title\":\"登记日期\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写登记日期\",\"mode\":\"required\"}],\"_fc_id\":\"id_Fxcfmuf6p6ricsc\",\"name\":\"ref_F91fmuf6p6rictc\",\"_fc_drag_tag\":\"datePicker\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"remarks\",\"title\":\"备注\",\"value\":null,\"_fc_id\":\"id_Fedcmuf6p6ricuc\",\"name\":\"ref_Fd6zmuf6p6ricvc\",\"props\":{\"type\":\"textarea\"},\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"办公用品登记业务表单\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"},\"formName\":\"办公用品登记业务表单\"},\"dataSources\":[],\"actions\":[]}','PUBLISHED','default','BUSINESS','2026-09-24 15:31:06.000000',1),
+('ba1fe48d7c774ba6bb96f10e1eda4934','[{\"key\":\"bill_no\",\"label\":\"单号\",\"columnType\":\"VARCHAR\",\"length\":64,\"scale\":null,\"required\":true,\"unique\":true,\"indexed\":false},{\"key\":\"qty\",\"label\":\"数量\",\"columnType\":\"INT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false}]','2026-10-10 11:29:06.231391',NULL,'e2u_uniq_demo_ba6rx','E2E唯一链路临时表单 e2u_uniq_demo_ba6rx',NULL,1,'[]','ARCHIVED','default','BUSINESS','2026-10-10 11:29:06.625595',1),
 ('bcc2dd12143ec3b48dd4d4ba61f4eff0',NULL,'2026-09-24 15:33:56.000000',NULL,'ai_muf7u4ul55','会议室预约业务表单',NULL,NULL,'[]','DRAFT','default','BUSINESS','2026-09-24 15:33:56.000000',1),
 ('dadf29ae8b54497eaa0d64447e87bbf6',NULL,'2026-09-15 18:59:18.636532',NULL,'baoxiaodan','报销单',NULL,1,'[]','PUBLISHED','default','WORKFLOW','2026-09-15 19:02:45.648946',1),
+('e55a6bd0b9f043e1b79597caf2a4ef55','[{\"key\": \"orderNo\", \"label\": \"工单编号\", \"columnType\": \"VARCHAR\", \"length\": 64, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"AutoNumber\"}, {\"key\": \"topic\", \"label\": \"服务主题\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"input\"}, {\"key\": \"serviceType\", \"label\": \"服务类型\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"dictSelect\"}, {\"key\": \"serviceArea\", \"label\": \"服务地址\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"areaPicker\"}, {\"key\": \"siteLocation\", \"label\": \"现场定位\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"LocationPicker\"}, {\"key\": \"siteNote\", \"label\": \"现场纪要\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"input\"}, {\"key\": \"customerId\", \"label\": \"关联客户\", \"columnType\": \"TEXT\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"dataPicker\", \"pickerConfig\": \"{\\\"sourceFormKey\\\": \\\"cust_rel_demo\\\", \\\"dataSourceId\\\": null, \\\"displayField\\\": \\\"Fyczmv3ks22dabc\\\", \\\"maxCount\\\": 1, \\\"pickerType\\\": \\\"dataPicker\\\"}\"}, {\"key\": \"customerId_text\", \"label\": \"关联客户（显示）\", \"columnType\": \"TEXT\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"dataPickerText\", \"hidden\": true}, {\"key\": \"internalNote\", \"label\": \"内部备注\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"input\"}, {\"key\": \"revisit\", \"label\": \"回访计划\", \"columnType\": \"JSON\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"checkbox\"}, {\"key\": \"revisit_text\", \"label\": \"回访计划（显示）\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"componentType\": \"checkboxText\", \"hidden\": true}]','2026-10-11 14:30:04.552378',NULL,'onsite_service_demo','现场服务工单-组件演示',NULL,1,'{\"rule\": [{\"type\": \"StepsForm\", \"props\": {\"steps\": [{\"title\": \"基本信息\", \"description\": \"工单编号与服务内容\"}, {\"title\": \"现场信息\", \"description\": \"定位与现场纪要\"}, {\"title\": \"关联客户\", \"description\": \"选择客户查看实时档案\"}], \"active\": 0, \"direction\": \"horizontal\"}, \"style\": {\"width\": \"100%\"}, \"children\": [{\"type\": \"elCard\", \"props\": {\"header\": \"第一步：基本信息\"}, \"children\": [{\"type\": \"AutoNumber\", \"field\": \"orderNo\", \"title\": \"工单编号\", \"props\": {\"prefix\": \"SVD\", \"dateFormat\": \"yyyyMMdd\", \"resetPolicy\": \"day\", \"seqDigits\": 4}, \"info\": \"提交后由后端自动生成\"}, {\"type\": \"input\", \"field\": \"topic\", \"title\": \"服务主题\", \"props\": {\"placeholder\": \"如：2号产线传感器更换\"}}, {\"type\": \"dictSelect\", \"field\": \"serviceType\", \"title\": \"服务类型\", \"props\": {\"dictTypeCode\": \"service_type\", \"placeholder\": \"请选择服务类型\", \"clearable\": true}}, {\"type\": \"areaPicker\", \"field\": \"serviceArea\", \"title\": \"服务地址\", \"props\": {\"placeholder\": \"请选择省/市/区\", \"clearable\": true, \"showAllLevels\": true}}]}, {\"type\": \"elCard\", \"props\": {\"header\": \"第二步：现场信息\"}, \"children\": [{\"type\": \"LocationPicker\", \"field\": \"siteLocation\", \"title\": \"现场定位\", \"props\": {\"placeholder\": \"点击选择位置\", \"clearable\": true}}, {\"type\": \"input\", \"field\": \"siteNote\", \"title\": \"现场纪要\", \"props\": {\"type\": \"textarea\", \"rows\": 3, \"placeholder\": \"现场情况记录（多行）\"}}]}, {\"type\": \"elCard\", \"props\": {\"header\": \"第三步：关联客户\"}, \"children\": [{\"type\": \"dataPicker\", \"field\": \"customerId\", \"title\": \"关联客户\", \"props\": {\"sourceFormKey\": \"cust_rel_demo\", \"displayField\": \"Fyczmv3ks22dabc\", \"maxCount\": 1}}, {\"type\": \"RelationCard\", \"field\": \"relCard\", \"title\": \"客户实时档案\", \"props\": {\"title\": \"客户实时档案\", \"globalDataSourceId\": \"a4187314fe3342c1ac5d6d52cc099a18\", \"recordIdField\": \"customerId\", \"displayFields\": [\"Fyczmv3ks22dabc\", \"Ffxemv3ksch9aec\", \"Fzgimv3kskiaahc\", \"Fqgomv3ksnqrakc\"], \"clickable\": true, \"description\": \"数据实时来自客户数据源，源数据变更后自动展示最新值\"}}]}]}, {\"type\": \"DrawerContainer\", \"props\": {\"buttonText\": \"扩展信息\", \"buttonType\": \"primary\", \"plain\": true, \"title\": \"扩展信息\", \"size\": \"40%\"}, \"style\": {\"width\": \"100%\"}, \"children\": [{\"type\": \"input\", \"field\": \"internalNote\", \"title\": \"内部备注\", \"props\": {\"placeholder\": \"仅内部可见（存于抽屉容器）\"}}, {\"type\": \"checkbox\", \"field\": \"revisit\", \"title\": \"回访计划\", \"options\": [{\"label\": \"已确认回访计划\", \"value\": \"confirmed\"}, {\"label\": \"需要技术支持跟进\", \"value\": \"tech\"}]}]}], \"option\": {\"form\": {\"labelPosition\": \"right\", \"labelWidth\": \"110px\"}, \"submitBtn\": true, \"resetBtn\": false}}','PUBLISHED','default','BUSINESS','2026-10-11 14:30:04.656394',1),
 ('e6ab86607aca0f4dce285f108687f67a','[{\"key\": \"name\", \"label\": \"姓名\", \"columnType\": \"VARCHAR\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"hidden\": false, \"pickerConfig\": null, \"storageMode\": \"JSON\", \"componentType\": \"input\", \"sortable\": null, \"filterable\": null, \"matchType\": null, \"subColumns\": null, \"subMode\": null}, {\"key\": \"department\", \"label\": \"部门\", \"columnType\": \"VARCHAR\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"hidden\": false, \"pickerConfig\": null, \"storageMode\": \"JSON\", \"componentType\": \"input\", \"sortable\": null, \"filterable\": null, \"matchType\": null, \"subColumns\": null, \"subMode\": null}, {\"key\": \"leave_type\", \"label\": \"请假类型\", \"columnType\": \"VARCHAR\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"hidden\": false, \"pickerConfig\": null, \"storageMode\": \"JSON\", \"componentType\": \"select\", \"sortable\": null, \"filterable\": null, \"matchType\": null, \"subColumns\": null, \"subMode\": null}, {\"key\": \"start_date\", \"label\": \"开始日期\", \"columnType\": \"DATETIME\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"hidden\": false, \"pickerConfig\": null, \"storageMode\": \"JSON\", \"componentType\": \"datePicker\", \"sortable\": null, \"filterable\": null, \"matchType\": null, \"subColumns\": null, \"subMode\": null}, {\"key\": \"end_date\", \"label\": \"结束日期\", \"columnType\": \"DATETIME\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"hidden\": false, \"pickerConfig\": null, \"storageMode\": \"JSON\", \"componentType\": \"datePicker\", \"sortable\": null, \"filterable\": null, \"matchType\": null, \"subColumns\": null, \"subMode\": null}, {\"key\": \"reason\", \"label\": \"请假事由\", \"columnType\": \"TEXT\", \"length\": null, \"scale\": null, \"required\": false, \"unique\": false, \"indexed\": false, \"hidden\": false, \"pickerConfig\": null, \"storageMode\": \"JSON\", \"componentType\": \"input\", \"sortable\": null, \"filterable\": null, \"matchType\": null, \"subColumns\": null, \"subMode\": null}]','2026-09-24 14:09:29.000000',NULL,'ai_muf4tjek39','员工请假业务表单',NULL,1,'{\"rule\": [{\"type\": \"input\", \"field\": \"name\", \"title\": \"姓名\", \"value\": null, \"validate\": [{\"required\": true, \"message\": \"请填写姓名\"}]}, {\"type\": \"input\", \"field\": \"department\", \"title\": \"部门\", \"value\": null, \"validate\": [{\"required\": true, \"message\": \"请填写部门\"}]}, {\"type\": \"select\", \"field\": \"leave_type\", \"title\": \"请假类型\", \"value\": null, \"options\": [{\"label\": \"事假\", \"value\": \"事假\"}, {\"label\": \"病假\", \"value\": \"病假\"}, {\"label\": \"年假\", \"value\": \"年假\"}], \"validate\": [{\"required\": true, \"message\": \"请选择请假类型\"}]}, {\"type\": \"datePicker\", \"field\": \"start_date\", \"title\": \"开始日期\", \"value\": null}, {\"type\": \"datePicker\", \"field\": \"end_date\", \"title\": \"结束日期\", \"value\": null}, {\"type\": \"input\", \"field\": \"reason\", \"title\": \"请假事由\", \"value\": null, \"props\": {\"type\": \"textarea\"}}]}','PUBLISHED','default','BUSINESS','2026-09-24 15:26:21.000000',1),
-('e6d2ffd44a6baf0d26f10a99d656c705','[{\"key\":\"meeting_room_name\",\"label\":\"会议室名称\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"booker_name\",\"label\":\"预约人\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"booking_time\",\"label\":\"预约时间\",\"columnType\":\"DATETIME\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"datePicker\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"cancellation_reason\",\"label\":\"取消原因\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null}]','2026-09-24 15:33:58.000000',NULL,'ai_muf7u70h84','会议室预约表单',NULL,NULL,'{\"rule\":[{\"type\":\"input\",\"field\":\"meeting_room_name\",\"title\":\"会议室名称\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写会议室名称\"}]},{\"type\":\"input\",\"field\":\"booker_name\",\"title\":\"预约人\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写预约人\"}]},{\"type\":\"datePicker\",\"field\":\"booking_time\",\"title\":\"预约时间\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请选择预约时间\"}]},{\"type\":\"input\",\"field\":\"cancellation_reason\",\"title\":\"取消原因\",\"value\":null}]}','DRAFT','default','BUSINESS','2026-09-24 15:33:58.000000',1);
+('e6d2ffd44a6baf0d26f10a99d656c705','[{\"key\":\"meeting_room_name\",\"label\":\"会议室名称\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"booker_name\",\"label\":\"预约人\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"booking_time\",\"label\":\"预约时间\",\"columnType\":\"DATETIME\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"datePicker\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null},{\"key\":\"cancellation_reason\",\"label\":\"取消原因\",\"columnType\":\"VARCHAR\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":false,\"pickerConfig\":null,\"storageMode\":\"JSON\",\"componentType\":\"input\",\"sortable\":null,\"filterable\":null,\"matchType\":null,\"subColumns\":null,\"subMode\":null}]','2026-09-24 15:33:58.000000',NULL,'ai_muf7u70h84','会议室预约表单',NULL,NULL,'{\"rule\":[{\"type\":\"input\",\"field\":\"meeting_room_name\",\"title\":\"会议室名称\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写会议室名称\"}]},{\"type\":\"input\",\"field\":\"booker_name\",\"title\":\"预约人\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请填写预约人\"}]},{\"type\":\"datePicker\",\"field\":\"booking_time\",\"title\":\"预约时间\",\"value\":null,\"validate\":[{\"required\":true,\"message\":\"请选择预约时间\"}]},{\"type\":\"input\",\"field\":\"cancellation_reason\",\"title\":\"取消原因\",\"value\":null}]}','DRAFT','default','BUSINESS','2026-09-24 15:33:58.000000',1),
+('e8012c32c67c460583df0b8f24fd025d','[{\"key\": \"visitNo\", \"label\": \"工单编号\", \"columnType\": \"VARCHAR\", \"length\": 64, \"scale\": null, \"componentType\": \"AutoNumber\"}, {\"key\": \"customerName\", \"label\": \"客户名称\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"componentType\": \"input\"}, {\"key\": \"customerLevel\", \"label\": \"客户等级\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"componentType\": \"dictSelect\"}, {\"key\": \"visitRegion\", \"label\": \"拜访区域\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"componentType\": \"areaPicker\"}, {\"key\": \"visitLocation\", \"label\": \"现场定位\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"componentType\": \"LocationPicker\"}, {\"key\": \"visitSummary\", \"label\": \"拜访纪要\", \"columnType\": \"TEXT\", \"length\": null, \"scale\": null, \"componentType\": \"input\"}, {\"key\": \"competitor\", \"label\": \"竞品情况\", \"columnType\": \"VARCHAR\", \"length\": 255, \"scale\": null, \"componentType\": \"input\"}, {\"key\": \"followPlan\", \"label\": \"后续计划\", \"columnType\": \"TEXT\", \"length\": null, \"scale\": null, \"componentType\": \"input\"}, {\"key\": \"relCustomer\", \"label\": \"关联客户\", \"columnType\": \"TEXT\", \"length\": null, \"scale\": null, \"componentType\": \"dataPicker\", \"pickerConfig\": \"{\\\"sourceFormKey\\\": \\\"cust_rel_demo\\\", \\\"dataSourceId\\\": null, \\\"displayField\\\": \\\"Fyczmv3ks22dabc\\\", \\\"maxCount\\\": 1, \\\"pickerType\\\": \\\"dataPicker\\\"}\"}, {\"key\": \"relCustomer_text\", \"label\": \"关联客户（显示）\", \"columnType\": \"TEXT\", \"length\": null, \"scale\": null, \"hidden\": true, \"componentType\": \"dataPickerText\"}]','2026-10-11 14:09:18.340860',NULL,'visit_demo','客户拜访工单-组件演示',NULL,1,'{\"rule\": [{\"type\": \"StepsForm\", \"props\": {\"steps\": [{\"title\": \"基本信息\", \"description\": \"编号 / 等级 / 区域\"}, {\"title\": \"现场信息\", \"description\": \"定位 / 纪要 / 计划\"}, {\"title\": \"客户关联\", \"description\": \"实时档案\"}], \"active\": 0, \"direction\": \"horizontal\"}, \"style\": {\"width\": \"100%\"}, \"children\": [{\"type\": \"elCard\", \"props\": {\"header\": \"基本信息\", \"shadow\": \"never\"}, \"style\": {\"width\": \"100%\"}, \"children\": [{\"type\": \"AutoNumber\", \"field\": \"visitNo\", \"title\": \"工单编号\", \"props\": {\"prefix\": \"BF\", \"dateFormat\": \"yyyyMMdd\", \"resetPolicy\": \"day\", \"seqDigits\": 4}}, {\"type\": \"input\", \"field\": \"customerName\", \"title\": \"客户名称\", \"props\": {\"placeholder\": \"请输入客户名称\"}, \"validate\": [{\"required\": true, \"message\": \"客户名称不能为空\"}]}, {\"type\": \"dictSelect\", \"field\": \"customerLevel\", \"title\": \"客户等级\", \"props\": {\"dictTypeCode\": \"customer_level\", \"placeholder\": \"请选择客户等级\", \"clearable\": true}}, {\"type\": \"areaPicker\", \"field\": \"visitRegion\", \"title\": \"拜访区域\", \"props\": {\"placeholder\": \"请选择省/市/区\", \"clearable\": true, \"showAllLevels\": true}}]}, {\"type\": \"elCard\", \"props\": {\"header\": \"现场信息\", \"shadow\": \"never\"}, \"style\": {\"width\": \"100%\"}, \"children\": [{\"type\": \"LocationPicker\", \"field\": \"visitLocation\", \"title\": \"现场定位\", \"props\": {\"placeholder\": \"点击选择位置\", \"clearable\": true}}, {\"type\": \"input\", \"field\": \"visitSummary\", \"title\": \"拜访纪要\", \"props\": {\"type\": \"textarea\", \"placeholder\": \"填写现场沟通要点\"}}, {\"type\": \"DrawerContainer\", \"props\": {\"buttonText\": \"展开详细跟进计划\", \"buttonType\": \"primary\", \"plain\": true, \"title\": \"详细跟进计划\", \"size\": \"50%\"}, \"style\": {\"width\": \"100%\"}, \"children\": [{\"type\": \"input\", \"field\": \"competitor\", \"title\": \"竞品情况\", \"props\": {\"placeholder\": \"客户当前使用的竞品及评价\"}}, {\"type\": \"input\", \"field\": \"followPlan\", \"title\": \"后续计划\", \"props\": {\"type\": \"textarea\", \"placeholder\": \"下一步跟进动作与时间点\"}}]}]}, {\"type\": \"elCard\", \"props\": {\"header\": \"客户关联（实时档案）\", \"shadow\": \"never\"}, \"style\": {\"width\": \"100%\"}, \"children\": [{\"type\": \"dataPicker\", \"field\": \"relCustomer\", \"title\": \"关联客户\", \"props\": {\"columns\": [\"Fyczmv3ks22dabc\", \"Ffxemv3ksch9aec\", \"Fzgimv3kskiaahc\", \"Fqgomv3ksnqrakc\"], \"searchColumns\": [\"Fyczmv3ks22dabc\"], \"sourceFormKey\": \"cust_rel_demo\", \"displayField\": \"Fyczmv3ks22dabc\", \"maxCount\": 1}}, {\"type\": \"RelationCard\", \"field\": \"custCard\", \"title\": \"客户实时档案\", \"props\": {\"title\": \"客户实时档案\", \"description\": \"选择客户后实时展示其最新档案（非快照）\", \"globalDataSourceId\": \"a4187314fe3342c1ac5d6d52cc099a18\", \"recordIdField\": \"relCustomer\", \"displayFields\": [\"Fyczmv3ks22dabc\", \"Ffxemv3ksch9aec\", \"Fzgimv3kskiaahc\", \"Fqgomv3ksnqrakc\"], \"clickable\": true}}]}]}], \"option\": {\"form\": {\"inline\": false, \"labelPosition\": \"right\", \"size\": \"default\", \"labelWidth\": \"110px\", \"formCreateFormName\": \"客户拜访工单-组件演示\"}, \"resetBtn\": {\"show\": false, \"innerText\": \"重置\"}, \"submitBtn\": {\"show\": true, \"innerText\": \"提交\"}}, \"dataSources\": []}','PUBLISHED','default','BUSINESS','2026-10-11 14:09:18.462354',1),
+('f4704c88ebd5446fa25f17fdb940b38d',NULL,'2026-10-11 09:58:22.937839',NULL,'relcard_ds_e2e','relcard_ds_e2e_form',NULL,NULL,'[]','DRAFT','1','BUSINESS','2026-10-11 09:58:22.937849',1),
+('fe5b9d00f241420884f468d61e0c31fe','[{\"key\":\"Fyczmv3ks22dabc\",\"label\":\"客户名称\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"Ffxemv3ksch9aec\",\"label\":\"客户状态\",\"columnType\":\"JSON\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"select\"},{\"key\":\"Ffxemv3ksch9aec_text\",\"label\":\"客户状态（显示）\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":true,\"componentType\":\"selectText\"},{\"key\":\"Fzgimv3kskiaahc\",\"label\":\"负责人\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"Fqgomv3ksnqrakc\",\"label\":\"联系电话\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"}]','2026-10-11 08:42:26.008147',NULL,'cust_rel_demo','客户档案-关联演示',NULL,1,'{\"rule\":[{\"type\":\"input\",\"field\":\"Fyczmv3ks22dabc\",\"title\":\"客户名称\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_Ff60mv3ks22dacc\",\"name\":\"ref_Fjiamv3ks22dadc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"select\",\"field\":\"Ffxemv3ksch9aec\",\"title\":\"客户状态\",\"info\":\"\",\"effect\":{\"fetch\":\"\"},\"$required\":false,\"options\":[{\"label\":\"运行中\",\"value\":\"运行中\"},{\"label\":\"筹建中\",\"value\":\"筹建中\"},{\"label\":\"已停用\",\"value\":\"已停用\"}],\"_fc_id\":\"id_Fuiwmv3ksch9afc\",\"name\":\"ref_Fe7wmv3ksch9agc\",\"_fc_drag_tag\":\"select\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"Fzgimv3kskiaahc\",\"title\":\"负责人\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_Fx77mv3kskiaaic\",\"name\":\"ref_Ffpwmv3kskiaajc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"Fqgomv3ksnqrakc\",\"title\":\"联系电话\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_Ficymv3ksnqralc\",\"name\":\"ref_Fm2fmv3ksnqramc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\",\"formCreateFormName\":\"客户档案-关联演示\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"},\"formName\":\"客户档案-关联演示\"},\"dataSources\":[],\"actions\":[]}','PUBLISHED','default','BUSINESS','2026-10-11 08:46:48.981497',1),
+('seed_member_group_form','[{\"key\":\"group_name\",\"label\":\"成员组名称\",\"columnType\":\"VARCHAR\",\"length\":255,\"scale\":null,\"required\":true,\"unique\":false,\"indexed\":false,\"componentType\":\"input\"},{\"key\":\"description\",\"label\":\"成员组说明\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"textarea\"},{\"key\":\"members\",\"label\":\"组成员\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"dataPicker\",\"pickerConfig\":\"{\\\"dataSourceId\\\":\\\"ds-builtin-user-tree\\\",\\\"displayField\\\":\\\"nickname\\\",\\\"pickerType\\\":\\\"dataPicker\\\"}\"},{\"key\":\"members_text\",\"label\":\"组成员（显示）\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":true,\"componentType\":\"dataPickerText\"},{\"key\":\"post_rules\",\"label\":\"自动规则·按岗位\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"dataPicker\",\"pickerConfig\":\"{\\\"dataSourceId\\\":\\\"ds-builtin-sys-posts\\\",\\\"displayField\\\":\\\"postName\\\",\\\"pickerType\\\":\\\"dataPicker\\\"}\"},{\"key\":\"post_rules_text\",\"label\":\"自动规则·按岗位（显示）\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":true,\"componentType\":\"dataPickerText\"},{\"key\":\"org_rules\",\"label\":\"自动规则·按组织\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"componentType\":\"dataPicker\",\"pickerConfig\":\"{\\\"dataSourceId\\\":\\\"ds-builtin-dept-tree\\\",\\\"displayField\\\":\\\"label\\\",\\\"pickerType\\\":\\\"dataPicker\\\"}\"},{\"key\":\"org_rules_text\",\"label\":\"自动规则·按组织（显示）\",\"columnType\":\"TEXT\",\"length\":null,\"scale\":null,\"required\":false,\"unique\":false,\"indexed\":false,\"hidden\":true,\"componentType\":\"dataPickerText\"}]','2026-10-10 16:14:21.986452','system','member_group','成员组',NULL,1,'{\"rule\":[{\"type\":\"input\",\"field\":\"group_name\",\"title\":\"成员组名称\",\"value\":\"\",\"info\":\"\",\"effect\":{\"fetch\":\"\"},\"$required\":true,\"validate\":[{\"required\":true,\"message\":\"请输入成员组名称\",\"trigger\":\"blur\"}],\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"input\",\"field\":\"description\",\"title\":\"成员组说明\",\"value\":\"\",\"props\":{\"type\":\"textarea\",\"rows\":2,\"maxlength\":255,\"placeholder\":\"请输入成员组说明\"},\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false},{\"type\":\"dataPicker\",\"field\":\"members\",\"title\":\"组成员\",\"value\":\"\",\"info\":\"从系统用户中引用，弹窗多选\",\"props\":{\"dataSourceId\":\"ds-builtin-user-tree\",\"displayField\":\"nickname\",\"columns\":[\"username\",\"nickname\",\"orgName\"],\"searchColumns\":[\"username\",\"nickname\"],\"placeholder\":\"点击选择组成员（可多选）\"},\"_fc_drag_tag\":\"dataPicker\",\"display\":true,\"hidden\":false},{\"type\":\"dataPicker\",\"field\":\"post_rules\",\"title\":\"自动规则·按岗位\",\"value\":\"\",\"info\":\"命中岗位的用户自动归属本组\",\"props\":{\"dataSourceId\":\"ds-builtin-sys-posts\",\"displayField\":\"postName\",\"columns\":[\"postName\",\"postCode\",\"description\"],\"searchColumns\":[\"postName\",\"postCode\"],\"placeholder\":\"点击选择岗位（可多选）\"},\"_fc_drag_tag\":\"dataPicker\",\"display\":true,\"hidden\":false},{\"type\":\"dataPicker\",\"field\":\"org_rules\",\"title\":\"自动规则·按组织\",\"value\":\"\",\"info\":\"命中组织机构的用户自动归属本组\",\"props\":{\"dataSourceId\":\"ds-builtin-dept-tree\",\"displayField\":\"label\",\"columns\":[\"label\",\"code\"],\"searchColumns\":[\"label\",\"code\"],\"placeholder\":\"点击选择组织机构（可多选）\"},\"_fc_drag_tag\":\"dataPicker\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"labelPosition\":\"right\",\"labelWidth\":\"120px\",\"size\":\"default\"}},\"dataSources\":[{\"id\":\"ds-builtin-user-tree\",\"refId\":\"ds-builtin-user-tree\",\"name\":\"系统用户\"},{\"id\":\"ds-builtin-sys-posts\",\"refId\":\"ds-builtin-sys-posts\",\"name\":\"系统岗位\"},{\"id\":\"ds-builtin-dept-tree\",\"refId\":\"ds-builtin-dept-tree\",\"name\":\"组织机构\"}]}','PUBLISHED','default','BUSINESS','2026-10-10 16:14:21.986452',1);
 /*!40000 ALTER TABLE `wf_form_def` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -3490,7 +3902,6 @@ CREATE TABLE `wf_node_config` (
   `tenant_id` varchar(64) NOT NULL,
   `updated_at` datetime(6) DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_node` (`tenant_id`,`process_def_id`,`node_id`),
   UNIQUE KEY `uk_node_version` (`tenant_id`,`process_def_id`,`node_id`,`process_definition_id`),
   KEY `idx_def` (`tenant_id`,`process_def_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
@@ -3550,8 +3961,10 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `wf_page_def` WRITE;
 /*!40000 ALTER TABLE `wf_page_def` DISABLE KEYS */;
 INSERT INTO `wf_page_def` VALUES
+('7967506e1d644f61b6990610ee8c65f2','2026-10-11 15:15:27.401829',NULL,NULL,NULL,'page_detail_steps_demo','组件演示·数据详情与步骤条',1,'{\"rule\":[{\"type\":\"page-steps\",\"field\":\"stepsDemo1\",\"title\":\"客户服务流程\",\"props\":{\"items\":[{\"title\":\"登记受理\",\"description\":\"创建客户档案\"},{\"title\":\"需求确认\",\"description\":\"确认服务方案\"},{\"title\":\"现场实施\",\"description\":\"工程师上门服务\"},{\"title\":\"验收归档\",\"description\":\"客户签收归档\"}],\"active\":1,\"direction\":\"horizontal\"},\"_fc_id\":\"id_Fpbnmv3z6aqgabc\",\"name\":\"ref_Ftp3mv3z6aqgacc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"page-steps\"},{\"type\":\"page-table\",\"field\":\"custTable1\",\"title\":\"客户档案\",\"props\":{\"dataSourceId\":\"ds_cust\",\"columns\":[{\"prop\":\"Fyczmv3ks22dabc\",\"label\":\"客户名称\"},{\"prop\":\"Ffxemv3ksch9aec_text\",\"label\":\"客户状态\"},{\"prop\":\"Fzgimv3kskiaahc\",\"label\":\"负责人\"},{\"prop\":\"Fqgomv3ksnqrakc\",\"label\":\"联系电话\"}],\"designMode\":true},\"_fc_id\":\"id_Fg1pmv3z6aqgadc\",\"name\":\"ref_Frixmv3z6aqgaec\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"page-table\"},{\"type\":\"page-detail\",\"field\":\"custDetail1\",\"title\":\"客户档案详情\",\"props\":{\"dataSourceId\":\"ds_cust\",\"title\":\"客户档案详情（点击上方列表行联动）\",\"columns\":[{\"key\":\"Fyczmv3ks22dabc\",\"label\":\"客户名称\"},{\"key\":\"Ffxemv3ksch9aec_text\",\"label\":\"客户状态\"},{\"key\":\"Fzgimv3kskiaahc\",\"label\":\"负责人\"},{\"key\":\"Fqgomv3ksnqrakc\",\"label\":\"联系电话\"}]},\"_fc_id\":\"id_F5kkmv3z6aqgafc\",\"name\":\"ref_Fmm6mv3z6aqgagc\",\"display\":true,\"hidden\":false,\"_fc_drag_tag\":\"page-detail\"}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"}},\"dataSources\":[{\"id\":\"ds_cust\",\"refId\":\"a4187314fe3342c1ac5d6d52cc099a18\",\"name\":\"客户档案-关联演示\"}],\"actions\":[]}','PUBLISHED','default','PAGE','2026-10-11 15:30:48.729601',1),
 ('bbc2d83f6100453c92c6d239cc192e7d','2026-09-15 18:38:48.363138',NULL,NULL,NULL,'test_page','测试页面',1,'{\"rule\":[{\"type\":\"page-table\",\"field\":\"table1789468745852\",\"title\":\"\",\"props\":{\"dataSourceId\":\"ds_mu2jhb3n\",\"border\":true,\"stripe\":true,\"columns\":[{\"prop\":\"code\",\"label\":\"人员编码\"},{\"prop\":\"name\",\"label\":\"人员姓名\"},{\"prop\":\"dept\",\"label\":\"所属部门\"}],\"sortable\":false,\"filterable\":false,\"pagination\":true,\"selectionMode\":\"none\",\"actionColumnWidth\":0,\"showSearch\":true,\"stretch\":true,\"searchFields\":[{\"key\":\"code\",\"label\":\"人员编码\",\"matchType\":\"eq\"},{\"key\":\"name\",\"label\":\"人员姓名\",\"matchType\":\"eq\"},{\"key\":\"dept\",\"label\":\"所属部门\",\"matchType\":\"eq\"}],\"sortableFields\":[\"code\",\"name\"],\"pageSize\":20,\"pageSizes\":[10,20,50],\"viewActions\":{\"buttons\":[{\"key\":\"edit\",\"label\":\"编辑\",\"placement\":\"column\",\"style\":\"icon\"},{\"key\":\"delete\",\"label\":\"删除\",\"placement\":\"column\",\"style\":\"icon\"},{\"key\":\"create\",\"label\":\"新增\",\"placement\":\"toolbar\",\"style\":\"button\"},{\"key\":\"view\",\"label\":\"查看\",\"placement\":\"column\",\"style\":\"button\"}],\"permissions\":\"\"},\"viewDetail\":{\"width\":\"800px\",\"type\":\"form\",\"formMode\":\"drawer\"},\"viewEvents\":[],\"designMode\":true},\"_fc_id\":\"id_Fei8mu2jhl6kapc\",\"name\":\"ref_Fp3xmu2jhl6kaqc\",\"_fc_drag_tag\":\"page-table\",\"display\":true,\"hidden\":false},{\"type\":\"formContainer\",\"field\":\"F7n9mu2jn6reabc\",\"title\":\"数据容器\",\"info\":\"\",\"$required\":false,\"props\":{\"recordLocator\":{\"type\":\"current-record\"},\"displayMode\":\"dialog\",\"dialogWidth\":\"800px\",\"dialogHeight\":\"600px\",\"tabTitle\":\"编辑记录\",\"inlineHeight\":\"auto\",\"showNewButton\":true,\"showCancelButton\":true,\"showConfirmButton\":true,\"showDeleteButton\":false,\"showCopyButton\":false,\"customButtons\":[],\"dataSourceId\":\"ds_mu2jhb3n\",\"rule\":[{\"type\":\"input\",\"field\":\"name\",\"title\":\"姓名\",\"info\":\"\",\"$required\":false,\"_fc_id\":\"id_Fi7lmu2jnbojafc\",\"name\":\"ref_F411mu2jnbojagc\",\"_fc_drag_tag\":\"input\",\"display\":true,\"hidden\":false}]},\"_fc_id\":\"id_Ffydmu2jn6reacc\",\"name\":\"ref_Fre6mu2jn6readc\",\"_fc_drag_tag\":\"formContainer\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"}},\"dataSources\":[{\"id\":\"ds_mu2jhb3n\",\"refId\":\"20f476f047ca4386bfd1365ea5516832\",\"name\":\"请假人员 数据源\"}],\"actions\":[{\"trigger\":\"row-edit\",\"source\":\"ds_mu2jhb3n\",\"steps\":[{\"op\":\"open-container\",\"target\":\"ds_mu2jhb3n\",\"displayMode\":\"dialog\"}]}]}','PUBLISHED','default','PAGE','2026-09-15 19:15:14.720229',1),
 ('ccade5ed0f68e55315b0e0834867c436','2026-09-25 00:34:44.000000',NULL,NULL,NULL,'test1','测试页面',1,'{\"rule\":[{\"type\":\"page-table\",\"field\":\"table1790295600611\",\"title\":\"\",\"props\":{\"dataSourceId\":\"ds_mug7s41d\",\"border\":true,\"stripe\":true,\"columns\":[{\"prop\":\"apply_name\",\"label\":\"申请人姓名\"},{\"prop\":\"leave_end_date\",\"label\":\"请假结束日期\"},{\"prop\":\"leave_start_date\",\"label\":\"请假开始日期\"},{\"prop\":\"leave_days\",\"label\":\"请假天数\"},{\"prop\":\"leave_type\",\"label\":\"请假类型\"},{\"prop\":\"person_name\",\"label\":\"请假人姓名\"},{\"prop\":\"department\",\"label\":\"所属部门\"},{\"prop\":\"leave_reason\",\"label\":\"请假事由\"},{\"prop\":\"is_approved\",\"label\":\"是否已获得主管批准\"},{\"prop\":\"contact_phone\",\"label\":\"紧急联系电话\"},{\"prop\":\"position\",\"label\":\"职位\"}],\"sortable\":false,\"filterable\":false,\"pagination\":true,\"selectionMode\":\"none\",\"actionColumnWidth\":0,\"showSearch\":true,\"stretch\":true,\"searchFields\":[],\"sortableFields\":[\"person_name\",\"department\",\"position\",\"leave_start_date\",\"leave_end_date\",\"leave_days\",\"contact_phone\",\"is_approved\",\"apply_name\"],\"pageSize\":20,\"pageSizes\":[10,20,50],\"viewActions\":{\"buttons\":[{\"key\":\"edit\",\"label\":\"编辑\",\"placement\":\"column\",\"style\":\"icon\"},{\"key\":\"delete\",\"label\":\"删除\",\"placement\":\"column\",\"style\":\"icon\"}],\"permissions\":\"\"},\"viewDetail\":{\"width\":\"800px\",\"type\":\"form\"},\"viewEvents\":[],\"designMode\":true},\"_fc_id\":\"id_Fqfrmug7ryebabc\",\"name\":\"ref_Fos4mug7ryebacc\",\"_fc_drag_tag\":\"page-table\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"}},\"dataSources\":[{\"id\":\"ds_mug7s41d\",\"refId\":\"e6741228ebda42fb8fa0c5717800d27a\",\"name\":\"测试表单 数据源\"}],\"actions\":[]}','PUBLISHED','default','PAGE','2026-09-27 13:55:41.000000',1),
+('ead17293033c45409e6601e31bea40a8','2026-10-10 14:38:30.273394',NULL,NULL,NULL,'table-enhance-e2e','表格增强E2E',1,'{\"rule\":[{\"type\":\"page-table\",\"field\":\"table1791643253206\",\"title\":\"\",\"props\":{\"dataSourceId\":\"ds_mv2i46vn\",\"border\":true,\"stripe\":true,\"columns\":[{\"prop\":\"code\",\"label\":\"人员编码\",\"aggregate\":\"count\"},{\"prop\":\"name\",\"label\":\"人员姓名\",\"aggregate\":\"count\"},{\"prop\":\"dept\",\"label\":\"所属部门\",\"aggregate\":\"count\"}],\"sortable\":false,\"filterable\":false,\"pagination\":true,\"selectionMode\":\"none\",\"actionColumnWidth\":0,\"showSearch\":true,\"stretch\":true,\"searchFields\":[],\"headerFilter\":{\"enabled\":true},\"batch\":{\"enabled\":true,\"delete\":true},\"sortableFields\":[],\"pageSize\":20,\"pageSizes\":[10,20,50],\"viewActions\":{\"buttons\":[{\"key\":\"edit\",\"label\":\"编辑\",\"placement\":\"column\",\"style\":\"text\"},{\"key\":\"delete\",\"label\":\"删除\",\"placement\":\"column\",\"style\":\"text\"}],\"permissions\":\"\"},\"viewDetail\":{\"width\":\"800px\",\"type\":\"form\"},\"viewEvents\":[],\"designMode\":true,\"excelExport\":{\"enabled\":true},\"excelImport\":{\"enabled\":true},\"summaryRow\":{\"enabled\":true}},\"_fc_id\":\"id_F4ptmv2i4tsmadc\",\"name\":\"ref_Fmvzmv2i4tsmaec\",\"_fc_drag_tag\":\"page-table\",\"display\":true,\"hidden\":false}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"right\",\"size\":\"default\",\"labelWidth\":\"125px\"},\"resetBtn\":{\"show\":false,\"innerText\":\"重置\"},\"submitBtn\":{\"show\":true,\"innerText\":\"提交\"}},\"dataSources\":[{\"id\":\"ds_mv2i46vn\",\"refId\":\"20f476f047ca4386bfd1365ea5516832\",\"name\":\"请假人员 数据源\"}],\"actions\":[]}','PUBLISHED','default','PAGE','2026-10-10 19:46:17.774828',1),
 ('f5d2e46500e74402831590ae8d310cd0','2026-10-03 01:29:54.144312',NULL,NULL,NULL,'dashboard','主页仪表盘',1,'{\"rule\":[{\"type\":\"dash-kpi\",\"field\":\"kpiDefCount\",\"title\":\"流程定义数\",\"col\":{\"span\":12},\"props\":{\"title\":\"流程定义数\",\"subtitle\":\"已部署流程定义\",\"unit\":\"个\",\"agg\":\"count\",\"metric\":null,\"dataSourceId\":\"ds_def\",\"numberFormat\":\"\",\"trendEnabled\":false,\"trendGrain\":\"day\",\"trendField\":\"\",\"sparkline\":false,\"sparkRange\":12,\"span\":12,\"height\":\"140px\"}},{\"type\":\"dash-kpi\",\"field\":\"kpiRunning\",\"title\":\"运行中流程\",\"col\":{\"span\":12},\"props\":{\"title\":\"运行中流程\",\"subtitle\":\"进行中的流程实例\",\"unit\":\"条\",\"agg\":\"count\",\"metric\":null,\"dataSourceId\":\"ds_inst\",\"filter\":\"{\\\"conditions\\\": [{\\\"column\\\": \\\"status\\\", \\\"op\\\": \\\"eq\\\", \\\"value\\\": \\\"running\\\"}], \\\"logic\\\": \\\"AND\\\"}\",\"numberFormat\":\"\",\"trendEnabled\":false,\"trendGrain\":\"day\",\"trendField\":\"\",\"sparkline\":false,\"sparkRange\":12,\"span\":12,\"height\":\"140px\"}},{\"type\":\"dash-chart\",\"field\":\"chartTrend\",\"title\":\"发起趋势\",\"col\":{\"span\":12},\"props\":{\"title\":\"发起趋势\",\"chartType\":\"line\",\"group\":\"startTime\",\"timeGrain\":\"day\",\"agg\":\"count\",\"metric\":null,\"sort\":\"key\",\"order\":\"asc\",\"limit\":14,\"dataSourceId\":\"ds_inst\",\"height\":\"280px\",\"span\":12}},{\"type\":\"dash-chart\",\"field\":\"chartDist\",\"title\":\"流程分布\",\"col\":{\"span\":12},\"props\":{\"title\":\"流程分布\",\"chartType\":\"pie\",\"group\":\"processDefinitionName\",\"timeGrain\":null,\"agg\":\"count\",\"metric\":null,\"sort\":\"value\",\"order\":\"desc\",\"limit\":8,\"dataSourceId\":\"ds_inst\",\"height\":\"280px\",\"span\":12}}],\"option\":{\"form\":{\"inline\":false,\"hideRequiredAsterisk\":false,\"labelPosition\":\"top\",\"size\":\"default\",\"labelWidth\":\"auto\"}},\"dataSources\":[{\"id\":\"ds_def\",\"refId\":\"ds-builtin-process-definitions\",\"name\":\"流程定义\"},{\"id\":\"ds_inst\",\"refId\":\"ds-builtin-process-instances\",\"name\":\"流程实例\"}],\"actions\":[]}','PUBLISHED','default','PAGE','2026-10-03 01:29:54.331685',1);
 /*!40000 ALTER TABLE `wf_page_def` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -3602,6 +4015,40 @@ INSERT INTO `wf_process_draft` VALUES
 ('be9204eac01647d69c2ed9423173b698','<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" xmlns:di=\"http://www.omg.org/spec/DD/20100524/DI\" xmlns:wf=\"http://workflow.com/schema/bpmn/wf\" xmlns:flowable=\"http://flowable.org/bpmn\" targetNamespace=\"abbde8e4a6f74009a8a595bb7c38973c\">\n  <bpmn:process id=\"leave_apply\" name=\"请假流程\" isExecutable=\"true\">\n    <bpmn:startEvent id=\"Event_1c3exx9\">\n      <bpmn:outgoing>Flow_18tdmgw</bpmn:outgoing>\n    </bpmn:startEvent>\n    <bpmn:userTask id=\"Activity_1dd4ed3\" name=\"发起节点\" wf:nodeRole=\"initiator\" flowable:assignee=\"${initiator}\">\n      <bpmn:incoming>Flow_18tdmgw</bpmn:incoming>\n      <bpmn:outgoing>Flow_1h1y4wd</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_18tdmgw\" sourceRef=\"Event_1c3exx9\" targetRef=\"Activity_1dd4ed3\" />\n    <bpmn:userTask id=\"Activity_0lwswse\" name=\"多人审批\">\n      <bpmn:incoming>Flow_1h1y4wd</bpmn:incoming>\n      <bpmn:outgoing>Flow_0cbe119</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_1h1y4wd\" sourceRef=\"Activity_1dd4ed3\" targetRef=\"Activity_0lwswse\" />\n    <bpmn:userTask id=\"Activity_1tsdpa6\" name=\"去重审批\">\n      <bpmn:incoming>Flow_0cbe119</bpmn:incoming>\n      <bpmn:outgoing>Flow_1cusaqg</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_0cbe119\" sourceRef=\"Activity_0lwswse\" targetRef=\"Activity_1tsdpa6\" />\n    <bpmn:userTask id=\"Activity_0rrplp3\" name=\"多表单\">\n      <bpmn:incoming>Flow_1cusaqg</bpmn:incoming>\n      <bpmn:outgoing>Flow_0xzyx7i</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_1cusaqg\" sourceRef=\"Activity_1tsdpa6\" targetRef=\"Activity_0rrplp3\" />\n    <bpmn:endEvent id=\"Event_0ua71tz\">\n      <bpmn:incoming>Flow_0xzyx7i</bpmn:incoming>\n    </bpmn:endEvent>\n    <bpmn:sequenceFlow id=\"Flow_0xzyx7i\" sourceRef=\"Activity_0rrplp3\" targetRef=\"Event_0ua71tz\" />\n  </bpmn:process>\n  <bpmndi:BPMNDiagram id=\"BPMNDiagram_1\">\n    <bpmndi:BPMNPlane id=\"BPMNPlane_1\" bpmnElement=\"leave_apply\">\n      <bpmndi:BPMNShape id=\"Event_1c3exx9_di\" bpmnElement=\"Event_1c3exx9\">\n        <dc:Bounds x=\"127\" y=\"285\" width=\"36\" height=\"36\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_1dd4ed3_di\" bpmnElement=\"Activity_1dd4ed3\">\n        <dc:Bounds x=\"220\" y=\"263\" width=\"100\" height=\"80\" />\n        <bpmndi:BPMNLabel />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_0lwswse_di\" bpmnElement=\"Activity_0lwswse\">\n        <dc:Bounds x=\"380\" y=\"263\" width=\"100\" height=\"80\" />\n        <bpmndi:BPMNLabel />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_1tsdpa6_di\" bpmnElement=\"Activity_1tsdpa6\">\n        <dc:Bounds x=\"540\" y=\"263\" width=\"100\" height=\"80\" />\n        <bpmndi:BPMNLabel />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_0rrplp3_di\" bpmnElement=\"Activity_0rrplp3\">\n        <dc:Bounds x=\"690\" y=\"263\" width=\"100\" height=\"80\" />\n        <bpmndi:BPMNLabel />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Event_0ua71tz_di\" bpmnElement=\"Event_0ua71tz\">\n        <dc:Bounds x=\"842\" y=\"285\" width=\"36\" height=\"36\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNEdge id=\"Flow_18tdmgw_di\" bpmnElement=\"Flow_18tdmgw\">\n        <di:waypoint x=\"163\" y=\"303\" />\n        <di:waypoint x=\"220\" y=\"303\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_1h1y4wd_di\" bpmnElement=\"Flow_1h1y4wd\">\n        <di:waypoint x=\"320\" y=\"303\" />\n        <di:waypoint x=\"380\" y=\"303\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_0cbe119_di\" bpmnElement=\"Flow_0cbe119\">\n        <di:waypoint x=\"480\" y=\"303\" />\n        <di:waypoint x=\"540\" y=\"303\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_1cusaqg_di\" bpmnElement=\"Flow_1cusaqg\">\n        <di:waypoint x=\"640\" y=\"303\" />\n        <di:waypoint x=\"690\" y=\"303\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_0xzyx7i_di\" bpmnElement=\"Flow_0xzyx7i\">\n        <di:waypoint x=\"790\" y=\"303\" />\n        <di:waypoint x=\"842\" y=\"303\" />\n      </bpmndi:BPMNEdge>\n    </bpmndi:BPMNPlane>\n  </bpmndi:BPMNDiagram>\n</bpmn:definitions>\n','abbde8e4a6f74009a8a595bb7c38973c','2026-09-11 10:39:53.500261',NULL,NULL,NULL,NULL,'leave_apply',NULL,'请假流程',NULL,'DRAFT','default','2026-09-11 10:48:10.689698',0,NULL),
 ('f50d6d7a012aea6df8710a35de24b267','<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" xmlns:di=\"http://www.omg.org/spec/DD/20100524/DI\" xmlns:wf=\"http://workflow.com/schema/bpmn/wf\" xmlns:flowable=\"http://flowable.org/bpmn\" targetNamespace=\"http://flowable.org/bpmn\">\n  <bpmn:process id=\"ui_verify_flow\" name=\"UI验证流程\" isExecutable=\"true\">\n    <bpmn:startEvent id=\"startEvent_1\">\n      <bpmn:outgoing>Flow_10bijim</bpmn:outgoing>\n    </bpmn:startEvent>\n    <bpmn:userTask id=\"Activity_0q13unc\" name=\"发起节点\" wf:nodeRole=\"initiator\" flowable:assignee=\"${initiator}\">\n      <bpmn:incoming>Flow_10bijim</bpmn:incoming>\n      <bpmn:outgoing>Flow_1mkegyr</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_10bijim\" sourceRef=\"startEvent_1\" targetRef=\"Activity_0q13unc\" />\n    <bpmn:userTask id=\"Activity_0np59ha\" wf:nodeRole=\"handler\">\n      <bpmn:incoming>Flow_1mkegyr</bpmn:incoming>\n      <bpmn:outgoing>Flow_1avyfx2</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_1mkegyr\" sourceRef=\"Activity_0q13unc\" targetRef=\"Activity_0np59ha\" />\n    <bpmn:userTask id=\"Activity_023htgs\" wf:nodeRole=\"handler\">\n      <bpmn:incoming>Flow_1avyfx2</bpmn:incoming>\n      <bpmn:outgoing>Flow_04920vf</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_1avyfx2\" sourceRef=\"Activity_0np59ha\" targetRef=\"Activity_023htgs\" />\n    <bpmn:userTask id=\"Activity_0wemnzz\" wf:nodeRole=\"approver\">\n      <bpmn:incoming>Flow_04920vf</bpmn:incoming>\n      <bpmn:outgoing>Flow_1bblzfz</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_04920vf\" sourceRef=\"Activity_023htgs\" targetRef=\"Activity_0wemnzz\" />\n    <bpmn:endEvent id=\"Event_04ffjpj\">\n      <bpmn:incoming>Flow_1bblzfz</bpmn:incoming>\n    </bpmn:endEvent>\n    <bpmn:sequenceFlow id=\"Flow_1bblzfz\" sourceRef=\"Activity_0wemnzz\" targetRef=\"Event_04ffjpj\" />\n  </bpmn:process>\n  <bpmndi:BPMNDiagram id=\"BPMNDiagram_1\">\n    <bpmndi:BPMNPlane id=\"BPMNPlane_1\" bpmnElement=\"ui_verify_flow\">\n      <bpmndi:BPMNShape id=\"startEvent_1_di\" bpmnElement=\"startEvent_1\">\n        <dc:Bounds x=\"160\" y=\"160\" width=\"36\" height=\"36\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_0q13unc_di\" bpmnElement=\"Activity_0q13unc\">\n        <dc:Bounds x=\"250\" y=\"138\" width=\"100\" height=\"80\" />\n        <bpmndi:BPMNLabel />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_0np59ha_di\" bpmnElement=\"Activity_0np59ha\">\n        <dc:Bounds x=\"410\" y=\"138\" width=\"100\" height=\"80\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_023htgs_di\" bpmnElement=\"Activity_023htgs\">\n        <dc:Bounds x=\"570\" y=\"138\" width=\"100\" height=\"80\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_0wemnzz_di\" bpmnElement=\"Activity_0wemnzz\">\n        <dc:Bounds x=\"730\" y=\"138\" width=\"100\" height=\"80\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Event_04ffjpj_di\" bpmnElement=\"Event_04ffjpj\">\n        <dc:Bounds x=\"892\" y=\"160\" width=\"36\" height=\"36\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNEdge id=\"Flow_10bijim_di\" bpmnElement=\"Flow_10bijim\">\n        <di:waypoint x=\"196\" y=\"178\" />\n        <di:waypoint x=\"250\" y=\"178\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_1mkegyr_di\" bpmnElement=\"Flow_1mkegyr\">\n        <di:waypoint x=\"350\" y=\"178\" />\n        <di:waypoint x=\"410\" y=\"178\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_1avyfx2_di\" bpmnElement=\"Flow_1avyfx2\">\n        <di:waypoint x=\"510\" y=\"178\" />\n        <di:waypoint x=\"570\" y=\"178\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_04920vf_di\" bpmnElement=\"Flow_04920vf\">\n        <di:waypoint x=\"670\" y=\"178\" />\n        <di:waypoint x=\"730\" y=\"178\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_1bblzfz_di\" bpmnElement=\"Flow_1bblzfz\">\n        <di:waypoint x=\"830\" y=\"178\" />\n        <di:waypoint x=\"892\" y=\"178\" />\n      </bpmndi:BPMNEdge>\n    </bpmndi:BPMNPlane>\n  </bpmndi:BPMNDiagram>\n</bpmn:definitions>\n',NULL,'2026-09-30 01:18:47.000000',NULL,'ebeedebc-a08a-a49e-b50b-d75ef7811064','041b3974db57dece93836aedb001faf160851101f5364cecf304c70fedb108fd','<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" xmlns:di=\"http://www.omg.org/spec/DD/20100524/DI\" xmlns:wf=\"http://workflow.com/schema/bpmn/wf\" xmlns:flowable=\"http://flowable.org/bpmn\" targetNamespace=\"http://flowable.org/bpmn\">\n  <bpmn:process id=\"ui_verify_flow\" name=\"UI验证流程\" isExecutable=\"true\">\n    <bpmn:startEvent id=\"startEvent_1\">\n      <bpmn:outgoing>Flow_10bijim</bpmn:outgoing>\n    </bpmn:startEvent>\n    <bpmn:userTask id=\"Activity_0q13unc\" name=\"发起节点\" wf:nodeRole=\"initiator\" flowable:assignee=\"${initiator}\">\n      <bpmn:incoming>Flow_10bijim</bpmn:incoming>\n      <bpmn:outgoing>Flow_1mkegyr</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_10bijim\" sourceRef=\"startEvent_1\" targetRef=\"Activity_0q13unc\" />\n    <bpmn:userTask id=\"Activity_0np59ha\" wf:nodeRole=\"handler\">\n      <bpmn:incoming>Flow_1mkegyr</bpmn:incoming>\n      <bpmn:outgoing>Flow_1avyfx2</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_1mkegyr\" sourceRef=\"Activity_0q13unc\" targetRef=\"Activity_0np59ha\" />\n    <bpmn:userTask id=\"Activity_023htgs\" wf:nodeRole=\"handler\">\n      <bpmn:incoming>Flow_1avyfx2</bpmn:incoming>\n      <bpmn:outgoing>Flow_04920vf</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_1avyfx2\" sourceRef=\"Activity_0np59ha\" targetRef=\"Activity_023htgs\" />\n    <bpmn:userTask id=\"Activity_0wemnzz\" wf:nodeRole=\"approver\">\n      <bpmn:incoming>Flow_04920vf</bpmn:incoming>\n      <bpmn:outgoing>Flow_1bblzfz</bpmn:outgoing>\n    </bpmn:userTask>\n    <bpmn:sequenceFlow id=\"Flow_04920vf\" sourceRef=\"Activity_023htgs\" targetRef=\"Activity_0wemnzz\" />\n    <bpmn:endEvent id=\"Event_04ffjpj\">\n      <bpmn:incoming>Flow_1bblzfz</bpmn:incoming>\n    </bpmn:endEvent>\n    <bpmn:sequenceFlow id=\"Flow_1bblzfz\" sourceRef=\"Activity_0wemnzz\" targetRef=\"Event_04ffjpj\" />\n  </bpmn:process>\n  <bpmndi:BPMNDiagram id=\"BPMNDiagram_1\">\n    <bpmndi:BPMNPlane id=\"BPMNPlane_1\" bpmnElement=\"ui_verify_flow\">\n      <bpmndi:BPMNShape id=\"startEvent_1_di\" bpmnElement=\"startEvent_1\">\n        <dc:Bounds x=\"160\" y=\"160\" width=\"36\" height=\"36\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_0q13unc_di\" bpmnElement=\"Activity_0q13unc\">\n        <dc:Bounds x=\"250\" y=\"138\" width=\"100\" height=\"80\" />\n        <bpmndi:BPMNLabel />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_0np59ha_di\" bpmnElement=\"Activity_0np59ha\">\n        <dc:Bounds x=\"410\" y=\"138\" width=\"100\" height=\"80\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_023htgs_di\" bpmnElement=\"Activity_023htgs\">\n        <dc:Bounds x=\"570\" y=\"138\" width=\"100\" height=\"80\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Activity_0wemnzz_di\" bpmnElement=\"Activity_0wemnzz\">\n        <dc:Bounds x=\"730\" y=\"138\" width=\"100\" height=\"80\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"Event_04ffjpj_di\" bpmnElement=\"Event_04ffjpj\">\n        <dc:Bounds x=\"892\" y=\"160\" width=\"36\" height=\"36\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNEdge id=\"Flow_10bijim_di\" bpmnElement=\"Flow_10bijim\">\n        <di:waypoint x=\"196\" y=\"178\" />\n        <di:waypoint x=\"250\" y=\"178\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_1mkegyr_di\" bpmnElement=\"Flow_1mkegyr\">\n        <di:waypoint x=\"350\" y=\"178\" />\n        <di:waypoint x=\"410\" y=\"178\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_1avyfx2_di\" bpmnElement=\"Flow_1avyfx2\">\n        <di:waypoint x=\"510\" y=\"178\" />\n        <di:waypoint x=\"570\" y=\"178\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_04920vf_di\" bpmnElement=\"Flow_04920vf\">\n        <di:waypoint x=\"670\" y=\"178\" />\n        <di:waypoint x=\"730\" y=\"178\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"Flow_1bblzfz_di\" bpmnElement=\"Flow_1bblzfz\">\n        <di:waypoint x=\"830\" y=\"178\" />\n        <di:waypoint x=\"892\" y=\"178\" />\n      </bpmndi:BPMNEdge>\n    </bpmndi:BPMNPlane>\n  </bpmndi:BPMNDiagram>\n</bpmn:definitions>\n','ui_verify_flow','2026-09-30 02:06:19.000000','UI验证流程','ui_verify_flow:1:1f4f614e-f2a4-6e5f-3ee6-59d5fccd12a4','DEPLOYED','default','2026-09-30 02:06:19.000000',1,NULL);
 /*!40000 ALTER TABLE `wf_process_draft` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `wf_serial_number`
+--
+
+DROP TABLE IF EXISTS `wf_serial_number`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `wf_serial_number` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `tenant_id` varchar(64) NOT NULL COMMENT '租户 id',
+  `serial_key` varchar(128) NOT NULL COMMENT '序列标识（formKey.fieldKey，防跨表单重号）',
+  `period` varchar(16) NOT NULL COMMENT '重置周期键（day=yyyyMMdd/month=yyyyMM/year=yyyy/never=ALL）',
+  `seq` bigint(20) NOT NULL DEFAULT 0 COMMENT '当前流水号（upsert 自增）',
+  `updated_at` datetime DEFAULT NULL COMMENT '最近取号时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_serial` (`tenant_id`,`serial_key`,`period`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='自动编号流水号计数（Task 3-d）';
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `wf_serial_number`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `wf_serial_number` WRITE;
+/*!40000 ALTER TABLE `wf_serial_number` DISABLE KEYS */;
+INSERT INTO `wf_serial_number` VALUES
+(1,'default','e2enew_task.Fv0omv3h07d5atc','20261011',1,'2026-10-11 07:12:07'),
+(2,'default','onsite_service_demo.orderNo','20261011',3,'2026-10-11 14:41:43');
+/*!40000 ALTER TABLE `wf_serial_number` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
@@ -3707,10 +4154,6 @@ LOCK TABLES `wf_task_transfer` WRITE;
 UNLOCK TABLES;
 COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
-
---
--- Dumping routines for database 'workflow'
---
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -3721,4 +4164,4 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-10-11 13:16:46
+-- Dump completed on 2026-10-11 16:05:48
