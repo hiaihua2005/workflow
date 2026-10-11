@@ -115,7 +115,7 @@ if [ -f "$JAR" ] && ! pgrep -f 'workflow-platform-1.0.0-SNAPSHOT.jar' >/dev/null
   pkill -f 'bun src/index.ts' 2>/dev/null || true
   sleep 2
   echo "[recover] 启动 Java（-Xmx448m，首启约 20s）..."
-  (cd "$BACKEND" && setsid nohup java -Xmx448m -XX:MaxMetaspaceSize=192m -jar "$JAR" \
+  (cd "$BACKEND" && setsid nohup java -Xmx448m -XX:MaxMetaspaceSize=256m -jar "$JAR" \
     --spring.profiles.active=sandbox >> /home/z/tools/backend.log 2>&1 < /dev/null &)
   for i in $(seq 1 9); do sleep 5; port_open 8080 && break; done
 fi
