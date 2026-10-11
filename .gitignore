@@ -59,3 +59,6 @@ mariadb-user/
 
 # session tool artifacts (never commit — may contain secrets)
 tool-results/
+
+# 本地 jar 备份（121MB 超过 GitHub 100MB 限制，只留本地）
+backups/jar/
