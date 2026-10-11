@@ -6804,3 +6804,21 @@ Stage Summary:
 - RelationCard 来源绑定完成「双轨 → 单一数据源」收敛：面板只剩「数据源」一个来源入口，业务表单场景天然经其 FORM 数据源；旧配置打开面板即自动迁移（落库需保存），未迁移卡片运行时兜底不受影响
 - 质量资产：RelationFieldSelect 首次拥有单测（迁移 4 用例，关闭上轮遗留①）
 - 遗留：①member_group 数据源 params 为 API 形态（手工 API 建的 FORM 源），与监听器自动建的差异待观察（metadata/查询已可用）②MemberGroupPage 5 例既有失败待排查 ③mode='form' 在 RelationFieldSelect 中已成死代码（保留无害，后续可清）
+---
+Task ID: relationcard-drop-json-column
+Agent: Z.ai Code (main session)
+Task: 用户问「客户实施档案其实是通过客户数据源查询出来的，只是做一个显示对吗？如果是这样的话为什么还要生成一个JSON字段？另外显示字段有什么用？」——确认机制 + 消除恒空 JSON 冗余列 + 面板移除遗留「显示字段」配置
+
+Work Log:
+- 【机制确认（回答用户）】实时模式卡片数据 100% 来自数据源实时查询（recordIdField 监听 id → dataSourceApi.getData / bizDataApi.detail 拉最新整行），本地不存业务数据快照；那个 JSON 字段 = 发布列映射给 RelationCard 生成的物理 JSON 列，是 v1 被动模式（值由联动规则塞入随表单落库）的历史遗留，v2 实时化后卡片自身值恒空 → 列 100% 冗余，用户判断正确；真正有存储语义的是「记录 ID 字段」指向的字段（如 dataPicker TEXT id 列=关联关系本体），非冗余
+- 【考古链路】前端 ColumnConfigDialog.mapComponentToColumn('RelationCard')→JSON 草案（v1 遗留）→ 用户确认持久化 columnConfig → 后端 DdlBuilder 建列；后端 ColumnTypeMapper 无 RelationCard case（default→null，自动映射层本就不认）；DdlBuilder 禁 DROP COLUMN → 存量列保留但恒空无害
+- 【去冗余列】ColumnConfigDialog.vue：移除 case 'RelationCard'；collectFields/collectSubFields 各加显式 `if (type==='RelationCard') continue`（必须显式跳过——落 mapComponentToColumn 返回 null 会被标 unsupported 阻止发布）；发布列表/物理表不再新增 RelationCard JSON 列
+- 【后端注释分组】FormDefinitionService BUSINESS_FORM_ALLOWED_COMPONENTS：RelationCard 移入「外部数据展示（合法、不生成业务列）」组（白名单本身不变，仅注释归位）
+- 【面板去遗留】relationCard.js props() 移除「显示字段」displayField 配置项（被动模式对象取值键，实时模式无用——用户困惑来源）+ 删 DISPLAY_FIELD_FALLBACK 常量；rule() 默认 props 保留 displayField:'' 渲染兼容；面板现结构=卡片标题/说明文字/数据源/记录ID字段/摘要展示字段/可点击
+- 【MultiEdit 部分应用再现】3 编辑块失败回滚声明下前 2 块实际已落盘（头部注释+常量删除），第 3 块单独 Edit 补做——连续第 3 次踩坑，MultiEdit 后必须 rg 复核全量落盘状态
+- 【测试】task3gRules 14/14（面板断言改「含 title/description/clickable + not.toContain displayField」）；ColumnConfigDialog 42/42；全量 1747/1752（5 失败=MemberGroupPage 既有，基线一致 0 新增）；vue-tsc 改动文件 0 错误
+- 【收尾】commit push（HEAD=origin/main 核验）
+
+Stage Summary:
+- RelationCard 完成「纯实时展示组件」定位收敛：数据经数据源实时查询显示（用户理解完全正确）、值不落业务列（恒空 JSON 列停止生成，存量列按禁 DROP 保留无害）、关联关系由记录 ID 字段（dataPicker id 列）承载；面板清除 v1 遗留「显示字段」，摘要展示字段=纯展示配置（控制卡片显示哪些字段、留空自动取前 4 个非空）
+- 用户两问均已落实为代码：JSON 字段=冗余已移除；显示字段（displayField）=遗留已下架，「摘要展示字段」（displayFields）保留并是实时模式的正文显示配置
