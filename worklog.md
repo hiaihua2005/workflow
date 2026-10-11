@@ -6996,3 +6996,17 @@ Stage Summary:
 - 两个逻辑流业务场景演示资产全链路就绪：①审批联动（leave_approval_demo 流程 + leave_ledger_sync 逻辑流，演示态：李四 3/10、王五 6/10）②领用联动（pickup_stock_sync，演示态：库存 P001=195 + 流水 1 行）
 - 平台级经验：发起节点=第一个 UserTask 自动完成；assignee 用 userId；DATA_UPSERT update 路径含全量 values（累计场景须用 QUERY+CONDITION+INSERT/UPDATE 组合）；DATA_QUERY 的 results KEY 拆包是 CONDITION 取嵌套值的唯一通道
 - 遗留观察：脚本重跑会持续累计王五天数（语义正确）；存量旧定义实例（assignee=admin）不可见于待办页，已通过 API 清理完毕
+---
+Task ID: logicflow-scenario-verify
+Agent: Z.ai Code (main session)
+Task: 同一用户需求的双 agent 协作收口——监控并行 cron agent 交付 + 独立终态复核
+
+Work Log:
+- 【并行发现】本轮（trace 8909dfdf 用户消息 + 446961 巡检）开工后探测到 webDevReview cron agent（Job 451975）正构造同一需求资产（scripts/build_logicflow_demo.py 未跟踪、16:06-16:23 持续迭代逻辑流 v1→v9、浏览器 E2E 进行中 5min+）——立即转 monitor-only 模式避免双写（重复扣库存/重复累加台账/git 冲突），仅以只读 DB/日志/git 轮询跟踪 4 轮（约 20 分钟）
+- 【里程碑观察】16:11:04 leave_ledger_sync 首跑成功（DATA_UPSERT 建档+DATA_UPDATE 累加）→ 16:20 前后浏览器 E2E 多轮 → 16:25:32 提交 dc4e60e6 → 已推送（ahead=0/behind=0）
+- 【独立终态复核】5 表单 PUBLISHED、2 逻辑流 PUBLISHED v9、2 绑定 enabled（AFTER_PROCESS_FINISH/AFTER_CREATE）、流程 leave_approval_demo v9 部署在位；演示数据：台账 王五 6/10 + 李四 3/10、库存 P001=195（200-5）、领用单 1 行、流水 1 行（sourceNote「来源领用单 a714dfd5…」）——两场景全链路数据闭环 ✓；截图×3 在位
+- 【巡检】r16 全绿 200×4 真绿，内存 2.3GB，oom 0，dump OK（20261011-160548 已入 git）
+
+Stage Summary:
+- 双 agent 同任务冲突的处置范式：探测到并行写入方 → 冻结共享状态写操作 → 只读监控至对方 commit+push → 独立复核终态 → 补协作记录；本轮用户需求由 cron agent 完整交付，本会话承担巡检+协调+复核
+- 演示入口：场景 1 流程中心发起「请假审批-逻辑流演示」→ 待办审批通过 → /biz-data/leave_ledger_demo 台账自动累加；场景 2 /biz-data/material_pickup_demo 新增领用 → /biz-data/material_stock_demo 库存自动扣减 + /biz-data/pickup_log_demo 流水自动写入
