@@ -24,14 +24,32 @@ describe('relationCard rule（基础组件）', () => {
     expect(relationCard.mask).toBe(true)
   })
 
-  it('默认 props：clickable 开启、标题/说明/显示字段留空', () => {
+  it('默认 props：v2 实时三键空缺省 + v1 被动四键保留', () => {
     const rule = relationCard.rule({ t })
-    expect(rule.props).toEqual({ title: '', description: '', displayField: '', clickable: true })
+    expect(rule.props).toEqual({
+      title: '',
+      description: '',
+      displayField: '',
+      sourceFormKey: '',
+      recordIdField: '',
+      displayFields: [],
+      clickable: true,
+    })
   })
 
   it('props 面板含 title/description/displayField/clickable', () => {
     const fields = relationCard.props({}, { t }).map((p: any) => p.field)
     expect(fields).toEqual(expect.arrayContaining(['title', 'description', 'displayField', 'clickable']))
+  })
+
+  it('v2 props 面板含 sourceFormKey/recordIdField/displayFields，且 displayFields 支持多选手填', () => {
+    const items = relationCard.props({}, { t }) as any[]
+    const fields = items.map((p) => p.field)
+    expect(fields).toEqual(expect.arrayContaining(['sourceFormKey', 'recordIdField', 'displayFields']))
+    const displayFields = items.find((p) => p.field === 'displayFields')
+    expect(displayFields.props.multiple).toBe(true)
+    expect(displayFields.props.allowCreate).toBe(true)
+    expect(displayFields.options.length).toBeGreaterThanOrEqual(9)
   })
 })
 

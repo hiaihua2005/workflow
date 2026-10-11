@@ -58,6 +58,42 @@ export function buildFetchApiFromConfig(fetch: LookupFetchConfig) {
 }
 
 /**
+ * 关联记录 id 解析（RelationCard v2 实时取数用）。
+ * 兼容四种值来源：
+ * - dataPicker 数据引用字段：值 = id 的 JSON 数组字符串（'["id1"]'，多选取第一个）
+ * - LookupPicker idField 回写目标字段：纯 id 字符串
+ * - 整行对象（旧兼容）：取 .id
+ * - JSON 对象/带引号字符串：递归解包
+ * 无法解析 → null。
+ */
+export function resolveRecordId(v: unknown): string | null {
+  if (v === null || v === undefined) return null
+  if (typeof v === 'object') {
+    const id = (v as Record<string, unknown>).id
+    return id !== null && id !== undefined && id !== '' ? String(id) : null
+  }
+  const s = String(v).trim()
+  if (!s) return null
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s)
+      const first = Array.isArray(arr) ? arr[0] : null
+      return first === null || first === undefined ? null : resolveRecordId(first)
+    } catch {
+      return null
+    }
+  }
+  if (s.startsWith('{') || s.startsWith('"')) {
+    try {
+      return resolveRecordId(JSON.parse(s))
+    } catch {
+      return null
+    }
+  }
+  return s
+}
+
+/**
  * 解析筛选配置为底表 filter JSON 对象（供 params.filter）。
  * - 静态条件：value 用固定值；动态条件：经 getFieldValue 读取当前表单字段值
  * - 动态字段值缺失（null/undefined/''）→ value 置 null（等值恒不匹配，列表为空）
