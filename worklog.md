@@ -6850,3 +6850,18 @@ Work Log:
 Stage Summary:
 - 重供给闭环：数据/后端/前端全部恢复真绿；两处连带损伤（jar 备份、gitignore 规则）本轮修复；唯一悬项=PAT 等用户提供后推送 10 个提交
 - 经验：重供给清除范围=运行态+config 类文件（.git/config、.gitignore 追加行、backups/jar），git 仓库本体与源码安全；巡检 dump 快照机制有效（RPO≈1h）
+---
+Task ID: push-pat-recovery
+Agent: Z.ai Code (main session)
+Task: 用户提供新 fine-grained PAT → 恢复凭据并推送（含 rebase 分叉整合）
+
+Work Log:
+- 【凭据恢复】git remote set-url origin 写入新 PAT（.git/config 本地文件，不入库）
+- 【分叉发现】push 被拒 non-fast-forward：fetch 后确认分叉点=aba11c16（业务提交双端皆有）——旧沙箱存活期间 cron 已推进远程（r12 dump 提交 c7817f7d 等 155 个），本地 5 个独有提交（r10-r13 快照+worklog+gitignore 修复）
+- 【rebase 整合】git pull --rebase：①worklog.md 冲突=双方追加记录，sed 删标记 union 保留双方 ②.gitignore 修复提交与远程既有 backups/jar/ 规则语义重复 → checkout HEAD + rebase --skip 丢弃本地重复提交
+- 【推送】c7817f7d..0a0128ca main→main，HEAD=origin/main=0a0128ca 三重核验；本地领先归零
+
+Stage Summary:
+- 重供给全部悬项闭环：数据/后端/前端/jar 备份/gitignore 规则均已恢复，PAT 已更新，本地与远程零差异
+- 业务提交 aba11c16（RelationCard 定位收敛）确认已在远程（旧沙箱推送成功过），无代码损失
+- 注意：远程 cron 提交链（155 个）多为 dump 备份，与本地的重复快照已通过 rebase 收敛，无丢数据
