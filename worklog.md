@@ -6659,3 +6659,19 @@ Work Log:
 Stage Summary:
 - elTreeSelect 发布拦截修复：用户重新点「发布」即可通过；白名单与本轮内存调优参数（320m/MetaspaceSize=128m/CodeCache 128m/MALLOC_ARENA_MAX=2）随新 jar 一并生效
 - 教训重申：宿主 cgroup 守卫杀「空闲期新启动的大进程」——任何 Java/vite 重启必须前台轮询守护至少到真绿，不允许「& + echo pid」秒返回
+---
+Task ID: 1505-patrol + elTreeSelect 联合处置
+Agent: Z.ai Code (main session, 15:05 cron 巡检轮)
+Task: 15:05 轻量巡检 + 用户报障「业务表单暂不支持组件（elTreeSelect）」联合处置
+
+Work Log:
+- 【巡检异常→定性】dump ok；3000/外域 200×2 但业务链路 502 + 8080 直连 000=Java pid 3251 恰于 15:05:01 进入 shutdown（shutdown hook 连环 NoClassDefFoundError，类元数据损坏型死亡；此前 14:05 巡检真绿）
+- 【现场还原=并行会话协同】源码白名单已被并行会话加入 elTreeSelect（git diff 实证 +1 词）+ mvn package 新 jar（15:04:49）+ backups/jar 已同步（15:05，121MB）；15:06:03 恢复链路按 recover-dplus.sh 新 JVM 参数（320m/320m/CodeCache128m/SerialGC/ARENA=2）拉起新实例 pid 4833——本会话 14:20 的参数统一改动已被自动采用
+- 【收敛】等待 Started WorkflowApplication（5s 内）+ accessToken 真绿✓；白名单提交核实：working tree clean=并行会话已完成 commit，本会话不重复提交防撞车
+- 【vite 双进程排除】ps rg -c 'bin/vite' 的 2 = rg 自匹配假象；实际 vite 单实例 pid 4281（14:57 重启的实例，RSS 541MB）
+- 【最终回归】3000:200 外域:200 业务:200 8080 accessToken 真绿——四链路全绿收口
+
+Stage Summary:
+- 用户报障闭环：elTreeSelect 白名单缺失→并行会话改源码+重打包→新实例拉起→用户可直接重试发布；15:05 的「8080 000」实为并行会话「杀旧起新」窗口期，非环境重供给（无 Node 假绿、MariaDB 3306 全程在线）
+- 备份链完整：backups/jar 已是含 elTreeSelect 的新 jar，重供给恢复不会回退白名单
+- 遗留观察：pid 3251 的 NoClassDefFoundError 型 shutdown 根因未完全定性（Metaspace 崩溃 vs 外部 SIGTERM 后类加载器损坏）；新实例 4833 已带 320m 封顶+MetaspaceSize=128m，理论上限余量翻倍，持续观察
