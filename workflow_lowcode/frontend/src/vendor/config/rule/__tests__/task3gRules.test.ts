@@ -24,13 +24,12 @@ describe('relationCard rule（基础组件）', () => {
     expect(relationCard.mask).toBe(true)
   })
 
-  it('默认 props：来源三键（sourceMode/数据源/表单）空缺省 + v1 被动四键保留', () => {
+  it('默认 props：数据源键空缺省 + sourceFormKey 渲染端兼容键保留（v4 无 sourceMode）', () => {
     const rule = relationCard.rule({ t })
     expect(rule.props).toEqual({
       title: '',
       description: '',
       displayField: '',
-      sourceMode: 'form',
       sourceFormKey: '',
       dataSourceId: '',
       globalDataSourceId: '',
@@ -45,35 +44,30 @@ describe('relationCard rule（基础组件）', () => {
     expect(fields).toEqual(expect.arrayContaining(['title', 'description', 'displayField', 'clickable']))
   })
 
-  it('v2 props 面板含 sourceFormKey/recordIdField/displayFields，且 displayFields 支持多选手填', () => {
+  it('v2 props 面板含 globalDataSourceId/recordIdField/displayFields，且 displayFields 支持多选手填', () => {
     const items = relationCard.props({}, { t }) as any[]
     const fields = items.map((p) => p.field)
-    expect(fields).toEqual(expect.arrayContaining(['sourceFormKey', 'recordIdField', 'displayFields']))
+    expect(fields).toEqual(expect.arrayContaining(['globalDataSourceId', 'recordIdField', 'displayFields']))
     const displayFields = items.find((p) => p.field === 'displayFields')
     expect(displayFields.props.multiple).toBe(true)
     expect(displayFields.props.allowCreate).toBe(true)
     expect(displayFields.options.length).toBeGreaterThanOrEqual(9)
   })
 
-  it('v3 props 面板：来源类型 select + control 联动（form 显源表单 / dataSource 显数据源）+ 字段下拉双源透传', () => {
-    const items = relationCard.props({}, { t }) as any[]
-    const sourceMode = items.find((p) => p.field === 'sourceMode')
-    expect(sourceMode.type).toBe('select')
-    expect(sourceMode.value).toBe('form')
-    const control = sourceMode.control as any[]
-    expect(control).toHaveLength(2)
-    // 旧版缺省（undefined）也应显示业务表单直连（兼容存量卡片）
-    expect(control[0].handle(undefined)).toBe(true)
-    expect(control[0].handle('form')).toBe(true)
-    expect(control[0].handle('dataSource')).toBe(false)
-    expect(control[0].rule).toEqual(['sourceFormKey'])
-    expect(control[1].handle('dataSource')).toBe(true)
-    expect(control[1].handle('form')).toBe(false)
-    expect(control[1].rule).toEqual(['globalDataSourceId'])
+  it('v4 props 面板：单一「数据源」绑定（无 sourceMode/sourceFormKey），旧配置自动迁移接线', () => {
+    const sentinel = { props: { sourceFormKey: '' } }
+    const items = relationCard.props(sentinel as any, { t }) as any[]
+    const fields = items.map((p) => p.field)
+    // 双源移除：来源唯一化为数据源（业务表单发布自动生成 FORM 数据源，存量已核验全覆盖）
+    expect(fields).not.toContain('sourceMode')
+    expect(fields).not.toContain('sourceFormKey')
     const dsSelect = items.find((p) => p.field === 'globalDataSourceId')
     expect(dsSelect.type).toBe('RelationFieldSelect')
     expect(dsSelect.props.mode).toBe('ds')
-    // 字段下拉双源透传（数据源优先于表单，与运行时取数优先级一致）
+    // 旧版 sourceFormKey 卡片打开面板时自动迁移为对应 FORM 数据源
+    expect(dsSelect.props.migrateFromField).toBe('sourceFormKey')
+    expect(dsSelect.props.canvasRule).toBe(sentinel)
+    // 字段下拉双通道透传（数据源优先，sourceFormKey 仅存量兼容回退）
     const displayFields = items.find((p) => p.field === 'displayFields')
     expect(displayFields.props.formKeyField).toBe('sourceFormKey')
     expect(displayFields.props.dsKeyField).toBe('globalDataSourceId')

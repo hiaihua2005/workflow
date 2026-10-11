@@ -47,6 +47,12 @@
  * - mode='ds'（数据源选择）：拉取已启用数据源列表
  *   （GET /v1/data-sources/enabled）作为下拉项，label=名称（TYPE），
  *   值为全局数据源 id（写入 globalDataSourceId）。
+ *   传入 migrateFromField（如 'sourceFormKey'）时执行旧配置自动迁移：
+ *   面板已单一化为数据源绑定（业务表单发布时后端 DataSourceSyncListener
+ *   自动生成 FORM 数据源），打开面板若画布 rule.props[migrateFromField]
+ *   有旧值且未选择数据源，按 type=FORM && formKey===旧值 匹配已启用数据源
+ *   并 emit 写入（与用户手选同路径，经设计器 propChange 落到画布 rule），
+ *   无匹配则在提示行报「未找到对应数据源」不写值。
  * - mode='field'（字段选择）：props 面板的 props() 第一参是**活跃画布 rule**
  *   （FcDesigner.getPropsRule → tidyRuleConfig 传入），把它作为响应式 canvasRule
  *   prop 传入本组件，双键联动：优先看 canvasRule.props[dsKeyField]
@@ -85,6 +91,8 @@ const props = withDefaults(defineProps<{
   formKeyField?: string
   /** 画布 rule.props 中存放全局数据源 id 的字段名（优先于 formKeyField） */
   dsKeyField?: string
+  /** 旧配置自动迁移来源键（如 'sourceFormKey'）：面板打开时若有旧值且未选数据源，自动迁移为对应 FORM 数据源 */
+  migrateFromField?: string
   placeholder?: string
   allowCreate?: boolean
   clearable?: boolean
@@ -97,6 +105,7 @@ const props = withDefaults(defineProps<{
   canvasRule: null,
   formKeyField: 'sourceFormKey',
   dsKeyField: 'globalDataSourceId',
+  migrateFromField: '',
   placeholder: '选择或输入',
   allowCreate: true,
   clearable: true,
@@ -128,6 +137,13 @@ const formName = ref('')
 const loadError = ref(false)
 /** 加载序号守卫：快速切换源表单时丢弃过期响应 */
 let fetchSeq = 0
+
+/** ds 模式原始行（自动迁移时按 type/formKey 匹配用） */
+const rawDsRows = ref<any[]>([])
+/** 旧配置自动迁移结果（成功记录数据源名 / 失败记录旧表单 key） */
+const migratedName = ref('')
+const migrateMissing = ref('')
+let migrateDone = false
 
 /** 静态兜底候选（options 与 fallbackOptions 双通道，取先到者） */
 const staticOptions = computed<FieldOption[]>(() => {
@@ -268,14 +284,43 @@ async function loadDsOptions() {
     const res: any = await dataSourceApi.getEnabledDataSources()
     const data = res?.data ?? res
     const rows: any[] = Array.isArray(data) ? data : (data?.rows ?? data?.content ?? [])
+    rawDsRows.value = rows
     dynamicOptions.value = rows
       .filter((f) => f && f.id)
       .map((f) => ({ value: String(f.id), label: `${f.name || f.id}（${f.type || 'DS'}）` }))
+    tryMigrate()
   } catch {
     loadError.value = true
     dynamicOptions.value = []
   } finally {
     loading.value = false
+  }
+}
+
+/**
+ * 旧版「源表单」配置自动迁移（ds 模式 + migrateFromField 时启用）：
+ * relationCard 面板已单一化为数据源绑定；存量卡片仅存 sourceFormKey，
+ * 打开面板时按 formKey 匹配对应 FORM 数据源并写回 globalDataSourceId
+ * （emit update:modelValue 与用户手选同路径，经设计器 propChange 落到画布 rule）。
+ * 每实例只执行一次；无旧配置 / 已选数据源 / 列表加载失败均跳过。
+ */
+function tryMigrate() {
+  const from = props.migrateFromField
+  if (!from || migrateDone) return
+  migrateDone = true
+  const legacyRaw = props.canvasRule?.props?.[from]
+  const legacyKey = typeof legacyRaw === 'string' ? legacyRaw.trim() : ''
+  if (!legacyKey) return
+  const current = typeof props.modelValue === 'string' ? props.modelValue.trim() : ''
+  if (current) return
+  const hit = rawDsRows.value.find((d) => d && d.type === 'FORM' && String(d.formKey || '') === legacyKey)
+  if (hit && hit.id) {
+    migratedName.value = String(hit.name || legacyKey)
+    const id = String(hit.id)
+    emit('update:modelValue', id)
+    emit('change', id)
+  } else {
+    migrateMissing.value = legacyKey
   }
 }
 
@@ -321,8 +366,11 @@ const hintText = computed<string>(() => {
   if (props.mode === 'ds') {
     if (loadError.value) return '数据源列表加载失败，请检查数据源管理'
     if (loading.value) return '正在加载数据源列表…'
-    if (dynamicOptions.value.length > 0) return `共 ${dynamicOptions.value.length} 个已启用数据源`
-    return '暂无已启用数据源（可在「数据源管理」启用）'
+    if (migrateMissing.value) return `旧版源表单「${migrateMissing.value}」未找到对应 FORM 数据源（可能已归档），请手动选择`
+    const base = dynamicOptions.value.length > 0
+      ? `共 ${dynamicOptions.value.length} 个已启用数据源`
+      : '暂无已启用数据源（可在「数据源管理」启用）'
+    return migratedName.value ? `已自动迁移旧版「源表单」配置 → ${migratedName.value}；${base}` : base
   }
   // field 模式：双源优先级（数据源 > 业务表单），与运行时取数一致
   if (fieldSourceKind.value === '') return '先配置「来源」（数据源或业务表单），下拉将自动加载其字段列表；也可直接手填'
@@ -335,7 +383,7 @@ const hintText = computed<string>(() => {
   }
   return '该源未解析到字段，可手填字段名'
 })
-const hintError = computed(() => loadError.value || missingSelectedCount.value > 0)
+const hintError = computed(() => loadError.value || missingSelectedCount.value > 0 || !!migrateMissing.value)
 </script>
 
 <style scoped>
