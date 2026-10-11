@@ -6785,3 +6785,22 @@ Stage Summary:
 - 用户关切正面回应：迁移零成本——存量卡片按缺省继续走业务表单直连，测试数据无需任何处理；新配置推荐用数据源来源（面板 info 已标注）
 - 质量补强：渲染端 v3 数据源模式单测从 0 → 5 用例（此前 a52c4192 提交无配套测试）
 - 遗留：①RelationFieldSelect.vue 面板组件本身无单测（E2E 已覆盖核心行为，可选补）②页面级 dataSourceId 绑定入口在页面设计器/DataPicker 配置弹窗场景，表单设计器面板只暴露全局直连（设计合理：表单场景无页面绑定上下文）③MemberGroupPage 5 例既有失败仍待单独排查
+
+---
+Task ID: relationcard-single-source-v4
+Agent: Z.ai Code (main session)
+Task: 用户拍板「业务表单本身也会对应数据源，所以不需要双源」——RelationCard 面板单一数据源绑定 + 旧配置自动迁移
+
+Work Log:
+- 【单源依据核实】后端 DataSourceSyncListener 表单创建事件自动生成对应数据源（BUSINESS→FORM / WORKFLOW→WORKFLOW，ENABLED 态）；API 核验 11 个已发布业务表单 vs 13 个启用 FORM 数据源，唯一缺口 member_group（历史表单早于监听器）已按「成员分组 数据源」补建并启用 → 覆盖率 100%
+- 【面板去双源】relationCard.js：移除 sourceMode（来源类型 select+control）与 sourceFormKey（源表单下拉），唯一来源入口=globalDataSourceId（数据源下拉）；rule 默认 props 去 sourceMode（保留 sourceFormKey/dataSourceId 空键做渲染端兼容）；info/header 同步「v4 单一数据源绑定」语义
+- 【自动迁移】RelationFieldSelect ds 模式新增 migrateFromField：面板打开时若画布 rule.props.sourceFormKey 有旧值且未选数据源 → 按 type=FORM && formKey 匹配已启用数据源 → emit update:modelValue（与手选同路径经 propChange 落画布 rule，E2E 证实字段联动立即生效）；无匹配提示行警示「未找到对应 FORM 数据源」不写值；每实例一次守卫；未重开面板的存量卡片由渲染端三级解析 sourceFormKey 兜底（零感知）
+- 【数据补建】POST /v1/data-sources + enable 建 member_group FORM 数据源（id 096e15ce…）
+- 【测试】task3gRules 14/14（v4 契约：not.toContain sourceMode/sourceFormKey + migrateFromField/canvasRule 接线断言）；新增 RelationFieldSelect.test.ts 4 用例（迁移成功 emit+提示 / 已配置或无旧值跳过 / 无匹配警示 / 未传 migrateFromField 纯下拉）；business+vendor 回归 497/497；全量 1747/1752（5 失败=MemberGroupPage 既有）；eslint 0 error、vue-tsc 改动文件 0 错误
+- 【E2E（follow_rel_demo 设计器，admin/admin123）】①面板结构=卡片标题/说明文字/数据源/显示字段/记录 ID 字段/摘要展示字段/可点击查看详情（dualSourceRemoved=true）②存量卡数据源 combobox 自动回显「客户档案-关联演示 数据源（FORM）」+提示「已自动迁移旧版「源表单」配置 → …；共 28 个已启用数据源」③显示字段/摘要字段「已从数据源加载 4 个字段」（证明迁移写回画布 rule 链路通）④console 0 错误、未保存演示资产零污染
+- 【收尾】commit fa364e35 push 上远程（HEAD=origin/main 三重核验）
+
+Stage Summary:
+- RelationCard 来源绑定完成「双轨 → 单一数据源」收敛：面板只剩「数据源」一个来源入口，业务表单场景天然经其 FORM 数据源；旧配置打开面板即自动迁移（落库需保存），未迁移卡片运行时兜底不受影响
+- 质量资产：RelationFieldSelect 首次拥有单测（迁移 4 用例，关闭上轮遗留①）
+- 遗留：①member_group 数据源 params 为 API 形态（手工 API 建的 FORM 源），与监听器自动建的差异待观察（metadata/查询已可用）②MemberGroupPage 5 例既有失败待排查 ③mode='form' 在 RelationFieldSelect 中已成死代码（保留无害，后续可清）
