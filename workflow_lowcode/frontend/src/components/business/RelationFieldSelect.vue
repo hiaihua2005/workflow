@@ -40,21 +40,27 @@
  * 自定义 prop 组件（main.ts 用 FcDesigner.component 注册），解决 relationCard.js
  * 显示字段/摘要展示字段此前只能静态硬编码候选字段的问题。
  *
- * 【两种模式】
- * - mode='form'（源表单选择）：拉取已发布业务表单列表
+ * 【三种模式】
+ * - mode='form'（业务表单选择）：拉取已发布业务表单列表
  *   （GET /v1/form-definitions?type=BUSINESS&status=PUBLISHED）作为下拉项，
  *   保留 filterable + allowCreate 允许手填未发布表单 key。
+ * - mode='ds'（数据源选择）：拉取已启用数据源列表
+ *   （GET /v1/data-sources/enabled）作为下拉项，label=名称（TYPE），
+ *   值为全局数据源 id（写入 globalDataSourceId）。
  * - mode='field'（字段选择）：props 面板的 props() 第一参是**活跃画布 rule**
  *   （FcDesigner.getPropsRule → tidyRuleConfig 传入），把它作为响应式 canvasRule
- *   prop 传入本组件，watch canvasRule.props[formKeyField]（即 sourceFormKey）：
- *   变化 → formApi.getFormDefinitionByKey(key) → columnConfig 字段列表
- *   （columnConfig 为空时兜底解析 schema 规则树提取 field/title）作为下拉项；
- *   未配置源表单 / 加载失败时回退静态常用字段（fallbackOptions），始终可手填。
+ *   prop 传入本组件，双键联动：优先看 canvasRule.props[dsKeyField]
+ *   （globalDataSourceId → dataSourceApi.getMetadata(refId).columns），
+ *   其次 canvasRule.props[formKeyField]（sourceFormKey → getFormDefinitionByKey →
+ *   columnConfig，缺失时兜底解析 schema 规则树提取 field/title）；
+ *   两者都未配置 / 加载失败时回退静态常用字段（fallbackOptions），始终可手填。
+ *   优先级与 RelationCard 运行时取数优先级（页面绑定>全局数据源>业务表单）保持一致。
  *
  * 值契约：单选 string / 多选 string[]，与原 select 组件一致，切换组件不迁移历史值。
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { formApi } from '@/api/form'
+import { dataSourceApi } from '@/api/data-source'
 
 interface FieldOption {
   value: string
@@ -65,18 +71,20 @@ interface FieldOption {
 const props = withDefaults(defineProps<{
   /** 绑定值：单选 string / 多选 string[]（对齐原 select 组件值形态） */
   modelValue?: string | number | Array<string | number> | null
-  /** form：业务表单下拉；field：源表单字段下拉 */
-  mode?: 'form' | 'field'
+  /** form：业务表单下拉；ds：数据源下拉；field：源字段下拉（双源优先级） */
+  mode?: 'form' | 'ds' | 'field'
   /** 多选 */
   multiple?: boolean
   /** 静态兜底候选字段（relationCard.js options 同源传入；测试契约同步断言 rule.options） */
   options?: FieldOption[]
-  /** 未配置源表单时的回退候选（与 options 同源，双通道确保可达） */
+  /** 未配置源时的回退候选（与 options 同源，双通道确保可达） */
   fallbackOptions?: FieldOption[]
-  /** 画布活跃 rule（props() 第一参透传，响应式读取 sourceFormKey） */
+  /** 画布活跃 rule（props() 第一参透传，响应式读取 sourceFormKey/globalDataSourceId） */
   canvasRule?: Record<string, any> | null
-  /** 画布 rule.props 中存放源表单 key 的字段名 */
+  /** 画布 rule.props 中存放业务表单 key 的字段名 */
   formKeyField?: string
+  /** 画布 rule.props 中存放全局数据源 id 的字段名（优先于 formKeyField） */
+  dsKeyField?: string
   placeholder?: string
   allowCreate?: boolean
   clearable?: boolean
@@ -88,6 +96,7 @@ const props = withDefaults(defineProps<{
   fallbackOptions: () => [],
   canvasRule: null,
   formKeyField: 'sourceFormKey',
+  dsKeyField: 'globalDataSourceId',
   placeholder: '选择或输入',
   allowCreate: true,
   clearable: true,
@@ -127,11 +136,25 @@ const staticOptions = computed<FieldOption[]>(() => {
   return []
 })
 
-/** 画布 rule.props 中的源表单 key（响应式） */
-const sourceFormKey = computed<string>(() => {
+/** 画布 rule.props 中的业务表单 key（响应式） */
+const formKeyValue = computed<string>(() => {
   const key = props.formKeyField || 'sourceFormKey'
   const v = props.canvasRule?.props?.[key]
   return typeof v === 'string' ? v.trim() : ''
+})
+
+/** 画布 rule.props 中的全局数据源 id（响应式；优先于业务表单 key） */
+const dsKeyValue = computed<string>(() => {
+  const key = props.dsKeyField || 'globalDataSourceId'
+  const v = props.canvasRule?.props?.[key]
+  return typeof v === 'string' ? v.trim() : ''
+})
+
+/** 字段加载路径：'ds'（数据源 metadata）| 'form'（业务表单定义）| ''（未配置，静态兜底） */
+const fieldSourceKind = computed<'' | 'ds' | 'form'>(() => {
+  if (dsKeyValue.value) return 'ds'
+  if (formKeyValue.value) return 'form'
+  return ''
 })
 
 function safeParse(json: unknown): any {
@@ -178,23 +201,36 @@ function extractFromSchema(schema: unknown): FieldOption[] {
   return out
 }
 
-async function loadFieldOptions(formKey: string) {
+/** 数据源 metadata → 候选（columns 已是数组；排除 unsupported 与 _text 冗余列） */
+function parseMetadataColumns(columns: unknown): FieldOption[] {
+  return parseColumnConfig(columns)
+}
+
+async function loadFieldOptions() {
   const seq = ++fetchSeq
   formName.value = ''
   loadError.value = false
-  if (!formKey) {
+  if (fieldSourceKind.value === '') {
     dynamicOptions.value = []
     return
   }
   loading.value = true
   try {
-    const res: any = await formApi.getFormDefinitionByKey(formKey)
-    if (seq !== fetchSeq) return // 过期响应丢弃
-    const def = res?.data ?? res
-    formName.value = def?.name || ''
-    const opts = parseColumnConfig(def?.columnConfig).length
-      ? parseColumnConfig(def?.columnConfig)
-      : extractFromSchema(def?.schema)
+    let opts: FieldOption[] = []
+    if (fieldSourceKind.value === 'ds') {
+      const res: any = await dataSourceApi.getMetadata(dsKeyValue.value)
+      if (seq !== fetchSeq) return
+      const meta = res?.data ?? res
+      opts = parseMetadataColumns(meta?.columns)
+    } else {
+      const res: any = await formApi.getFormDefinitionByKey(formKeyValue.value)
+      if (seq !== fetchSeq) return
+      const def = res?.data ?? res
+      formName.value = def?.name || ''
+      opts = parseColumnConfig(def?.columnConfig).length
+        ? parseColumnConfig(def?.columnConfig)
+        : extractFromSchema(def?.schema)
+    }
     dynamicOptions.value = opts
   } catch {
     if (seq !== fetchSeq) return
@@ -224,8 +260,30 @@ async function loadFormOptions() {
   }
 }
 
-watch(sourceFormKey, (k) => { if (props.mode === 'field') loadFieldOptions(k) }, { immediate: true })
-onMounted(() => { if (props.mode === 'form') loadFormOptions() })
+/** ds 模式：已启用数据源列表（label=名称（TYPE），值=数据源 id） */
+async function loadDsOptions() {
+  loading.value = true
+  loadError.value = false
+  try {
+    const res: any = await dataSourceApi.getEnabledDataSources()
+    const data = res?.data ?? res
+    const rows: any[] = Array.isArray(data) ? data : (data?.rows ?? data?.content ?? [])
+    dynamicOptions.value = rows
+      .filter((f) => f && f.id)
+      .map((f) => ({ value: String(f.id), label: `${f.name || f.id}（${f.type || 'DS'}）` }))
+  } catch {
+    loadError.value = true
+    dynamicOptions.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+watch([dsKeyValue, formKeyValue], () => { if (props.mode === 'field') loadFieldOptions() }, { immediate: true })
+onMounted(() => {
+  if (props.mode === 'form') loadFormOptions()
+  if (props.mode === 'ds') loadDsOptions()
+})
 
 // ===== 合并候选：已选值不在候选中（换了源表单/手填历史值）时补入，保证回显不裸奔 =====
 const mergedOptions = computed<FieldOption[]>(() => {
@@ -242,7 +300,7 @@ const mergedOptions = computed<FieldOption[]>(() => {
   return [...map.values()]
 })
 
-/** 已选但不在当前候选中的数量（切换源表单后的提示） */
+/** 已选但不在当前候选中的数量（切换源后的提示） */
 const missingSelectedCount = computed<number>(() => {
   if (dynamicOptions.value.length === 0) return 0
   const known = new Set(dynamicOptions.value.map((o) => o.value))
@@ -260,16 +318,22 @@ const hintText = computed<string>(() => {
     if (dynamicOptions.value.length > 0) return `共 ${dynamicOptions.value.length} 个已发布业务表单`
     return ''
   }
-  if (!sourceFormKey.value) return '先配置「源表单」，下拉将自动加载其字段列表；也可直接手填'
-  if (loadError.value) return '字段列表加载失败（表单不存在或未发布），可手填字段名'
-  if (loading.value) return '正在加载字段列表…'
-  if (missingSelectedCount.value > 0) return `${missingSelectedCount.value} 个已选字段不属于当前源表单，建议重新选择`
-  if (dynamicOptions.value.length > 0) {
-    return formName.value
-      ? `已加载「${formName.value}」${dynamicOptions.value.length} 个字段`
-      : `已加载 ${dynamicOptions.value.length} 个字段`
+  if (props.mode === 'ds') {
+    if (loadError.value) return '数据源列表加载失败，请检查数据源管理'
+    if (loading.value) return '正在加载数据源列表…'
+    if (dynamicOptions.value.length > 0) return `共 ${dynamicOptions.value.length} 个已启用数据源`
+    return '暂无已启用数据源（可在「数据源管理」启用）'
   }
-  return '该表单未解析到字段，可手填字段名'
+  // field 模式：双源优先级（数据源 > 业务表单），与运行时取数一致
+  if (fieldSourceKind.value === '') return '先配置「来源」（数据源或业务表单），下拉将自动加载其字段列表；也可直接手填'
+  if (loadError.value) return '字段列表加载失败（源不存在或未启用），可手填字段名'
+  if (loading.value) return '正在加载字段列表…'
+  if (missingSelectedCount.value > 0) return `${missingSelectedCount.value} 个已选字段不属于当前源，建议重新选择`
+  if (dynamicOptions.value.length > 0) {
+    const prefix = fieldSourceKind.value === 'ds' ? '已从数据源加载' : (formName.value ? `已加载「${formName.value}」` : '已加载')
+    return `${prefix}${dynamicOptions.value.length} 个字段`
+  }
+  return '该源未解析到字段，可手填字段名'
 })
 const hintError = computed(() => loadError.value || missingSelectedCount.value > 0)
 </script>

@@ -88,15 +88,22 @@
  * 关联记录卡片 RelationCard v2——表单设计器「基础组件」分组。
  *
  * 【v2 实时模式（本组件的核心价值）】
- * 配置 sourceFormKey（源业务表单 key）+ recordIdField（记录 id 所在字段）后，
- * 卡片不再是值的被动显示器，而是「活的关联记录视图」：
+ * 配置来源后，卡片不再是值的被动显示器，而是「活的关联记录视图」：
+ * - 来源三级解析（对齐 DataPicker 契约）：
+ *   ① dataSourceId（页面级数据源绑定 id）→ activeDsBindings 模块存储解析 refId
+ *   ② globalDataSourceId（全局数据源 id 直连，不依赖页面绑定上下文）
+ *   ③ sourceFormKey（旧版业务表单 key 直连，兼容回退）
+ *   数据源模式下经统一数据访问 SPI（DataSourceAdapter：FORM/WORKFLOW/SYSTEM/API/SQL
+ *   五类型均支持单条 getById + metadata 列定义），可关联非业务表单数据
+ *   （系统用户/部门/岗位/流程实例/外部 API/SQL）
  * - 监听记录 id（可指向 dataPicker 数据引用字段本身——其值为 id JSON 数组；
  *   或 LookupPicker 的 idField 独立字段；兼容对象值 .id）
- * - id 变化 → bizDataApi.detail(formKey, id) 实时拉取最新整行（非快照，源表单数据
- *   变更后卡片始终展示最新值——这是它与 LookupPicker 带回显示文本的本质区别：
- *   不冗余存储、永远最新）
+ * - id 变化 → 数据源模式 dataSourceApi.getData(refId,id) / 表单模式 bizDataApi.detail(formKey,id)
+ *   实时拉取最新整行（非快照，源数据变更后卡片始终展示最新值——这是它与
+ *   LookupPicker 带回显示文本的本质区别：不冗余存储、永远最新）
  * - 卡片正文多字段摘要（displayFields 配置；留空自动取前 4 个非空可见字段），
- *   字段中文 label 自动映射自源表单 columnConfig（getFormDefinitionByKey）
+ *   字段中文 label 自动映射：数据源模式取 metadata.columns（同 ColumnConfigItem 形），
+ *   表单模式取源表单 columnConfig（getFormDefinitionByKey）
  * - 点击卡片 → 内置详情弹窗（全字段 descriptions + 更新时间），同时 emit('open-detail')
  * - 右上角刷新按钮手动重拉；记录被删 → 「关联记录不存在」警示态
  *
@@ -109,8 +116,10 @@ import { computed, getCurrentInstance, inject, onBeforeUnmount, onMounted, ref, 
 import { ArrowRight, Connection, InfoFilled, Refresh, WarningFilled } from '@element-plus/icons-vue'
 import { readCellValue, resolveRecordId } from './lookupFetch'
 import { bizDataApi, type BizDataVO } from '@/api/bizData'
+import { dataSourceApi } from '@/api/data-source'
 import { formApi } from '@/api/form'
 import type { ColumnConfigItem } from '@/api/bizData'
+import { activeDsBindings } from '@/utils/formDsBindingsStore'
 import { formatLocationText } from '@/utils/locationValue'
 
 interface FormCreateInject {
@@ -130,8 +139,12 @@ const props = withDefaults(defineProps<{
   description?: string
   /** 被动模式：对象值取显示字段（深层取值，未配置回退 name/title/label/id） */
   displayField?: string
-  /** 实时模式：源业务表单 key（配置后启用实时取数） */
+  /** 实时模式（旧版回退）：业务表单 key（未配置数据源时启用表单直连取数） */
   sourceFormKey?: string
+  /** 实时模式：页面级数据源绑定 id（经 activeDsBindings 解析为全局 refId，优先级最高） */
+  dataSourceId?: string
+  /** 实时模式：全局数据源 id 直连（不依赖页面绑定上下文；优先于 sourceFormKey） */
+  globalDataSourceId?: string
   /** 实时模式：记录 id 所在字段（dataPicker 字段=值本身为 id 数组；或 LookupPicker idField 回写目标字段） */
   recordIdField?: string
   /** 实时模式：摘要展示字段（数组或逗号分隔；留空自动取前 4 个非空可见字段） */
@@ -144,6 +157,8 @@ const props = withDefaults(defineProps<{
   description: '',
   displayField: '',
   sourceFormKey: '',
+  dataSourceId: '',
+  globalDataSourceId: '',
   recordIdField: '',
   displayFields: '',
   clickable: true,
@@ -163,8 +178,17 @@ const formCreateInject = computed<FormCreateInject | undefined>(() => {
   return providedFormCreateInject
 })
 
-// ===== 模式判定 =====
-const isLiveMode = computed(() => Boolean(props.sourceFormKey))
+// ===== 模式判定（来源三级解析：页面绑定 > 全局数据源 > 业务表单，对齐 DataPicker）=====
+/** 页面级数据源绑定上下文（dataSourceId → activeDsBindings 模块存储解析） */
+const currentBinding = computed(() => {
+  if (!props.dataSourceId) return undefined
+  return activeDsBindings.value.find((b: { id: string; refId: string }) => b.id === props.dataSourceId)
+})
+
+/** 生效数据源 refId：页面绑定 refId > 全局直连 id > 空（回退 sourceFormKey 表单直连） */
+const dsRefId = computed(() => currentBinding.value?.refId || props.globalDataSourceId || '')
+
+const isLiveMode = computed(() => Boolean(props.sourceFormKey || dsRefId.value))
 
 /** 被动模式：是否有值（空串 / null / undefined 视为未选择） */
 const hasValue = computed(() => {
@@ -218,7 +242,7 @@ const liveRow = ref<BizDataVO | null>(null)
 const columnsByKey = ref<Record<string, ColumnConfigItem>>({})
 const columnsLoadedFor = ref('')
 
-/** 拉取记录详情（id 为空 → 回到等待态） */
+/** 拉取记录详情（id 为空 → 回到等待态）；数据源模式 getData / 表单模式 detail，返回同形 BizDataVO */
 async function loadLive(id: string | null) {
   if (!isLiveMode.value || !id) {
     liveRow.value = null
@@ -227,7 +251,9 @@ async function loadLive(id: string | null) {
   }
   liveState.value = 'loading'
   try {
-    const res: any = await bizDataApi.detail(props.sourceFormKey, id)
+    const res: any = dsRefId.value
+      ? await dataSourceApi.getData(dsRefId.value, id)
+      : await bizDataApi.detail(props.sourceFormKey, id)
     const row = res?.data ?? res ?? null
     liveRow.value = row && typeof row === 'object' ? row : null
     liveState.value = liveRow.value ? 'ready' : 'missing'
@@ -237,16 +263,26 @@ async function loadLive(id: string | null) {
   ensureColumns()
 }
 
-/** 源表单列配置（字段中文 label / 组件类型），每 sourceFormKey 只拉一次 */
+/**
+ * 列配置（字段中文 label / 组件类型），每个来源只拉一次：
+ * 数据源模式 metadata.columns / 表单模式 getFormDefinitionByKey().columnConfig（同形）
+ */
 async function ensureColumns() {
-  const fk = props.sourceFormKey
-  if (!fk || columnsLoadedFor.value === fk) return
-  columnsLoadedFor.value = fk
+  const cacheKey = dsRefId.value ? `ds:${dsRefId.value}` : `form:${props.sourceFormKey}`
+  if (!isLiveMode.value || columnsLoadedFor.value === cacheKey) return
+  columnsLoadedFor.value = cacheKey
   try {
-    const res: any = await formApi.getFormDefinitionByKey(fk)
-    const def = res?.data ?? res
-    const cfg = def?.columnConfig
-    const list: ColumnConfigItem[] = cfg ? (typeof cfg === 'string' ? JSON.parse(cfg) : cfg) : []
+    let list: ColumnConfigItem[] = []
+    if (dsRefId.value) {
+      const res: any = await dataSourceApi.getMetadata(dsRefId.value)
+      const meta = res?.data ?? res
+      list = Array.isArray(meta?.columns) ? meta.columns : []
+    } else {
+      const res: any = await formApi.getFormDefinitionByKey(props.sourceFormKey)
+      const def = res?.data ?? res
+      const cfg = def?.columnConfig
+      list = cfg ? (typeof cfg === 'string' ? JSON.parse(cfg) : cfg) : []
+    }
     const map: Record<string, ColumnConfigItem> = {}
     for (const c of Array.isArray(list) ? list : []) {
       if (c && c.key) map[c.key] = c
