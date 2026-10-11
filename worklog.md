@@ -6943,3 +6943,19 @@ Stage Summary:
 - 产品级增强：OpenAI 兼容端点支持自定义请求头 + 沙箱内置模型零配置桥接（单后端部署形态自愈）
 - 演示资产：AI 创建的「设备报修登记表单」草稿（DRAFT，可在设计器查看/发布）；演示截图 ai-form-fill-demo.png
 - 纠偏：前轮 worklog「AI 助手监听表单自动补全字段（topic/定位命名/内部备注）」经代码查证不成立——运行态填报组件（FormPageLayout/业务组件）无任何 AI 监听代码，当时应为 E2E 脚本自填值 + 小智 orb 全局指针监听干扰造成的误判
+---
+Task ID: page-detail-steps-demo
+Agent: Z.ai Code (main session)
+Task: 用户问「页面设计器中的数据详情和步骤条组件有什么作用，编写一个例子演示」——机制讲解 + 演示页面构造 + 运行态联动缺失补接线
+
+Work Log:
+- 【组件查证】两组件属页面设计器（PageDesigner，/page/designer）PAGE 轨：①「数据详情」=page-detail（PageDataDetail.vue）：KV 详情组件（el-descriptions），纯展示不自行取数，记录经 expose load(record) 注入，columns 可配（key/label/formatter 支持 '$row.x' 模板串），缺省回退记录自身键（剔除 _text 内部列）；设计意图=「行点击联动展示选中记录」②「步骤条」=page-steps（PageSteps.vue）：纯 props 展示组件（items/active/direction/processStatus/finishStatus），不绑数据源，空 items 渲染 el-empty
+- 【运行态联动缺失发现+修复】PageDataDetail 从不 emit('ready') → 渲染器 detailRefs 注册表永远空 + form-create 渲染数据组件时 vnode on 的 row-click/node-click 监听被丢弃（ready 除外，实测 vnode.props.onRowClick=undefined 而 rule 内函数完好）——「行点击联动」从未接通。修复：①PageDataDetail 增加 onMounted emit('ready', {load,clear,record})（与 page-table 对齐）②PageRendererPage 新增 detailRefs 注册表（按 dataSourceId 分桶，'*'=未绑跟随任意点击；不占 componentRefs 防同源覆盖）③联动挂接 provide 的 actionBus.dispatch 包装（row-click/node-click → linkDetailLoad）——actionBus 是数据组件事件的可靠通道（PageDataTable 内部 dispatch 不经 vnode on）
+- 【演示资产】scripts/build_detail_steps_demo.py（幂等）：page_detail_steps_demo（组件演示·数据详情与步骤条）= page-steps（客户服务流程 4 步 active=1）+ page-table（cust_rel_demo 客户档案 3 行：华东石化/长安物流/鄂尔多斯矿业）+ page-detail（同源 4 列 KV）；发布 v1 + mount-menu menuId=319（PageAccessGuard 要求挂菜单才可访问——404 的根因）
+- 【API 踩坑】页面 create 接口不接收 schema（只 name/key/type/formKey/dataSourceId），schema 须创建后 PUT 写入再 publish；PUT 幂等更新路径正常
+- 【E2E 全绿】/page/page_detail_steps_demo 真实浏览器验证：4 步骤条渲染（active=1「需求确认」高亮）+ 表格 3 行 + 详情空态「请在上方列表点击行查看详情」；真实鼠标点击行 → 详情 KV 实时切换（长安物流→鄂尔多斯矿业 4 字段全对）；单测 page 模块 351/351，vue-tsc 改动文件 0 新错（PageDataFormDetail 15/15）
+
+Stage Summary:
+- page-detail 行点击联动从「设计意图」落地为「运行态可用」：组件自上报 + detailRefs 分桶 + actionBus 联动三件套；所有后续页面自动获得该能力
+- 演示页面 /page/page_detail_steps_demo（菜单「组件演示·数据详情与步骤条」顶级入口），截图 detail-steps-demo.png/detail-steps-demo2.png
+- form-create 数据组件 vnode on 丢弃行为的经验记录：数据组件事件联动一律走 actionBus（inject）通道，勿依赖 vnode on（ready 除外）

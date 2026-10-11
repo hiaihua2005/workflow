@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 /** KV 列配置：formatter 可选函数 (value, record) => string 或 '$row.x' 模板串（$row.字段 → 记录值） */
 interface DetailColumn {
@@ -75,7 +75,12 @@ function displayValue(col: DetailColumn): string {
   return value === null || value === undefined ? '' : String(value)
 }
 
-/** 外部联动入口（主会话接到列表行点击动作总线）：注入记录渲染 KV */
+/** 实例上报（与 page-table 对齐）：渲染器据 type 归档 detailRefs 供行点击联动 */
+const emit = defineEmits<{ (e: 'ready', instance: { load: typeof load; clear: typeof clear; record: typeof record }): void }>()
+
+onMounted(() => emit('ready', { load, clear, record }))
+
+/** 外部联动入口（行点击联动）：注入记录渲染 KV */
 function load(row: Record<string, any>) {
   record.value = row && typeof row === 'object' ? { ...row } : null
 }

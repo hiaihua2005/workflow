@@ -137,7 +137,14 @@ const props = defineProps<{ definition?: PageDefinitionDetailDTO }>()
 /** 数据组件通过 inject 获取动作总线 */
 const ACTION_BUS_KEY = 'pageActionBus'
 provide(ACTION_BUS_KEY, {
-  dispatch: (trigger: string, eventData: any) => dispatchActions(trigger, eventData),
+  dispatch: (trigger: string, eventData: any) => {
+    // 行点击/树节点点击 → 数据详情联动（actionBus 是数据组件事件的可靠通道：
+    // form-create 渲染时 vnode on 的 row-click/node-click 监听会被丢弃，ready 除外）
+    if (trigger === 'row-click' || trigger === 'node-click') {
+      linkDetailLoad(eventData?.source, eventData?.row ?? eventData?.node)
+    }
+    return dispatchActions(trigger, eventData)
+  },
   register: (dataSourceId: string, instance: any) => {
     componentRefs[dataSourceId] = instance
   },
@@ -186,6 +193,24 @@ const pageSchema = reactive<{
 
 /** 组件引用注册表：dataSourceId → 组件实例（供 refresh/set-filter） */
 const componentRefs = reactive<Record<string, any>>({})
+
+/** 数据详情实例注册表：dataSourceId → page-detail 实例列表（行点击/node 点击联动 load(record)；'*' = 未绑数据源，跟随任意点击） */
+const detailRefs = reactive<Record<string, any[]>>({})
+
+/** 行点击/树节点点击联动：同数据源（及未绑定）的 page-detail 注入当前行渲染 KV 详情 */
+function linkDetailLoad(source: string | undefined, data: any): void {
+  if (!data || typeof data !== 'object') return
+  const targets = [...(detailRefs[source ?? '*'] ?? []), ...(detailRefs['*'] ?? [])]
+  for (const inst of targets) {
+    if (inst && typeof inst.load === 'function') {
+      try {
+        inst.load(data)
+      } catch (e) {
+        console.warn('[page-detail] load failed:', e)
+      }
+    }
+  }
+}
 
 /** 仪表盘组件实例全量列表（Task 120）：dash-filter autoBroadcast 的广播目标 */
 const dashInstances = new Set<any>()
@@ -456,8 +481,13 @@ function transformComponent(node: any): any {
       }
     }
     // 组件实例上报 → 注册到 componentRefs（供动作总线 refresh/set-filter）
+    // page-detail 单独归档 detailRefs：行点击联动 load(record)；不占 componentRefs（避免同源表格实例被覆盖）
     next.on['ready'] = (instance: any) => {
-      if (next.props.dataSourceId && instance) {
+      if (!instance) return
+      if (next.type === 'page-detail') {
+        const bucket = next.props.dataSourceId || '*'
+        ;(detailRefs[bucket] ??= []).push(instance)
+      } else if (next.props.dataSourceId) {
         componentRefs[next.props.dataSourceId] = instance
       }
     }
@@ -468,10 +498,12 @@ function transformComponent(node: any): any {
       // 更新当前记录 ID 并触发 record-change
       currentRecordId.value = data?.id
       lastRecord.value = data
+      linkDetailLoad(source, data)
       dispatchActions('node-click', { node: data, row: data, record: data, source })
       dispatchActions('record-change', { node: data, row: data, record: data, source })
     }
     next.on['row-click'] = (data: any) => {
+      linkDetailLoad(source, data)
       dispatchActions('row-click', { node: data, row: data, source })
     }
   }
