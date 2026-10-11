@@ -7010,3 +7010,17 @@ Work Log:
 Stage Summary:
 - 双 agent 同任务冲突的处置范式：探测到并行写入方 → 冻结共享状态写操作 → 只读监控至对方 commit+push → 独立复核终态 → 补协作记录；本轮用户需求由 cron agent 完整交付，本会话承担巡检+协调+复核
 - 演示入口：场景 1 流程中心发起「请假审批-逻辑流演示」→ 待办审批通过 → /biz-data/leave_ledger_demo 台账自动累加；场景 2 /biz-data/material_pickup_demo 新增领用 → /biz-data/material_stock_demo 库存自动扣减 + /biz-data/pickup_log_demo 流水自动写入
+---
+Task ID: demo-sql-logicflow-push
+Agent: Z.ai Code (main session, cron 轮 rN 合并执行)
+Task: 用户需求「push 所有代码和演示所需要的数据库脚本」+ 446961 轻量运维巡检
+
+Work Log:
+- 【巡检】r17 全绿 200×4 真绿（accessToken 校验通过），oom 0，usage 3.04GB，dump OK（20261011-170514 已入 git）
+- 【盘点】发现 dc4e60e6 之后遗留未提交变更：export_demo_sql.py 已增强（业务表 DDL 导出 + Flowable 部署态 HEX/UNHEX 迁移）并生成 07-demo-leave-approval.sql（39KB）/08-demo-material-pickup.sql（14KB），02/03 补 CREATE TABLE IF NOT EXISTS，README 更新至 8 脚本
+- 【验证】新建 scripts/validate-demo-sql.sh：mariadb-dump --no-data 建 sqlcheck 沙箱 → 清空资产表+DROP 演示业务表（模拟全新环境）→ 两遍导入 01→08 → 对账 13 项全对（form_def 9 / logic_flow 2 (v9 PUBLISHED) / binding 2 / process_draft 1 / act_re_procdef 1 / ledger 3 / stock 3 / pickup 1 / pickup_log 1 / dict 7 / menu 1），幂等无翻倍，语法零报错
+- 【推送】commit 853481b6（7 files，361 insertions）→ git push origin main 成功，ahead=0/behind=0
+
+Stage Summary:
+- sql/demo-examples/ 现为完整 8 脚本包：01~06 基础例子 + 07 审批联动台账（含 Flowable v9 部署态）+ 08 领用联动库存流水；任意 Flyway 后的 MariaDB 库按序导入即得全部演示资产
+- 验证脚本 validate-demo-sql.sh 可重跑，SQL 包演进后随时回归
