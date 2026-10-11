@@ -6835,3 +6835,18 @@ Work Log:
 Stage Summary:
 - 环境重供给事故闭环：恢复链路（MariaDB→dump→mvn jar→Java）在脚本超时被 kill 前已全部完成，无需二次执行；数据由最近 dump 快照恢复
 - 注意：mvn 构建的 jar 已回填 target/，但 backups/jar/ 目录副本状态待下轮核验（mvn 分支不一定回写 backups；.gitignore 已 ignore 该目录，仅影响本地恢复速度）
+---
+Task ID: resupply-r13-followup
+Agent: Z.ai Code (main session)
+Task: 用户问「前端程序、后端程序以及数据又被回滚了？」——环境重供给复盘 + 连带损伤修复
+
+Work Log:
+- 【确认】沙箱于 20:05–21:05 间被重供给（第 3 次）：MariaDB 数据目录清空（SYS_USER 表消失）+ Java 运行态消失 + .git/config PAT 凭据被清 + backups/jar/ 99M jar 备份丢失 + .gitignore backups/jar 规则丢失
+- 【已恢复（r13 轮内完成）】MariaDB 重建 + 20:05 dump 导入 → Java 拉起（backups/jar 缺失走 mvn 在线构建 39.9s 补建 target jar）→ 200×4 真绿；前端 vite 全程未受影响（源码级 dev 运行，进程与源码均在 /home/z/my-project）
+- 【本轮补强】cp target jar → backups/jar/（99M，恢复脚本加速件回位）；.gitignore 补回 backups/jar/ 排除规则并提交（防 cron 备份轮 git add -A 连带大文件——上次 100MB 拒推事故的复发防线）
+- 【损失评估】业务数据恢复至 20:05 快照点，20:05–21:05 窗口无开发/业务操作 → 业务数据实际零损失；代码 git 提交零丢失（10 个提交待推送，仅差 PAT 凭据）
+- 【待办】push 需用户提供新 fine-grained PAT（凭据被重供给清除，worklog 仅存占位符无明文）
+
+Stage Summary:
+- 重供给闭环：数据/后端/前端全部恢复真绿；两处连带损伤（jar 备份、gitignore 规则）本轮修复；唯一悬项=PAT 等用户提供后推送 10 个提交
+- 经验：重供给清除范围=运行态+config 类文件（.git/config、.gitignore 追加行、backups/jar），git 仓库本体与源码安全；巡检 dump 快照机制有效（RPO≈1h）
