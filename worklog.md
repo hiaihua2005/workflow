@@ -6710,3 +6710,20 @@ Stage Summary:
 - 用户报障闭环：名称与坐标同时持久化（JSON 复合文本 VARCHAR(255)），重开弹窗按存值回放标记+回填命名——组件、列映射、存储、列表展示四层同源解析；v1/v2 旧数据只读兼容（v2 已丢坐标不可恢复，显示名称可重新选点覆盖）
 - E2E 教训：新增流程中一次猜测 ref 的杂散 click（e1632）落在地图上移动了标记，导致「点击时快照坐标≠存库坐标」假象——排查时先查库对账再怀疑组件；agent-browser 合成点击会命中意外可点元素，坐标类交互验证必须锁定目标元素几何边界
 - 发布态业务表单列表 more 菜单仅「版本」，删除/归档入口缺失（与上轮「删除=归档」经验不一致，疑似发布态差异）——遗留观察项
+---
+Task ID: push-main-bc74624f
+Agent: Z.ai Code (main session)
+Task: 用户指令「push」+ 提供 fine-grained PAT——推送 16 个本地提交，处置 GitHub 100MB 大文件拒绝
+
+Work Log:
+- 【凭据配置】用户提供 PAT，按历史实践写入 remote URL（https://x-access-token:<PAT>@github.com/liaoweimin74/workflow.git，仅存 .git/config 本地文件不入库）；仓库实际根为 /home/z/my-project（workflow_lowcode 无嵌套 .git，git 向上解析），origin/main 落后 16 提交
+- 【首次 push 被拒】GH001：backups/jar/workflow-platform-1.0.0-SNAPSHOT.jar 115.51MB > GitHub 100MB 限制（3 个未推送提交引入：3ba4bb76/27d11840/1e040d80 的 cron 备份 git add -A 连带）
+- 【历史重写】git filter-branch --index-filter 剥离 backups/jar（仅限 origin/main..main 16 个未推送提交，已推送历史不动；index-filter 不触工作树）；重写后大 blob 扫描归零，唯一超限物消除
+- 【jar 本地副本重建】发现 backups/jar/ 磁盘缺失（重供给 #6 后遗症，recover-dplus.sh 恢复链依赖它）——从运行实例同源 workflow_lowcode/backend/target/workflow-platform-1.0.0-SNAPSHOT.jar（121MB，08:10 构建，含 elTreeSelect 白名单+LocationPicker v3 后端映射）cp 回 backups/jar/
+- 【防复发】.gitignore 追加 backups/jar/（cron 备份轮 git add -A 不会再连带 121MB jar）+ 提交 bc74624f
+- 【推送+三重验证】17b30c9d..bc74624f main -> main 成功；HEAD == origin/main == ls-remote = bc74624f，ahead 0
+
+Stage Summary:
+- 16 个本地提交（含 LocationPicker v3 坐标持久化修复 a52941fc 重写版、RelationCard 下拉化 d426d2aa 重写版、历次 db dump 备份）全部推上远程；121MB jar 保持仅本地备份（backups/jar/ 已恢复且被 ignore），远程仓库不再可能被大文件卡死
+- 注意：未推送提交的 SHA 已因 filter-branch 全部改变（如 a52941fc→新 SHA），后续引用旧 SHA 需以 git log 现查
+- PAT 已生效存于 .git/config；后续 push 直接可用，无需再要凭据
