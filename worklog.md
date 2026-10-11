@@ -6822,3 +6822,16 @@ Work Log:
 Stage Summary:
 - RelationCard 完成「纯实时展示组件」定位收敛：数据经数据源实时查询显示（用户理解完全正确）、值不落业务列（恒空 JSON 列停止生成，存量列按禁 DROP 保留无害）、关联关系由记录 ID 字段（dataPicker id 列）承载；面板清除 v1 遗留「显示字段」，摘要展示字段=纯展示配置（控制卡片显示哪些字段、留空自动取前 4 个非空）
 - 用户两问均已落实为代码：JSON 字段=冗余已移除；显示字段（displayField）=遗留已下架，「摘要展示字段」（displayFields）保留并是实时模式的正文显示配置
+---
+Task ID: cron-r13-recover
+Agent: Z.ai Code (main session)
+Task: Job 446961 巡检 r13 —— 环境重供给（no such table: SYS_USER + Java 进程消失）→ recover-dplus.sh 全链路恢复
+
+Work Log:
+- 【确诊】r13 探活四链路 200 但真伪核验假绿：8080 返回 {"code":500,"msg":"no such table: SYS_USER"}，且 ps 无任何 java 进程 —— 环境已被重供给（MariaDB 数据与 Java 运行态同时丢失）
+- 【恢复】前台执行 recover-dplus.sh；10 分钟工具超时被 kill 中断，但日志（/home/z/tools/recover.log）证实关键链路已走完：MariaDB 重建 up → backups/jar 缺失走 mvn 构建分支（BUILD SUCCESS 39.9s，target jar 重建）→ Java 拉起（PID 1579）
+- 【复核】sleep 15 后登录含 accessToken=真绿；四链路复探 200×4；收口 dump-db.sh 成功；mem 3.24G、oom 0
+
+Stage Summary:
+- 环境重供给事故闭环：恢复链路（MariaDB→dump→mvn jar→Java）在脚本超时被 kill 前已全部完成，无需二次执行；数据由最近 dump 快照恢复
+- 注意：mvn 构建的 jar 已回填 target/，但 backups/jar/ 目录副本状态待下轮核验（mvn 分支不一定回写 backups；.gitignore 已 ignore 该目录，仅影响本地恢复速度）
