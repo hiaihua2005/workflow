@@ -7042,3 +7042,20 @@ Stage Summary:
 - sql/demo-examples/ 8 脚本包达成「任意 Flyway 后 MariaDB 库导入即得完整可运行演示」：含 Flowable 部署态 SQL 还原（免重新部署）、业务表 DDL、防御性补列
 - 平台级经验：①Flowable act_re_* 主键 UUID 可直接 SQL 迁移部署（HEX/UNHEX 处理 BLOB）②Hibernate 7 ddl-auto=update 不补已存在表的缺失列（V42/V47 的假设不成立）③CONDITION 出边只认 branch 属性、无 branch 的边是死边④双 agent 并行时的 git 快照可能含半成品，后完成方需覆盖+显式声明权威终态
 - 线上演示态已校准：台账 王五6/李四3/张三1、库存 P001=195、流水 1 行、leave_ledger_sync PUBLISHED v10、act_ru 0
+
+---
+Task ID: user-reset-recovery-20261012
+Agent: ops-recovery
+Task: 用户报告「系统似乎又重置了」——全链路诊断与恢复
+
+Work Log:
+- 诊断确认第 4 次重供给：本地 git 历史被截断回旧基线（丢失 39a9dbd5/dc4e60e6→b88b6e05 全部演示提交），sql/demo-examples 目录消失，运行 jar 为过时源码构建（stale 树 91 个后端文件差异），DB 数据为基线态（sys_dict_data=0、无 wf_biz_cust_rel_demo）
+- 关键发现：远端 origin/main (b88b6e05) 是完整权威版本——含已完成的逻辑流双场景演示（dc4e60e6 场景1 审批联动台账 + 场景2 领用联动库存流水、853481b6 07/08 SQL 包、b88b6e05 v10 修复 + 冷缓存 E2E）
+- 恢复序列：preserved-dumps 备份本地快照 → git reset --hard origin/main（本地与权威版本对齐）→ mvn 重建 jar（121MB，含最新逻辑流引擎）→ 重启 Java（Flyway 至 V54）→ 按序导入 sql/demo-examples 01-08 → 重启 vite 加载权威前端
+- 验证：8 个演示表单全部 PUBLISHED；逻辑流 leave_ledger_sync/pickup_stock_sync 就位、绑定×2；种子数据 7 字典/3 客户/3 库存/1 流水；API /api/v1/logic-flows 实测返回 leave_ledger_sync PUBLISHED；四链路 200×4 真绿
+- 收口 dump 快照已本地提交（ad081bdc）；git push 失败：PAT 随重供给销毁（与 worklog L1449/L4043 同模式）
+
+Stage Summary:
+- 当前状态=权威版本（b88b6e05）+ 演示数据全量还原，可正常演示逻辑流双场景
+- 阻塞项：推送需用户提供新 fine-grained PAT（git remote set-url origin https://x-access-token:<PAT>@github.com/liaoweimin74/workflow.git && git push origin main，本地领先 1 提交 ad081bdc）
+- 遗留观察：重供给约每小时一次且同时破坏（a）运行时数据（b）本地未推送提交（c）PAT 凭据（d）JDK/Maven/mariadb-user 工具链；恢复链路已验证可靠但推送依赖人工 PAT
