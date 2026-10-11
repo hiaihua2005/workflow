@@ -57,7 +57,7 @@ public class FormDefinitionService {
             // 业务字段（可渲染、可映射列）
             "input", "textarea", "inputNumber", "select", "radio", "checkbox",
             "datePicker", "timePicker", "switch", "rate", "slider", "cascader",
-            "colorPicker", "upload", "tree", "fcEditor", "signaturePad",
+            "colorPicker", "upload", "tree", "elTreeSelect", "fcEditor", "signaturePad",
             // 业务扩展字段（Task 3-a/3-c/3-g）：地址/字典下拉/自动编号/关联卡片/定位
             "areaPicker", "dictSelect", "AutoNumber", "RelationCard", "LocationPicker",
             // 外部数据展示（合法、不生成业务列）

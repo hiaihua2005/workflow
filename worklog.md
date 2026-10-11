@@ -6645,3 +6645,17 @@ Work Log:
 Stage Summary:
 - 前端白屏修复：根因=china-area-data 依赖缺失（非 vite 死亡，进程探活会误判健康——教训：3000 根路径 200 不代表前端可用，模块级探活（如 AreaPicker.vue）才能抓这类「半死」状态）
 - 隐患提示：node_modules 间歇丢包已两次发生（重供给 #6 前兆+本次），巡检轮可考虑在 dump 前加一条 china-area-data 存在性检查（ls node_modules/china-area-data），缺则 bun install，成本极低
+---
+Task ID: whitelist-treeselect
+Agent: Z.ai Code (main session)
+Task: 用户报障「业务表单暂不支持组件（elTreeSelect）」——发布白名单补缺 + jar 重建重启
+
+Work Log:
+- 【定位】后端 FormDefinitionService.BUSINESS_FORM_ALLOWED_COMPONENTS 缺 elTreeSelect（有 "tree" 无树选择）；前端证实 elTreeSelect=vendor 标准物料「树形选择」（config/rule/treeSelect.js，type 精确匹配报错文案），列映射层 bizTableLayout.ts:159 已支持该类型——纯白名单漏项
+- 【修复】白名单 "tree" 后加 "elTreeSelect"；mvn -B -DskipTests package 重打包（JDK=/home/z/tools/jdk-build/merged，-q 静默 BUILD SUCCESS，121MB）；同步 backups/jar
+- 【重启踩坑】①kill 旧 pid 3251 ②首启用「setsid nohup & 后命令立即返回」→ 会话空闲被宿主 cgroup 守卫 SIGKILL（8080 000、无日志、pgrep 无进程）——再次验证历史铁律「前台单命令启动=唯一稳定存活」③改用「启动+前台轮询守护至真绿」模式（对齐 05:17 成功命令形态）→ accessToken 真绿
+- 【新参数生效】MaxMetaspaceSize=320m（运行实例从 256m 升级，之前只有 recover 脚本有 320m）；Java RSS 448MB；四链路 200×3 + 真绿
+
+Stage Summary:
+- elTreeSelect 发布拦截修复：用户重新点「发布」即可通过；白名单与本轮内存调优参数（320m/MetaspaceSize=128m/CodeCache 128m/MALLOC_ARENA_MAX=2）随新 jar 一并生效
+- 教训重申：宿主 cgroup 守卫杀「空闲期新启动的大进程」——任何 Java/vite 重启必须前台轮询守护至少到真绿，不允许「& + echo pid」秒返回
