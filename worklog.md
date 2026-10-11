@@ -6767,3 +6767,21 @@ Stage Summary:
 - RelationCard 三项配置的下拉来源从「硬编码常用字段」升级为「真实表单列表/表单字段列表」：源表单=已发布业务表单下拉，显示字段/摘要字段=所选源表单的 columnConfig（兜底 schema 解析）字段列表，未配置/失败时静态兜底+始终可手填
 - 技术要点：props 面板组件可拿响应式画布 rule（props() 第一参透传），这一通用手法（canvasRule watch 联动面板下拉）可复用到其他需要跨 prop 联动的物料配置
 - 遗留：①MemberGroupPage.test.ts 5 例既有失败（与本任务无关，待单独排查）②recordIdField 仍为手填（指向当前表单字段，需画布规则树扫描才能下拉化，本轮未做）③Designer 内 RelationFieldSelect 也注册进了运行时 formCreate 实例（无害，仅面板使用）
+
+---
+Task ID: relationcard-datasource-binding
+Agent: Z.ai Code (main session)
+Task: 用户问「RelationCard 与业务表单强绑定，无法使用非业务表单数据源，是否有必要改成绑定数据源？」并追问「表单迁移为什么不可接受？现在都只是测试数据而已」——确认改绑数据源 + 全量收尾验证
+
+Work Log:
+- 【现场考古】调研发现该改造在上个会话中断前已推进两段：a52c4192（已提交）= RelationCard.vue 渲染端三级解析（页面绑定 dataSourceId > 全局数据源 globalDataSourceId > 旧版 sourceFormKey，数据源模式走 dataSourceApi.getData 统一 SPI，FORM/WORKFLOW/SYSTEM/API/SQL 五类型均支持 getById+metadata）+ RelationFieldSelect.vue 加 mode:'ds'（getEnabledDataSources 拉数据源列表 / field 模式双键联动 dsKeyField 优先）；工作区未提交 = relationCard.js 面板（sourceMode select + control 联动 + globalDataSourceId 数据源下拉 + 字段下拉 dsKeyField 透传）+ task3gRules 测试同步。剩余工作即验证收尾
+- 【存量零迁移】回答用户核心关切：不需要迁移任何表单/数据——①sourceMode 缺省 undefined 时 control 仍显示业务表单配置（control[0].handle(undefined)===true 测试锁定）②渲染端三级解析保持 sourceFormKey 回退 ③卡片值存记录 id 与来源配置解耦。测试数据也完全不用动
+- 【测试】task3gRules 14/14（新增 v3 面板契约用例：sourceMode value/control 双 handle 边界（含 undefined）/dsSelect mode:'ds'/displayFields 双源透传）；RelationCard.test.ts 24/24（补 5 个 v3 渲染端用例：全局数据源优先于表单直连且 detail 不被调、页面绑定 refId 优先于全局、无匹配绑定回退表单、数据源 404 警示态、displayFields 留空自动取 metadata 非空列）；全量 1743 例 5 失败=MemberGroupPage 既有（上轮 stash 对照已确认无关）
+- 【E2E（agent-browser，admin/admin123 → /form/designer?id=866315bf 跟进工单-关联演示）】①选中存量 RelationCard→面板出现「来源类型」combobox 且缺省显示源表单配置（兼容✓）②切换「数据源」→源表单隐藏、数据源下拉出现、提示「共 27 个已启用数据源」③下拉选项带类型标注（FORM 12/WORKFLOW 6/SYSTEM 9：组织机构/流程定义/系统用户等）④选「系统用户（SYSTEM）」→「已从数据源加载 6 个字段」+「3 个已选字段不属于当前源」智能提示⑤摘要字段下拉候选=用户ID/用户名/昵称/部门ID/部门名称/状态（中文 label+key）+3 个旧卡已选字段补入保证回显⑥切回「业务表单」→源表单 combobox 恢复+「共 11 个已发布业务表单」；全程 console 0 错误、刷新放弃修改演示资产零污染
+- 【收尾】commit d95b2a0f push 上远程（三重核验 HEAD=origin/main）；注意本环境架构已变（Task 13-R3 后 Vite 独占 3000，Next 门户退役），dev server 由 scripts/start-services.sh 一键拉起
+
+Stage Summary:
+- RelationCard 完成「业务表单强绑定 → 数据源优先」架构升级：面板新增来源类型切换（业务表单/数据源），数据源下拉列 27 个已启用数据源（含系统用户/岗位/流程实例等非业务表单源），字段下拉随源联动（数据源 metadata / 表单 columnConfig 双通道）；渲染端三级解析 + 统一数据访问 SPI 此前已提交（a52c4192）
+- 用户关切正面回应：迁移零成本——存量卡片按缺省继续走业务表单直连，测试数据无需任何处理；新配置推荐用数据源来源（面板 info 已标注）
+- 质量补强：渲染端 v3 数据源模式单测从 0 → 5 用例（此前 a52c4192 提交无配套测试）
+- 遗留：①RelationFieldSelect.vue 面板组件本身无单测（E2E 已覆盖核心行为，可选补）②页面级 dataSourceId 绑定入口在页面设计器/DataPicker 配置弹窗场景，表单设计器面板只暴露全局直连（设计合理：表单场景无页面绑定上下文）③MemberGroupPage 5 例既有失败仍待单独排查
