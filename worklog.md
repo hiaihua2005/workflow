@@ -6632,3 +6632,16 @@ Stage Summary:
 - 结论①：MaxMetaspaceSize 是封顶非预分配——加大到 320m 零 RSS 成本（reserved 只占虚拟地址，真实占用=committed≈used 135MB）；两脚本已落地 320m，运行实例 256m 健康（余量 122MB）不动
 - 结论②：节约内存三件套已落地=MariaDB 三缓存砍配置（省 40-60MB，部分热调已兑现）+ MALLOC_ARENA_MAX=2（省 10-30MB）+ Java 参数三处漂移消除（根治 192m OOM 隐患）
 - 可选未做：vite RSS 542MB（全系统最大单体），start-services.sh 已有 --max-old-space-size=512，可再压至 384 但有 OOM 崩溃风险需观察，等下次 vite 自然重启时试验；Java/vite 运行实例未重启（服务连续性优先，新参数下次重启自动生效）
+---
+Task ID: frontend-fix-1457
+Agent: Z.ai Code (main session)
+Task: 用户报障「前端好像挂掉了？」——china-area-data 依赖再次缺失导致白屏，已修复
+
+Work Log:
+- 【诊断】vite 进程存活且 3000 根路径 200（index.html 正常），但 vite.log 尾部 AreaPicker.vue 转换报错 china-area-data 缺失；实测 node_modules/china-area-data 缺失 + /src/components/business/AreaPicker.vue 返回 500（main.ts 200）→ import 链断 → 浏览器模块图加载失败白屏，与重供给 #6 前兆同款根因（node_modules 部分丢失）
+- 【修复】①cd frontend && bun install 补装 china-area-data@5.0.1（仅缺 1 包，80ms，服务不中断）②kill vite 旧实例（pid 1270+父 1269）③start-services.sh 重拉（脚本因 java 探活等待循环 120s 超时被杀，但 vite 已 nohup 后台存活，pid 4281，VITE v8.1.5 ready 328ms）④optimizer bundling 预构建完成
+- 【回归】3000 根 200 + 外域 Host 200 + /src/main.ts 200 + AreaPicker.vue 500→200 + 8080 登录 accessToken 真绿——四链路全绿
+
+Stage Summary:
+- 前端白屏修复：根因=china-area-data 依赖缺失（非 vite 死亡，进程探活会误判健康——教训：3000 根路径 200 不代表前端可用，模块级探活（如 AreaPicker.vue）才能抓这类「半死」状态）
+- 隐患提示：node_modules 间歇丢包已两次发生（重供给 #6 前兆+本次），巡检轮可考虑在 dump 前加一条 china-area-data 存在性检查（ls node_modules/china-area-data），缺则 bun install，成本极低
