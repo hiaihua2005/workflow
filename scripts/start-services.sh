@@ -16,6 +16,15 @@ LOG_DIR=/home/z/tools
 BACKEND_DIR=/home/z/my-project/workflow_lowcode/backend
 FRONTEND_DIR=/home/z/my-project/workflow_lowcode/frontend
 JAR="$BACKEND_DIR/target/workflow-platform-1.0.0-SNAPSHOT.jar"
+# Java 解析：PATH 优先（/usr/bin/java），回退用户态 jdk-build（重供给后 PATH 可能丢 java）
+JAVA_BIN="$(command -v java || echo /home/z/tools/jdk-build/merged/usr/lib/jvm/java-21-openjdk-amd64/bin/java)"
+# Java 统一参数（2026-10-11 与 recover-dplus.sh/运行实例对齐，实测定档）：
+#   Metaspace used 133.5MB→封顶 320m（192m 曾 OOM 边缘、256m 余量薄）；MetaspaceSize=128m 免启动期反复扩容 GC；
+#   CodeCache 封顶 128m（used 实测 36MB）；Direct 64m；栈 512k；SerialGC 最省；MALLOC_ARENA_MAX=2 省 glibc arena；
+#   堆 320m（tenured used 80MB）——旧 448m 是防 Turbopack 时代 OOM 的历史值，当前 vite 已替代 Next 门户
+JAVA_OPTS="-Xmx320m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=320m -XX:MaxDirectMemorySize=64m -Xss512k -XX:+UseSerialGC -XX:ReservedCodeCacheSize=128m"
+# MariaDB 内存参数（2026-10-11）：业务数据 <10MB，三缓存共砍 240M 配置（实际 RSS 省 40-60MB）
+MDB_MEM_OPTS="--innodb-buffer-pool-size=64M --key-buffer-size=8M --aria-pagecache-buffer-size=16M --performance-schema=OFF"
 mkdir -p "$LOG_DIR"
 
 # ---- 冷启动自动恢复（2026-10-09 四次重置实证：环境重供给会清掉 jar/MariaDB/工具链）----
@@ -56,7 +65,7 @@ if ! port_open 3306; then
     (cd "$MDB_DIR" && LD_LIBRARY_PATH="$MDB_DIR/sysroot/usr/lib/x86_64-linux-gnu:$MDB_DIR/root/usr/lib/x86_64-linux-gnu" \
       nohup root/usr/sbin/mariadbd --no-defaults --basedir="$MDB_DIR/root" --datadir="$MDB_DIR/root/data" \
       --socket="$MDB_DIR/mysql.sock" --pid-file="$MDB_DIR/mysqld.pid" --port=3306 --bind-address=127.0.0.1 \
-      --lower-case-table-names=1 \
+      --lower-case-table-names=1 $MDB_MEM_OPTS \
       >> "$MDB_DIR/mariadbd.err" 2>&1 < /dev/null &)
     for i in 1 2 3 4 5 6; do sleep 5; port_open 3306 && break; done
     if port_open 3306; then echo "[start-services] MariaDB 就绪 (3306)"; else echo "[start-services] WARN: MariaDB 3306 未就绪"; fi
@@ -160,15 +169,14 @@ if port_open 8080; then
       echo "[start-services] 后端假死，清场重启..."
       kill_stale_backend
       echo "[start-services] 启动 Java 后端..."
-      # -Xmx448m：沙箱仅 3.9Gi 内存，限制 Java 堆防 OOM kill next-server（历史 bug：Turbopack+Java+Chrome 同挤 4G）
-      (cd "$BACKEND_DIR" && nohup java -Xmx448m -XX:MaxMetaspaceSize=192m -jar "$JAR" --spring.profiles.active=sandbox >> "$LOG_DIR/backend.log" 2>&1 &)
+      (cd "$BACKEND_DIR" && nohup env MALLOC_ARENA_MAX=2 "$JAVA_BIN" $JAVA_OPTS -jar "$JAR" --spring.profiles.active=sandbox >> "$LOG_DIR/backend.log" 2>&1 &)
     fi
   fi
 elif [ ! -f "$JAR" ]; then
   echo "[start-services] 跳过后端：jar 未构建 ($JAR)，可运行 scripts/bootstrap-after-reset.sh 重建"
 else
   echo "[start-services] 启动 Java 后端..."
-  (cd "$BACKEND_DIR" && nohup java -Xmx448m -XX:MaxMetaspaceSize=192m -jar "$JAR" --spring.profiles.active=sandbox >> "$LOG_DIR/backend.log" 2>&1 &)
+  (cd "$BACKEND_DIR" && nohup env MALLOC_ARENA_MAX=2 "$JAVA_BIN" $JAVA_OPTS -jar "$JAR" --spring.profiles.active=sandbox >> "$LOG_DIR/backend.log" 2>&1 &)
 fi
 
 fi

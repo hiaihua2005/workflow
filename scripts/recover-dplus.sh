@@ -52,9 +52,12 @@ if ! port_open 3306; then
   fi
   echo "[recover] 启动 mariadbd..."
   rm -f "$MDB/mysqld.pid"
+  # 内存调优（2026-10-11）：业务数据总量 <10MB——buffer pool 128→64M、key_buffer 128→8M（无 MyISAM 表）、
+  # aria_pagecache 128→16M（仅内部临时表/系统表用），预计省 RSS 40-60MB
   (cd "$MDB" && nohup root/usr/sbin/mariadbd --no-defaults --basedir="$MDB/root" --datadir="$MDB/root/data" \
     --socket="$MDB/mysql.sock" --pid-file="$MDB/mysqld.pid" --port=3306 --bind-address=127.0.0.1 \
     --lower-case-table-names=1 --lc-messages-dir="$MDB/root/share/mariadb" \
+    --innodb-buffer-pool-size=64M --key-buffer-size=8M --aria-pagecache-buffer-size=16M --performance-schema=OFF \
     >> "$MDB/mariadbd.err" 2>&1 < /dev/null &)
   for i in 1 2 3 4 5 6 7 8; do sleep 3; port_open 3306 && break; done
 fi
@@ -114,8 +117,14 @@ if [ -f "$JAR" ] && ! pgrep -f 'workflow-platform-1.0.0-SNAPSHOT.jar' >/dev/null
   # 清掉 Node 假绿占位
   pkill -f 'bun src/index.ts' 2>/dev/null || true
   sleep 2
-  echo "[recover] 启动 Java（-Xmx448m，首启约 20s）..."
-  (cd "$BACKEND" && setsid nohup java -Xmx448m -XX:MaxMetaspaceSize=256m -jar "$JAR" \
+  # Java 参数（2026-10-11 与运行实例统一，实测定档）：
+  #   Metaspace used 133.5MB——128m 曾 OOM（OutOfMemoryError: Metaspace），320m 封顶=零 RSS 成本（reserved 只占虚拟地址，
+  #   实际提交≈used）；MetaspaceSize=128m 跳过启动期从 20.8M 反复扩容的 GC；CodeCache 实测 used 36MB，128m 封顶防失控；
+  #   MALLOC_ARENA_MAX=2 收敛 glibc 多 arena（32 线程下省 10-30MB）；堆 320m（tenured used 80MB/80%，余量足）
+  JAVA_BIN="$(command -v java || echo /home/z/tools/jdk-build/merged/usr/lib/jvm/java-21-openjdk-amd64/bin/java)"
+  echo "[recover] 启动 Java（$JAVA_BIN，首启约 20s）..."
+  (cd "$BACKEND" && setsid nohup env MALLOC_ARENA_MAX=2 "$JAVA_BIN" -Xmx320m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=320m \
+    -XX:MaxDirectMemorySize=64m -Xss512k -XX:+UseSerialGC -XX:ReservedCodeCacheSize=128m -jar "$JAR" \
     --spring.profiles.active=sandbox >> /home/z/tools/backend.log 2>&1 < /dev/null &)
   for i in $(seq 1 9); do sleep 5; port_open 8080 && break; done
 fi

@@ -6615,3 +6615,20 @@ Stage Summary:
 - D+ 终态恢复：vite 独占 3000 + Java（新 jar+256m Metaspace）独占 8080 + MariaDB 3306，全链路真绿
 - 数据完整性：MariaDB 全量重建自 backups 最新 dump（10-10 20:05），无业务数据丢失（10-11 当日新建表单在 #6 前已删净）
 - 遗留：①10-11 丢失的 LocationPicker 地图选点 + displayField 下拉化两个提交需重做（源码已随 reset 回到旧版，本轮未重做——用户当前诉求是服务可用，防折腾优先）；②git push 持续失败等用户 PAT；③backend-node 的 engine-choice 已由 recover 写回 java，node 库为空 SQLite 勿切
+---
+Task ID: mem-tuning
+Agent: Z.ai Code (main session)
+Task: 用户指令「看看哪些地方可以节约内存或者加大 MaxMetaspaceSize」——全链路实测 + 脚本参数统一 + MariaDB 热调
+
+Work Log:
+- 【实测 Java pid 3251（RSS 455MB）】堆 committed 142MB（new 45+tenured 100，tenured used 80MB=80%，FGC 5 次）；Metaspace used 133.5MB/committed 134.8MB（上限 256m 余量 122MB；128m OOM 之谜定量解释=used 133.5>128）；CodeCache used 35.9MB/reserved 240MB；线程 32×512k；NMT 未开
+- 【实测 MariaDB（RSS 160MB→137MB）】innodb_buffer_pool=128M、key_buffer=128M、aria_pagecache=128M、performance_schema=OFF；业务数据总量 workflow 4.6MB+workflow_v6 0.6MB——三缓存配置 240M+ 严重虚高
+- 【发现参数三处漂移隐患】运行实例 -Xmx320m/256m（cron 手动）；recover-dplus.sh -Xmx448m/256m；start-services.sh -Xmx448m/192m（used 已 133.5MB，192m 属 OOM 边缘，冷启动自愈会复发 Metaspace OOM）
+- 【脚本统一（下次重启/恢复生效）】两脚本 Java 参数统一为：-Xmx320m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=320m -XX:MaxDirectMemorySize=64m -Xss512k -XX:+UseSerialGC -XX:ReservedCodeCacheSize=128m + env MALLOC_ARENA_MAX=2；JAVA_BIN=command -v java 回退用户态 jdk-build 路径（防重供给丢 PATH）；两脚本 mariadbd 启动行加 --innodb-buffer-pool-size=64M --key-buffer-size=8M --aria-pagecache-buffer-size=16M --performance-schema=OFF；bash -n 语法双通过
+- 【MariaDB 热调（立即生效无重启）】SET GLOBAL innodb_buffer_pool_size=64M + key_buffer_size=8M，mariadbd RSS 160→137MB（buffer pool 在线收缩异步继续）；aria_pagecache 只读需重启生效
+- 【回归】8080 登录 accessToken 真绿✓ + 3000 前端 200✓（热调后业务链路无影响）
+
+Stage Summary:
+- 结论①：MaxMetaspaceSize 是封顶非预分配——加大到 320m 零 RSS 成本（reserved 只占虚拟地址，真实占用=committed≈used 135MB）；两脚本已落地 320m，运行实例 256m 健康（余量 122MB）不动
+- 结论②：节约内存三件套已落地=MariaDB 三缓存砍配置（省 40-60MB，部分热调已兑现）+ MALLOC_ARENA_MAX=2（省 10-30MB）+ Java 参数三处漂移消除（根治 192m OOM 隐患）
+- 可选未做：vite RSS 542MB（全系统最大单体），start-services.sh 已有 --max-old-space-size=512，可再压至 384 但有 OOM 崩溃风险需观察，等下次 vite 自然重启时试验；Java/vite 运行实例未重启（服务连续性优先，新参数下次重启自动生效）
