@@ -31,6 +31,9 @@ import StepsForm from '@/components/business/StepsForm.vue'
 import DrawerContainer from '@/components/business/DrawerContainer.vue'
 // 属性面板通用 JSON 数组编辑器（form-create 控件，无 vendor rule 组件的 items 配置用）
 import JsonItemsEditor from '@/components/business/JsonItemsEditor.vue'
+// 属性面板动态下拉（RelationCard 专用）：源表单=已发布业务表单列表，
+// 字段下拉=源表单 columnConfig/schema 字段列表（仅面板用，同 FormulaExpressionEditor）
+import RelationFieldSelect from '@/components/business/RelationFieldSelect.vue'
 import PageDataTable from '@/views/page/components/PageDataTable.vue'
 import DashKpi from '@/views/dashboard/components/DashKpi.vue'
 import DashChart from '@/views/dashboard/components/DashChart.vue'
@@ -83,6 +86,8 @@ FcDesigner.component('StepsForm', StepsForm)
 FcDesigner.component('DrawerContainer', DrawerContainer)
 // 属性面板 JSON 数组编辑器（form-create 控件，无 vendor rule 组件的 items 配置用）
 FcDesigner.component('JsonItemsEditor', JsonItemsEditor)
+// 属性面板动态下拉（RelationCard 源表单/字段选择，仅面板用；全局注册使面板 form-create 实例可解析）
+FcDesigner.component('RelationFieldSelect', RelationFieldSelect)
 // 数据表格：全局注册，使表单设计器（画布 + 运行时渲染）与页面设计器/渲染页都能使用
 FcDesigner.component('page-table', PageDataTable)
 // 仪表盘组件（Task 119）：设计器画布 + 运行时渲染双实例可见

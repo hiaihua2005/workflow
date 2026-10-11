@@ -6749,3 +6749,21 @@ Stage Summary:
 - RelationCard 定位重构：「被动文本显示器」→「活的关联记录视图」——配置源表单后永远展示关联记录最新数据、不冗余存快照，这正是它与 LookupPicker 带回文本的本质区别；演示故事「客户档案↔跟进工单」已可体验（/biz-data/follow_rel_demo）
 - 组件、vendor 规则、列映射三层同改；未动后端（白名单已含 RelationCard）
 - 遗留观察：①RelationCard 字段列映射为 JSON 恒空列（列表可见但无值，未做隐藏处理避免范围膨胀）②数据引用配置弹窗的数据源绑定模式未覆盖（sourceFormKey 直连模式为主路径）③演示表单 A 编辑选项时 label/value 双列结构易误填（E2E 踩过一次）
+---
+Task ID: relationcard-dynamic-field-options
+Agent: Z.ai Code (main session)
+Task: 用户问「关联记录卡片组件中的显示字段和摘要显示字段的下拉列表现在来源于什么？是不是应该来源于表单中的字段列表？」——答现状（硬编码）+ 实现动态化（来源表单字段列表）
+
+Work Log:
+- 【现状回答】displayField（显示字段）/displayFields（摘要展示字段）下拉此前是 relationCard.js 里硬编码的静态常用字段（name/title/label/id/code/status/value/text/remark 等 9~10 项，filterable+allowCreate 手填兜底），与任何表单无关；sourceFormKey 也是纯手填 input。用户判断正确，应来源于表单字段列表
+- 【机制调研】①FcDesigner.getPropsRule → props(rule,{t,api}) 第一参=选中组件的活跃画布 rule（响应式对象），且面板编辑经 propChange→handleChange 写回 activeRule.props（响应式）②props 面板支持自定义组件（vendor/index.js designerForm.component 注册 ColorInput/FnInput 先例；main.ts 的 FormulaExpressionEditor「仅面板用」先例）③业务表单列表查询惯例 getFormDefinitions({type:'BUSINESS',status:'PUBLISHED',size:100~1000})
+- 【新组件 RelationFieldSelect.vue】components/business/，双模式：mode='form' 拉已发布业务表单列表（名称（key）格式）；mode='field' 以响应式 canvasRule prop watch canvasRule.props[formKeyField]（sourceFormKey）→ getFormDefinitionByKey → columnConfig 字段列表（中文 label（key）），columnConfig 为空兜底解析 schema 规则树提取 field/title；未配置源表单/加载失败回退静态常用字段；fetchSeq 序号守卫防快速切换竞态；已选值不在新候选时补入选项保证回显 + 提示「N 个已选字段不属于当前源表单」；每模式配状态提示行（加载中/已加载 X 个字段/失败可手填）
+- 【relationCard.js 接入】props 签名 (_, {t})→(rule,{t})；源表单/显示字段/摘要展示字段三 prop 换 RelationFieldSelect；面板顺序调整为 源表单→显示字段→记录ID字段→摘要展示字段（先选表单后选字段）；静态候选抽成 DISPLAY_FIELD_FALLBACK/SUMMARY_FIELD_FALLBACK 常量，同时挂 rule.options（测试契约）与 props.fallbackOptions（组件回退双通道）；header 注释同步
+- 【main.ts】FcDesigner.component('RelationFieldSelect', RelationFieldSelect)（designerForm+formCreate 双实例，同 JsonItemsEditor 注册位置）
+- 【测试】task3gRules 13/13 通过（displayFields.props.multiple/allowCreate/options≥9 契约全保）；全量 1737/1742，唯一失败文件 MemberGroupPage.test.ts 5 例经 git stash 对照确认为既有失败（actionButtons 缺「成员管理」，与本次无关）；vue-tsc 本次改动文件 0 错误（仅既有 DictPage/MemberGroupPage 报错）
+- 【E2E 六项验证全绿】（/form/designer?id=866315bf…跟进工单-关联演示，admin/admin123）①选中画布 RelationCard→面板出现三个 combobox（源表单/显示字段/摘要展示字段）②源表单下拉=11 个已发布业务表单+提示「共 11 个」③选客户档案→两个字段下拉提示「已加载「客户档案-关联演示」4 个字段」④摘要下拉选项=客户名称/客户状态/负责人/联系电话（中文 label+字段 key）⑤多选勾 2 项→tag 回显正确（值绑定通）⑥清空源表单→字段下拉回退 9 个静态候选+提示「先配置源表单」；全程 0 页面错误、未保存设计器（演示资产零污染）
+
+Stage Summary:
+- RelationCard 三项配置的下拉来源从「硬编码常用字段」升级为「真实表单列表/表单字段列表」：源表单=已发布业务表单下拉，显示字段/摘要字段=所选源表单的 columnConfig（兜底 schema 解析）字段列表，未配置/失败时静态兜底+始终可手填
+- 技术要点：props 面板组件可拿响应式画布 rule（props() 第一参透传），这一通用手法（canvasRule watch 联动面板下拉）可复用到其他需要跨 prop 联动的物料配置
+- 遗留：①MemberGroupPage.test.ts 5 例既有失败（与本任务无关，待单独排查）②recordIdField 仍为手填（指向当前表单字段，需画布规则树扫描才能下拉化，本轮未做）③Designer 内 RelationFieldSelect 也注册进了运行时 formCreate 实例（无害，仅面板使用）
