@@ -6675,3 +6675,19 @@ Stage Summary:
 - 用户报障闭环：elTreeSelect 白名单缺失→并行会话改源码+重打包→新实例拉起→用户可直接重试发布；15:05 的「8080 000」实为并行会话「杀旧起新」窗口期，非环境重供给（无 Node 假绿、MariaDB 3306 全程在线）
 - 备份链完整：backups/jar 已是含 elTreeSelect 的新 jar，重供给恢复不会回退白名单
 - 遗留观察：pid 3251 的 NoClassDefFoundError 型 shutdown 根因未完全定性（Metaspace 崩溃 vs 外部 SIGTERM 后类加载器损坏）；新实例 4833 已带 320m 封顶+MetaspaceSize=128m，理论上限余量翻倍，持续观察
+---
+Task ID: location-relation-v2
+Agent: Z.ai Code (main session)
+Task: 用户需求①关联记录卡片显示字段下拉选择 ②定位组件弹窗地图选点+位置命名+默认显示位置名称
+
+Work Log:
+- 【依赖】leaflet 1.9.4+@types/leaflet 补装（package.json 原本就有，重供给只丢 node_modules；与 china-area-data 同款症状——巡检轮可加 node_modules 关键包存在性检查）
+- 【LocationPicker v2 全重写】触发框（readonly 展示+点击开弹窗+清空）+ el-dialog 地图弹窗（Leaflet+高德 XYZ 瓦片免 key GCJ-02+divIcon 脉冲标记+定位到我按钮+命名输入框）；值契约=位置名称（命名）| 'lat,lng'（未命名兜底，v1 兼容）| ''；el-dialog @opened initMap/@close destroyMap+destroy-on-close 双保险；v1 坐标值自动识别显示坐标
+- 【RelationCard 物料】displayField input→select：9 预设（name/title/label/id/code/status/value/text/remark）+filterable+allowCreate+clearable，info 同步
+- 【测试】LocationPicker.test.ts 全重写 16 用例（mock leaflet 全模块；踩坑：el-dialog 懒渲染 mapRef null→initMap 加 detached div 兜底；el-dialog 默认不销毁内容→全局 querySelector 命中隐藏旧 dialog，destroy-on-close 根治）；business 目录回归 418/418；vue-tsc 54=基线
+- 【E2E（agent-browser）】新建业务表单→设计器拖入两组件→显示字段下拉 9 预设展开实测+allowCreate 输入 customField 生效+选 name 回显→保存→预览模式：地图瓦片渲染/点地图标记/坐标回显/命名「石化一号仓库」/确定→触发框显示「石化一号仓库」✓/清空回 placeholder✓/未命名坐标兜底✓；测试表单已归档清理
+- 【收尾】commit d426d2aa（4 文件 +542/-216）；四链路 3000:200 8080 真绿
+
+Stage Summary:
+- 两个用户需求全部落地且浏览器端到端实证；LocationPicker 值形态向后兼容（旧 lat,lng 数据显示不破），发布白名单/列映射无需后端改动（VARCHAR 直存位置名称）
+- 踩坑沉淀：①el-dialog 懒渲染+不销毁特性对自动化测试的 select 命中影响大——脚本必须限定可见元素（offsetParent!==null+rect 宽>0）②fc-designer 画布 mask 挡真实点击但挡不住 dispatchEvent 合成事件——E2E 值写到了画布实例差点误判，验证必须锁定目标 dialog ③业务表单「删除」=归档（软删）语义
