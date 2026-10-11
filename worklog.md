@@ -7024,3 +7024,21 @@ Work Log:
 Stage Summary:
 - sql/demo-examples/ 现为完整 8 脚本包：01~06 基础例子 + 07 审批联动台账（含 Flowable v9 部署态）+ 08 领用联动库存流水；任意 Flyway 后的 MariaDB 库按序导入即得全部演示资产
 - 验证脚本 validate-demo-sql.sh 可重跑，SQL 包演进后随时回归
+---
+Task ID: logicflow-sql-package-e2e
+Agent: Z.ai Code (main session, trace a556f2f1)
+Task: 用户需求「push所有代码和演示所需要的数据库脚本」——逻辑流双场景 SQL 包的深水区验证：Flowable 部署态 SQL 还原 + 冷缓存 E2E（期间发现并修复演示逻辑流 v9 分支反接 bug）
+
+Work Log:
+- 【资产查证】逻辑流运行时按字符串键解析（绑定 tenant+formType+formKey+triggerType+enabled=true；流程 flow_key+PUBLISHED），DSL 全部按 formKey/表名引用（不依赖 UUID）→ SQL 导出天然可移植；WORKFLOW 表单 leave_apply_demo 无业务表（数据走流程变量）；流程启动 runtimeService.startProcessInstanceByKeyAndTenantId → 必须还原 Flowable act_re_deployment/act_re_procdef/act_ge_bytearray（主键全 UUID 无自增，可安全 INSERT）
+- 【导出器增强】export_demo_sql.py 新增 07（场景1：表单×2+流程草稿v9+node_config×2+Flowable 部署态 1/1/2+逻辑流+绑定+台账×3）/08（场景2：表单×3+逻辑流+绑定+库存3/领用1/流水1）；BLOB 字节列 HEX() 导出 UNHEX() 写入（规避 --xml 二进制乱码）；bit(1) enabled 以 enabled+0 取值、b'1' 字面量写入；02/03/07/08 内置业务表 CREATE TABLE IF NOT EXISTS DDL（SHOW CREATE TABLE 快照，修「全新环境无 wf_biz_* 表」缺口）；07 内置 ALTER ... ADD COLUMN IF NOT EXISTS 防御性补 wf_process_draft.description（V47 注释称 Hibernate 自动建列，实测 Hibernate 7 ddl-auto=update 不会为已存在表补列）
+- 【关键发现①演示 bug】沙箱冷缓存 E2E 暴露 leave_ledger_sync v9 分支反接：CONDITION「台账不存在?」的 true 边误指 du_add、false 边误指 di_create（且 di_create→du_add 连线 source 误挂 cond_empty）——已存在员工审批会 INSERT 撞唯一键（API 500），新员工审批 UPDATE 0 行不建档；线上此前 E2E 通过是旧版本 DSL 的结果，最后一次 rewire 后未做行为验证。修复：scripts/fix_leave_ledger_flow_edges.py 经 API PUT+publish → v10（true→di_create→du_add / false→du_add），线上双路径 manual run 验证通过（演示临时员建档→清理；王五 +2 后 SQL 还原 6/10）
+- 【关键发现②全新环境自举】纯空库后端无法自举（Flowable schema 升级在空 ACT_GE_PROPERTY 上失败）——平台级课题不在本包范围；采用「flyway 迁移后 schema-only + Flowable 属性表对齐（act_ge_property/act_id_property=8.0.0.0）」模拟平台就绪环境；flyway 在空 history 上重跑会以基线形态重建部分表（sys_user.post_id、wf_process_draft.description 丢失、wf_form_def 被清空）——已入 README 注记
+- 【沙箱 E2E 全绿】独立 8081 后端（新 JVM=Flowable 定义缓存为空）指向 workflow_sqltest：GET /v1/deployed-processes 可见 SQL 还原的 leave_approval_demo:9 → 发起→待办(assignee=1)→审批通过→台账 6+2=8（场景1 AFTER_PROCESS_FINISH 全链路）；新增领用→库存 50→47+流水 1→2 行（sourceNote 回填领用单 id）（场景2 AFTER_CREATE 全链路）；scripts/e2e_sql_restore.py 14 项断言全过；浏览器冒烟：登录→/biz-data/leave_ledger_demo 与 material_stock_demo 正常渲染
+- 【验证闭环】沙箱 schema-only 库 DROP 演示业务表后两遍导入 01→08 全过、14 项计数对账全等、BLOB 还原字节一致（restored 2513B=源）；用后沙箱库删除、8081 后端停止
+- 【协作记录】本轮中途 webDevReview cron agent（r17）合流执行了用户同一需求：将本会话进行中的导出器+07/08+README 快照提交推送（853481b6）并补 worklog（b92b439a）——但其快照含修复前的 v9 反接 DSL，本条目为权威终态：07 已更新为 v10 DSL，修复脚本与 E2E 脚本随本提交入库
+
+Stage Summary:
+- sql/demo-examples/ 8 脚本包达成「任意 Flyway 后 MariaDB 库导入即得完整可运行演示」：含 Flowable 部署态 SQL 还原（免重新部署）、业务表 DDL、防御性补列
+- 平台级经验：①Flowable act_re_* 主键 UUID 可直接 SQL 迁移部署（HEX/UNHEX 处理 BLOB）②Hibernate 7 ddl-auto=update 不补已存在表的缺失列（V42/V47 的假设不成立）③CONDITION 出边只认 branch 属性、无 branch 的边是死边④双 agent 并行时的 git 快照可能含半成品，后完成方需覆盖+显式声明权威终态
+- 线上演示态已校准：台账 王五6/李四3/张三1、库存 P001=195、流水 1 行、leave_ledger_sync PUBLISHED v10、act_ru 0

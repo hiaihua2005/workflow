@@ -231,7 +231,10 @@ def main():
         r['enabled'] = n
     ledger_rows = query_xml("SELECT * FROM wf_biz_leave_ledger_demo WHERE tenant_id='default'")
     bit_expr = lambda v: f"b'1'" if v == '1' else f"b'0'"  # noqa: E731
-    stmts = [create_table_if_exists_safe('wf_biz_leave_ledger_demo')]
+    stmts = [create_table_if_exists_safe('wf_biz_leave_ledger_demo'),
+             # 兼容性：V47 之前的 flyway 基线缺 description 列（V42 注释称由 Hibernate 自动建列，
+             # 但实测 Hibernate 7 ddl-auto=update 不会为已存在的表补列 → 全新环境导入会报 Unknown column）
+             "ALTER TABLE `wf_process_draft` ADD COLUMN IF NOT EXISTS `description` varchar(500) DEFAULT NULL;"]
     stmts += build_insert('wf_form_def', leave_forms, pk='id')
     stmts += build_insert('wf_process_draft', draft, pk='id')
     stmts += build_insert('wf_node_config', node_cfg, pk='id')
@@ -247,7 +250,8 @@ def main():
                                              '流程结束 AFTER_PROCESS_FINISH 触发逻辑流 leave_ledger_sync：'
                                              '年假台账无建档则自动建档(总额10天)并累加已用天数。'
                                              '含 Flowable 部署态 v9 快照（act_re_deployment/act_re_procdef/act_ge_bytearray，'
-                                             'BLOB 以 HEX/UNHEX 迁移）与业务数据表 DDL') + '\n'.join(stmts) + '\n')
+                                             'BLOB 以 HEX/UNHEX 迁移）与业务数据表 DDL；'
+                                             '并防御性补齐 wf_process_draft.description 列（部分 flyway 基线缺列）') + '\n'.join(stmts) + '\n')
 
     # ---------- 08 逻辑流演示·场景 2：物料领用联动库存与流水 ----------
     pickup_forms = query_xml("SELECT * FROM wf_form_def WHERE tenant_id='default' "
