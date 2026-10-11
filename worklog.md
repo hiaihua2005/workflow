@@ -6865,3 +6865,17 @@ Stage Summary:
 - 重供给全部悬项闭环：数据/后端/前端/jar 备份/gitignore 规则均已恢复，PAT 已更新，本地与远程零差异
 - 业务提交 aba11c16（RelationCard 定位收敛）确认已在远程（旧沙箱推送成功过），无代码损失
 - 注意：远程 cron 提交链（155 个）多为 dump 备份，与本地的重复快照已通过 rebase 收敛，无丢数据
+---
+Task ID: frontend-leaflet-fix
+Agent: Z.ai Code (main session)
+Task: 用户报障「现在前端无法启动」——Vite 编译错误覆盖层（leaflet 缺失）诊断与修复
+
+Work Log:
+- 【表象】用户看到页面打不开；实测 3000=200、vite 进程存活——非服务未启动，而是页面被 Vite 错误覆盖层挡住：Failed to resolve import "leaflet" from LocationPicker.vue:97
+- 【根因】重供给后 node_modules 不完整（顶层 .bin/vite 在、业务依赖 leaflet 等缺失）——bootstrap 只恢复了大框架包，bun install 未跑全
+- 【修复】cd frontend && bun install（4 包补装：leaflet@1.9.4 等）→ 旧 vite 进程持有失败解析缓存且需重做依赖预构建 → kill vite PID → bash start-services.sh 幂等拉起（MariaDB/Java 检测已在运行自动跳过，仅重启 Vite）
+- 【验证】curl 模块编译返回正常 JS；agent-browser 打开首页=登录页正常渲染 0 错误；admin/admin123 登录 → /dashboard 正常（面包屑/AI 助手/主题切换等控件齐全）
+
+Stage Summary:
+- 前端报障闭环：根因=重供给致 node_modules 缺 leaflet；bun install + vite 重启（幂等脚本）完全恢复；后台 MariaDB/Java 未受影响全程在线
+- 经验：重供给后 start-services.sh 拉起 vite 前应先跑 bun install（依赖完整性自愈未纳入脚本——待加）；「3000 返回 200」≠ 前端可用，Vite 错误覆盖层同样返回 200 HTML，探活需结合页面渲染验证
