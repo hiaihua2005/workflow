@@ -6914,3 +6914,15 @@ Stage Summary:
 - 7 组件演示资产双份在位：用户的 onsite_service_demo（default 租户，E2E 验证过）+ 我的 visit_demo（API 构造）；演示数据 SVD202610110001~0003
 - 三个平台级修复：elCard 双实例注册、Comment 锚点过滤（StepsForm/DrawerContainer）、StepsForm 内部步骤状态——均为所有后续用户的公共能力
 - 遗留：①修复行为（Comment 过滤/innerActive）未补专项单测（E2E 已覆盖）②小智 AI 助手 tenant=1 会话成因未查（用户 default 会话正常，观察项）③agent-browser 合成 click 会被小智全局监听干扰的定位手段待记录（用 ref 点击+移除 orb 节点规避）
+---
+Task ID: push-verify
+Agent: Z.ai Code (main session)
+Task: 用户指令「push」——推送状态核验
+
+Work Log:
+- git fetch + rev-list 核验：origin/main..main 领先数=0，HEAD=origin/main=f1ecd3d7（7组件演示 f297d5cb + E2E 三修复 f1ecd3d7 均已在远程）
+- 显式 git push origin main 返回 Everything up-to-date；working tree clean 无未提交变更
+
+Stage Summary:
+- 本地与远程完全同步，无待推送内容；PAT 凭据有效（fetch/push 通道均通）
+- 7 组件演示任务（demo-7-components / components-demo-e2e）成果已全部入库远程
