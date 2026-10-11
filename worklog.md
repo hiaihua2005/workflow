@@ -7059,3 +7059,18 @@ Stage Summary:
 - 当前状态=权威版本（b88b6e05）+ 演示数据全量还原，可正常演示逻辑流双场景
 - 阻塞项：推送需用户提供新 fine-grained PAT（git remote set-url origin https://x-access-token:<PAT>@github.com/liaoweimin74/workflow.git && git push origin main，本地领先 1 提交 ad081bdc）
 - 遗留观察：重供给约每小时一次且同时破坏（a）运行时数据（b）本地未推送提交（c）PAT 凭据（d）JDK/Maven/mariadb-user 工具链；恢复链路已验证可靠但推送依赖人工 PAT
+
+---
+Task ID: user-pat-push-20261012
+Agent: ops-push
+Task: 用户提供新 PAT，完成推送收口
+
+Work Log:
+- 用户提供新 fine-grained PAT（worklog 中脱敏记录：github_pat_11ARR…WFds）
+- git remote set-url origin（x-access-token 方式写入 .git/config，随重供给销毁属预期行为）
+- git push origin main 成功：b88b6e05..1439fc1a（DB 快照 ad081bdc + 恢复记录 1439fc1a 两个提交上推）
+- 推送后 origin/main == 本地 main，远端已含权威版本 + 恢复快照
+
+Stage Summary:
+- 推送链路恢复；本地/远端完全同步
+- 后续每次重供给后需用户重新提供 PAT（已知既定模式）
