@@ -34,7 +34,7 @@
  * pane div，用 display:none（v-show 语义）显隐——所有子节点始终挂载，form-create 的
  * 取值/校验/提交不受分步切换影响。
  */
-import { defineComponent, h, type VNode, Fragment } from 'vue'
+import { defineComponent, h, type VNode, Fragment, Comment } from 'vue'
 
 /**
  * 展开插槽 vnode：<slot /> 转发会在 children 外包一层 Fragment，
@@ -44,10 +44,13 @@ import { defineComponent, h, type VNode, Fragment } from 'vue'
 function flattenSlotChildren(nodes: VNode[] | undefined | null): VNode[] {
     const list = Array.isArray(nodes) ? nodes : []
     return list.flatMap((n) => {
-        if (n && n.type === Fragment && Array.isArray(n.children)) {
+        // 过滤注释锚点节点（form-create 渲染 display/v-if 时会插入 Comment VNode，
+        // 不滤会被当成空 pane / 破坏设计态单 DragBox 检测）
+        if (!n || n.type === Comment) return []
+        if (n.type === Fragment && Array.isArray(n.children)) {
             return flattenSlotChildren(n.children as VNode[])
         }
-        return n ? [n] : []
+        return [n]
     })
 }
 
@@ -98,12 +101,12 @@ export default { components: { StepsPaneArea } }
  * - 运行态：pane 按 active 显隐（v-show 非 v-if），所有 children 始终挂载——
  *   分步只是显隐切换，提交时 form-create 全量校验不受影响。
  */
-import { computed, useSlots } from 'vue'
+import { computed, ref, useSlots } from 'vue'
 
 const props = withDefaults(defineProps<{
   /** 步骤定义（可选）：数组按索引对应 pane，缺省项回退「第 N 步」；不传时按 children 数量推导 */
   steps?: Array<{ title?: string; description?: string }>
-  /** 当前步骤索引（v-model:active） */
+  /** 当前步骤索引（v-model:active；form-create 场景为静态初值，无回写 —— 内部状态接管） */
   active?: number
   /** 步骤条方向 */
   direction?: 'horizontal' | 'vertical'
@@ -155,8 +158,13 @@ const stepItems = computed(() => {
 /** 当前步骤索引（钳制到 [0, stepCount-1]） */
 const activeIndex = computed(() => {
   const max = stepCount.value - 1
-  return Math.min(Math.max(Math.floor(props.active) || 0, 0), Math.max(max, 0))
+  // form-create 场景 props.active 是静态初值（无 v-model 回写），切换必须落地内部状态
+  const base = innerActive.value ?? (Math.floor(props.active) || 0)
+  return Math.min(Math.max(base, 0), Math.max(max, 0))
 })
+
+/** 内部步骤状态：接管 form-create 静态 active 场景的切换 */
+const innerActive = ref<number | null>(null)
 
 /** 步骤条点击导航（capture 捕获 el-step 内部点击；设计态禁用） */
 function onStepsClick(e: MouseEvent) {
@@ -171,6 +179,7 @@ function onStepsClick(e: MouseEvent) {
 /** 切换步骤：越界忽略，变化才 emit（update:active + change） */
 function setActive(index: number) {
   if (index < 0 || index > stepCount.value - 1 || index === activeIndex.value) return
+  innerActive.value = index
   emit('update:active', index)
   emit('change', index)
 }

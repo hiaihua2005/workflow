@@ -54,7 +54,7 @@
  *   （destroy-on-close=false）。因此从未打开过抽屉时，抽屉内字段不参与本次提交的
  *   渲染期校验（字段未挂载）；打开过一次后关闭，字段保持挂载、正常取值/校验。
  */
-import { computed, ref, useSlots } from 'vue'
+import { computed, ref, useSlots, Comment, Fragment, type VNode } from 'vue'
 
 const props = withDefaults(defineProps<{
   /** 按钮文案 */
@@ -88,9 +88,19 @@ const slots = useSlots()
 
 /**
  * 设计态检测：画布内 children 被 FcDesigner 包成单个 DragBox（name/__name 为 'DragBox'）。
+ * 展平 Fragment 并过滤注释锚点节点（form-create 渲染 display/v-if 会插入 Comment VNode，
+ * 不滤则 children.length !== 1 永远成立、设计态误判为运行态）。
  */
 const isDesign = computed(() => {
-  const children = slots.default?.() || []
+  const flatten = (nodes: VNode[] | undefined): VNode[] =>
+    (nodes || []).flatMap((n) => {
+      if (!n || n.type === Comment) return []
+      if (n.type === Fragment && Array.isArray(n.children)) {
+        return flatten(n.children as VNode[])
+      }
+      return [n]
+    })
+  const children = flatten(slots.default?.())
   if (children.length !== 1) return false
   const type: any = children[0]?.type
   return !!type && (type.name === 'DragBox' || type.__name === 'DragBox')

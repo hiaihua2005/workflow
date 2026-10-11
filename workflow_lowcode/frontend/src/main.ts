@@ -5,7 +5,7 @@
 import '@/utils/safe-storage'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import ElementPlus from 'element-plus'
+import ElementPlus, { ElCard } from 'element-plus'
 import 'element-plus/dist/index.css'
 import 'element-plus/theme-chalk/dark/css-vars.css'
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
@@ -84,6 +84,11 @@ FcDesigner.component('RelationCard', RelationCard)
 FcDesigner.component('LocationPicker', LocationPicker)
 FcDesigner.component('StepsForm', StepsForm)
 FcDesigner.component('DrawerContainer', DrawerContainer)
+// 卡片容器 elCard：form-create element 版未内置 el-card 映射（历史物料未注册、运行态直通
+// 渲染导致 StepsForm 等父容器 children 被拍平）——显式注册 element-plus ElCard 修复；
+// designer 与运行时是双实例（见上方注释），两处都要注册
+FcDesigner.component('elCard', ElCard)
+formCreate.component('elCard', ElCard)
 // 属性面板 JSON 数组编辑器（form-create 控件，无 vendor rule 组件的 items 配置用）
 FcDesigner.component('JsonItemsEditor', JsonItemsEditor)
 // 属性面板动态下拉（RelationCard 源表单/字段选择，仅面板用；全局注册使面板 form-create 实例可解析）
