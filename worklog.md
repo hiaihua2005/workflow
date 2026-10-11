@@ -6959,3 +6959,20 @@ Stage Summary:
 - page-detail 行点击联动从「设计意图」落地为「运行态可用」：组件自上报 + detailRefs 分桶 + actionBus 联动三件套；所有后续页面自动获得该能力
 - 演示页面 /page/page_detail_steps_demo（菜单「组件演示·数据详情与步骤条」顶级入口），截图 detail-steps-demo.png/detail-steps-demo2.png
 - form-create 数据组件 vnode on 丢弃行为的经验记录：数据组件事件联动一律走 actionBus（inject）通道，勿依赖 vnode on（ready 除外）
+---
+Task ID: demo-sql-export
+Agent: Z.ai Code (main session)
+Task: 用户指令「push代码和几个演示例子的sql脚本」——5 组演示例子资产导出为幂等 SQL 脚本包并推送
+
+Work Log:
+- 【资产盘点】定位 5 组演示例子所在表：wf_form_def（cust_rel_demo/onsite_service_demo/visit_demo/ai_mv3ybmpz77）、wf_page_def（page_detail_steps_demo）、wf_data_source×2、sys_dict_type/data（service_type+customer_level）、wf_biz_cust_rel_demo×3 行、wf_biz_onsite_service_demo×3 行、wf_serial_number（SVD 进度 seq=3）、sys_menu id=319 + sys_role_menu(role 1)
+- 【导出器】scripts/export_demo_sql.py：mariadb --xml 通道取数（转义/NULL 由 DB 保证）→ 拼 INSERT；有自然唯一键（form_def/page_def/data_source/serial_number 有 uk）走 ODKU，无唯一键（sys_dict_data/sys_menu/sys_role_menu 仅 PK）走事务内 DELETE+INSERT；auto_increment 主键重映射 9xxx 段（9001-9007/9319/9110）防与全新环境 flyway 种子冲突，跨表引用（role_menu.menu_id）自动按映射改写
+- 【数据修正】导出时把 wf_data_source.onsite_service_demo.form_id 从误指的 tenant=1 孤儿表单（0fb5ec0b）改写为 default 租户表单（e55a6bd0）——运行时按 form_key 匹配故历史未暴露
+- 【验证闭环】克隆 workflow → workflow_sqltest 全量库，6 脚本两遍导入全过；10 项计数 src=dst 全对账；首版发现字典翻倍（7→14，因 sys_dict_data 无 (dict_code,value) 唯一键、重映射 id 致 ODKU 落空）→ 改 DELETE+INSERT 后幂等恢复；菜单 9319/角色绑定 9110/数据源 form_id 语义核对通过；沙箱库用后即删
+- 【产物】sql/demo-examples/：01-dict / 02-demo-cust-rel / 03-demo-onsite-service / 04-demo-visit / 05-demo-ai-device-repair / 06-demo-page-detail-steps + README.md（资产清单表、导入方法、幂等策略、重新生成说明）
+- 【推送】commit 39a9dbd5（8 files，333 insertions）→ git push origin main 成功，ahead=0/behind=0 三重核验
+
+Stage Summary:
+- 5 组演示例子可一键迁移到任意同构环境：mariadb workflow < 01..06 按序执行即得与仓库演示一致的完整资产（表单/页面/数据/字典/菜单）
+- 关键决策：无自然唯一键表用「事务内 DELETE+INSERT」而非 ODKU（首版实测翻倍踩坑）；auto_increment 主键 9xxx 重映射是跨环境导入的通用安全做法
+- 导出器可重跑（python3 scripts/export_demo_sql.py），演示数据演进后可随时刷新脚本包
