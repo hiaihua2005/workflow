@@ -6879,3 +6879,20 @@ Work Log:
 Stage Summary:
 - 前端报障闭环：根因=重供给致 node_modules 缺 leaflet；bun install + vite 重启（幂等脚本）完全恢复；后台 MariaDB/Java 未受影响全程在线
 - 经验：重供给后 start-services.sh 拉起 vite 前应先跑 bun install（依赖完整性自愈未纳入脚本——待加）；「3000 返回 200」≠ 前端可用，Vite 错误覆盖层同样返回 200 HTML，探活需结合页面渲染验证
+---
+Task ID: demo-7-components
+Agent: Z.ai Code (main session)
+Task: 用户指令「构造一个例子来演示增加的表单组件，包括地址、字典下拉、关联记录卡片、定位、自动编号、分步表单、抽屉容器」
+
+Work Log:
+- 【租户误判纠正】构造初期用 X-Tenant-Id:1 建资产 → 设计器 500「Form definition not found」→ 对比发现：**前端 http.ts 固定发 X-Tenant-Id:'default'，全部历史数据都在 default 租户**（follow_rel_demo/cust_rel_demo 等 22 表单+29 数据源完好——r13 恢复零丢失确认）；租户 1 的两个孤儿表单（PUBLISHED 不可删）留在原处无害
+- 【资产构造】scripts/build_demo_assets.py（幂等）：service_type 字典 4 项 → 复用存量 cust_rel_demo（PUBLISHED+3 条客户数据+FORM 数据源 a4187314）→ 主表单 onsite_service_demo（e55a6bd0，default 租户）API 写入 schema{rule,option}+columnConfig（RelationCard 不生成列=新规首验）→ publish 200
+- 【schema 设计】StepsForm 三步（elCard 分组：①AutoNumber(SVD/yyyyMMdd/day/4位)+input+dictSelect+areaPicker ②LocationPicker+input(textarea props) ③dataPicker(cust_rel_demo,maxCount=1)+RelationCard(数据源绑定+recordIdField+displayFields 随机 key)）+ DrawerContainer(input+checkbox)——纯 API 通道绕过设计器拖拽
+- 【E2E 全绿】①画布 3 步骤条+3 卡片+10 字段全渲染 ②录入弹窗分步显隐+点击步骤头导航 ③字典下拉选故障维修 ④地址三级联动选苏州/杭州 ⑤定位弹窗地图点选+命名（AI 助手代填「客户厂区大门」）⑥dataPicker 弹窗选华东石化→RelationCard 实时档案「华东石化/已停用/张伟/0512-66881234」（随机 key→中文 label 映射 ✓）⑦抽屉填内部备注+回访 ⑧提交后 orderNo=SVD202610110001/0002 递增（后端生成）⑨customerId=["4813d6c8…"]+customerId_text=["华东石化"]（picker 文本解析）⑩列表显示定位命名「客户厂区大门」（formatLocationText）
+- 【新发现】页面 AI 助手会监听表单并自动补全字段（topic 改写/定位命名/内部备注）——E2E 变量来源需区分人工 vs AI；后续演示可用作卖点
+- 【清理】service_type 字典重复项删 4 条（保留 install/patrol/repair/training）；租户 1 孤儿表单 2 个 PUBLISHED 不可删（前端不可达，保留）
+
+Stage Summary:
+- 7 扩展组件（地址/字典下拉/关联记录卡片/定位/自动编号/分步表单/抽屉容器）全链路演示就绪：/biz-data/onsite_service_demo 列表 2 条真实数据，设计器画布可看可改
+- 关键教训：①租户头是数据可见性的第一开关（default 才是前端正统）②StepsForm 点击步骤头导航 ③agent-browser 弹窗内「确定」按钮匹配必须锁定弹窗容器（两次误点外层提交）④AI 助手自动填表会污染 E2E 断言
+- 演示资产：service_type 字典、onsite_service_demo 表单（物理表含编号/主题/类型/地址/定位/纪要/客户 id+text/备注/回访 11 列）

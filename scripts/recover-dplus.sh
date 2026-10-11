@@ -72,11 +72,11 @@ if port_open 3306 && [ -x "$M" ]; then
   HAS_USER=$("$M" -u root -p740130 -S "$MDB/mysql.sock" -N -e \
     "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='workflow' AND table_name='SYS_USER';" 2>/dev/null || echo 0)
   if [ "$HAS_USER" = "0" ]; then
-    LATEST=$(ls -1t "$BACKUPS"/db-workflow-full-*.sql 2>/dev/null | head -1)
+    LATEST=$(ls -1 "$BACKUPS"/db-workflow-full-*.sql 2>/dev/null | sort | tail -1)
     if [ -n "$LATEST" ]; then
       echo "[recover] 导入数据: $LATEST"
       "$M" -u root -p740130 -S "$MDB/mysql.sock" workflow < "$LATEST" >> /home/z/tools/recover.log 2>&1
-      LATEST6=$(ls -1t "$BACKUPS"/db-workflow_v6-*.sql 2>/dev/null | head -1)
+      LATEST6=$(ls -1 "$BACKUPS"/db-workflow_v6-*.sql 2>/dev/null | sort | tail -1)
       [ -n "$LATEST6" ] && "$M" -u root -p740130 -S "$MDB/mysql.sock" workflow_v6 < "$LATEST6" >> /home/z/tools/recover.log 2>&1
     else
       echo "[recover] WARN: 无可用 dump！workflow 库为空壳（Flyway 启动时仅建结构）"
