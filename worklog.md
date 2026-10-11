@@ -6595,3 +6595,23 @@ Stage Summary:
 - 15 组件全量接入完成且浏览器实证；origin/main=main=5fbdee29（cron 已把双方工作合并提交推送：ae5efd3a 特性 + 5fbdee29 worklog）
 - 遗留移交：①MemberGroupPage 5 用例时代漂移（Task 95 口径，需对齐页面现行为重写断言）②vue-tsc 4 处 TS6133 基线既有未清 ③设计器草稿绑定回填 bug 仍未修（保存擦除风险仍在，提醒用户勿在设计器直接保存存量页面）
 - 协作教训沉淀：MultiEdit 非原子（失败不回滚）+ 多会话并行改共享文件必撞车——后续并行会话开工前先在 worklog 声明文件认领范围，共享文件接线只归一个会话
+
+---
+Task ID: cron-1305
+Agent: Z.ai Code (cron 巡检 13:05)
+Task: D+ 轻量巡检 + 处置「no such table: SYS_USER」假绿（用户报障 + 重供给 #6）
+
+Work Log:
+- 12:05 轮（本会话早段）：①修复用户报障「新增组件都没了」——重供给 #6 前兆实为 china-area-data 依赖缺失（vite 转换 AreaPicker.vue 500 → main.ts import 链断 → 物料面板/组件注册全挂），bun install 补装 + 重启 vite + 浏览器实测六分组/新组件全在位；②重做重供给 #5 丢失的 LocationPicker 地图选点（leaflet 1.9.4 + 高德瓦片 GCJ-02 + divIcon 脉冲标记 + @opened initMap/@close 销毁）与 RelationCard displayField 下拉化（9 预设+allowCreate），浏览器端到端全通（瓦片渲染/点选回填/确定写回/清空）；③创建并删除 2 个测试表单保持数据干净
+- 13:05 巡检：dump 跳过（3306 不在线）→ 四链路 200×4 但 8080 真伪核验「code:500 no such table: SYS_USER」= Node 假绿 → 用户指示「先不要管 Node 后端」→ 按预案 recover-dplus.sh
+- 【重供给 #6 现场】mariadb-user/ 整目录消失、jdk/maven/.m2/jar 全灭、git 工作树回退旧时间线（afd4c0a1）、backend-node（bun）接管 8080 用空 SQLite 新建 workflow.db（engine-choice=node）
+- recover-dplus.sh 执行：MariaDB 二进制重建+dump 导入成功（flyway history 至 V54、SYS_USER 2 条、wf_* 表全），但 backups/jar 备份为杂交旧 jar（缺 V47/48/54 迁移）→ Flyway「applied migration not resolved locally: 47/48」启动失败
+- 【工具链重建】代码树 git reset --hard origin/main（17b30c9d，15 组件源码+V54 齐回）；apt-get download openjdk-21-jdk-headless+jre-headless（83+42MB）dpkg -x 合成 /home/z/tools/jdk-build/merged（javac+java+modules 完整）；Maven 3.9.9 tarball（archive.apache.org，阿里镜像 404）+ conf/settings.xml 阿里云 central 镜像；mvn package 1 分 04 秒 BUILD SUCCESS（新 jar 121MB，已同步 backups/jar）
+- 【Metaspace 连环坑】①首次拉起用旧参数 MaxMetaspaceSize=128m → 新 jar 类量增大，首请求 OutOfMemoryError: Metaspace（pid 2871 半死占 8080）；②256m 二次拉起因 8080 被占 BindException 未起，真绿为旧实例回光返照；③老实例死透后 pgrep -x java 清场 + 256m 干净重启 → 三连 accessToken 真绿
+- 【工具自杀教训×3】pkill -f 模式含自身 bash -c 命令行时自杀（SIGTERM 143/52ms）：bracket trick 仅防自身文本，防不了命令行内真实 -jar 路径段；正解 = kill $(pgrep -x java) 单独命令执行，pkill 与 java 启动不同框
+- 【收口】四链路 200×4 + accessToken 真绿×3；recover-dplus.sh 启动参数 Metaspace 192m→256m 对齐实测（0dfc8cc3）；dump 051852 成功（workflow 220K+v6 40K；push FAILED=无凭据已知）；内存 3033MB（<3.5GB 备案线），oom_kill 0
+
+Stage Summary:
+- D+ 终态恢复：vite 独占 3000 + Java（新 jar+256m Metaspace）独占 8080 + MariaDB 3306，全链路真绿
+- 数据完整性：MariaDB 全量重建自 backups 最新 dump（10-10 20:05），无业务数据丢失（10-11 当日新建表单在 #6 前已删净）
+- 遗留：①10-11 丢失的 LocationPicker 地图选点 + displayField 下拉化两个提交需重做（源码已随 reset 回到旧版，本轮未重做——用户当前诉求是服务可用，防折腾优先）；②git push 持续失败等用户 PAT；③backend-node 的 engine-choice 已由 recover 写回 java，node 库为空 SQLite 勿切
