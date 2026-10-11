@@ -27,6 +27,8 @@ public class AiAutoConfiguration {
     @ConditionalOnProperty(prefix = "workflow.ai", name = "enabled", havingValue = "true")
     @ConditionalOnExpression("'${workflow.ai.api-key:}' != ''")
     public ChatModel chatModel(AiProperties properties, ObjectMapper objectMapper) {
+        // 单后端部署形态：默认内部网关（NestJS）不存在时，桥接沙箱内置模型配置
+        SandboxAiConfigBridge.apply(properties);
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofMillis(properties.getConnectTimeoutMs()));
         factory.setReadTimeout(Duration.ofMillis(properties.getReadTimeoutMs()));

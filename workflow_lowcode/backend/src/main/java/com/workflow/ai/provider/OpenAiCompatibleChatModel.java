@@ -131,11 +131,19 @@ public class OpenAiCompatibleChatModel implements ChatModel {
         }
     }
 
-    /** 附加 Bearer 鉴权头（api-key 非空时）。 */
+    /** 附加 Bearer 鉴权头（api-key 非空时）与配置的自定义请求头。 */
     private void applyAuth(RestClient.RequestBodySpec spec) {
         String key = properties.getApiKey();
         if (key != null && !key.isBlank()) {
             spec.header(HttpHeaders.AUTHORIZATION, "Bearer " + key);
+        }
+        Map<String, String> extra = properties.getExtraHeaders();
+        if (extra != null) {
+            extra.forEach((name, value) -> {
+                if (name != null && !name.isBlank() && value != null && !value.isBlank()) {
+                    spec.header(name, value);
+                }
+            });
         }
     }
 

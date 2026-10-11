@@ -39,6 +39,12 @@ public class AiProperties {
     /** 读超时（毫秒），流式场景需较长。 */
     private int readTimeoutMs = 120000;
 
+    /**
+     * 额外请求头（如网关要求的 {@code X-Token}、{@code X-Chat-Id} 等
+     * 自定义鉴权头），随每次模型请求附加在 Bearer 之上。
+     */
+    private java.util.Map<String, String> extraHeaders = new java.util.LinkedHashMap<>();
+
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
 
@@ -62,6 +68,11 @@ public class AiProperties {
 
     public int getReadTimeoutMs() { return readTimeoutMs; }
     public void setReadTimeoutMs(int readTimeoutMs) { this.readTimeoutMs = readTimeoutMs; }
+
+    public java.util.Map<String, String> getExtraHeaders() { return extraHeaders; }
+    public void setExtraHeaders(java.util.Map<String, String> extraHeaders) {
+        this.extraHeaders = extraHeaders == null ? new java.util.LinkedHashMap<>() : extraHeaders;
+    }
 
     /**
      * 是否具备可用配置（开关打开且 api-key 非空）。

@@ -6926,3 +6926,20 @@ Work Log:
 Stage Summary:
 - 本地与远程完全同步，无待推送内容；PAT 凭据有效（fetch/push 通道均通）
 - 7 组件演示任务（demo-7-components / components-demo-e2e）成果已全部入库远程
+---
+Task ID: ai-assistant-explain-fix
+Agent: Z.ai Code (main session)
+Task: 用户问「页面 AI 助手会自动辅助填表，怎么填表呢？举个例子」——机制讲解 + 实测中发现 AI 服务 401 并修复
+
+Work Log:
+- 【机制查证】小智（AiAssistantOrb.vue）→ POST /api/v1/ai/chat（SSE：meta→tool_call→tool_result→message→done）→ 后端 AiAgentService 编排 LLM function calling；3 个工具：create_form（真实建草稿落库）/ generate_form_schema（只出结构）/ open_page（页面导航 tag）；「填表」=设计器内 generate_form_schema 结果经 aiActionBus.emit('applyFormSchema') → FormDesigner.setRule() 自动铺画布（FormDesigner onMounted 注册 context.route='form-designer'）
+- 【发现故障】实测 /api/v1/ai/chat 报「AI 服务返回错误: HTTP 401」——根因：workflow.ai.base-url 默认指向 http://127.0.0.1:8080/api/internal/llm/v1（原 NestJS 内部网关），当前单后端架构 8080=Java 自身，请求打回自己被 Spring Security 401
+- 【修复】①AiProperties 增 extraHeaders Map（任意网关自定头）②OpenAiCompatibleChatModel.applyAuth 附加 extraHeaders（流式/非流式共用）③新增 SandboxAiConfigBridge：存在 /etc/.z-ai-config 且 baseUrl/apiKey 仍为默认值时自动桥接（baseUrl→https://internal-api.z.ai/v1，apiKey/token→Bearer+X-Token/X-Chat-Id/X-User-Id/X-Z-AI-From；显式 env/yml 覆盖优先，zai.config.file=none 可禁用，密钥不落日志）④AiAutoConfiguration.chatModel 构建前调用桥接
+- 【验证】AI 模块单测 53/53 通过；mvn 重建 jar（121M）+ 回填 backups/jar + 重启 Java；SSE 全链路实测：generate_form_schema 与 create_form 两路径均通（create_form 真实落草稿 id=5c14d27b 设备报修登记表单，4 字段 key=ai_mv3ybmpz77）；网关 function calling 验证（glm-4-plus 返回规范 tool_calls）
+- 【浏览器级演示】admin 登录 → /form/designer?id=5c14d27b（AI 建的草稿直开正常）→ 点小智球输入「帮我生成一个会议室预订表单结构（先不创建）：会议室名称、预订人、开始时间、结束时间、参会人数」→ 小智回复字段清单 + 「✅ 已应用到当前表单」→ 画布 5 字段自动铺好（截图 ai-form-fill-demo.png）
+
+Stage Summary:
+- 小智 AI 助手从 401 故障修复到全链路浏览器级验证闭环；「AI 填表」两种形态：设计器内自动回填画布（generate_form_schema）、任意页面一句话建草稿（create_form）
+- 产品级增强：OpenAI 兼容端点支持自定义请求头 + 沙箱内置模型零配置桥接（单后端部署形态自愈）
+- 演示资产：AI 创建的「设备报修登记表单」草稿（DRAFT，可在设计器查看/发布）；演示截图 ai-form-fill-demo.png
+- 纠偏：前轮 worklog「AI 助手监听表单自动补全字段（topic/定位命名/内部备注）」经代码查证不成立——运行态填报组件（FormPageLayout/业务组件）无任何 AI 监听代码，当时应为 E2E 脚本自填值 + 小智 orb 全局指针监听干扰造成的误判
