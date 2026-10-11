@@ -72,6 +72,7 @@ import FormRenderer from './components/FormRenderer.vue'
 import { walkRules, type RuleLike } from './formRuleWalk'
 import { parseSubRows } from './subtableDisplay'
 import { withArrayLabels, leafDisplayText } from './arrayValueLabel'
+import { formatLocationText } from '@/utils/locationValue'
 import { resolveOptionRules } from '@/vendor/option-datasource'
 import type { Rule } from '@form-create/element-ui'
 
@@ -224,6 +225,9 @@ function renderByComponentType(componentType: string | undefined, _columnType: s
       return formatArray(v)
     case 'slider':
       return Array.isArray(v) ? v.join(' ~ ') : formatCell(v)
+    case 'LocationPicker':
+      // 定位（v3）：命名 → JSON 复合文本（name+lat+lng）；未命名 → 'lat,lng' —— 统一解析为可读文本
+      return formatLocationText(v) || '—'
     default:
       return formatCell(v)
   }

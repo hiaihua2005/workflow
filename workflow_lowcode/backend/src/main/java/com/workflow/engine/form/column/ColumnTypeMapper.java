@@ -58,6 +58,12 @@ public final class ColumnTypeMapper {
             case "Upload", "upload", "fileUpload" -> applyJson(c);
             case "rate" -> applyInt(c);
             case "colorPicker" -> applyString(c, 16);
+            case "LocationPicker" -> {
+                // 定位组件（v3）：命名位置存 JSON 复合文本（name+lat+lng）、未命名存 'lat,lng' → VARCHAR(255)。
+                // 不用 JSON 列：MariaDB json_valid CHECK 会让存量「纯名称」旧值的 MODIFY 失败；
+                // VARCHAR 同大类加宽（64→255）由前端 ColumnConfigDialog 映射驱动自动迁移
+                applyString(c, 255);
+            }
             case "tree" -> applyTree(c, props);
             case "elTreeSelect" -> applyJson(c);
             case "elTransfer" -> applyJson(c);

@@ -334,8 +334,10 @@ function mapComponentToColumn(type: string, propsMap: Record<string, any>): { co
       // 自动编号（Task 3-c/3-d）：后端提交时生成（prefix+日期+序号），VARCHAR(64) 足够
       return { columnType: 'VARCHAR', length: 64, scale: null }
     case 'LocationPicker':
-      // 定位降级版（Task 3-g）：'lat,lng' 文本
-      return { columnType: 'VARCHAR', length: 64, scale: null }
+      // 定位（v3）：命名 → JSON 复合文本 '{"name":..,"lat":..,"lng":..}'（名称+坐标双持久化）；
+      // 未命名 → 'lat,lng'。VARCHAR(255)（不用 JSON 列：MariaDB json_valid CHECK 会让
+      // 存量「纯名称」旧值的 MODIFY 失败；同类加宽 64→255 自动迁移）
+      return { columnType: 'VARCHAR', length: 255, scale: null }
     case 'RelationCard':
       // 关联记录卡片（Task 3-g）：值形态对齐 LookupPicker（对象/数组）→ JSON
       return { columnType: 'JSON', length: null, scale: null }

@@ -76,16 +76,14 @@
 
 <script setup lang="ts">
 /**
- * 定位 LocationPicker v2（地图选点版）——表单设计器「基础组件」分组。
+ * 定位 LocationPicker v3（地图选点+命名坐标双持久化）——表单设计器「基础组件」分组。
  *
- * 【升级说明】替代 Task 3-g 降级版（经纬度手输）：点击弹出 Leaflet 地图（高德 XYZ 瓦片，
- * 免 key），点选位置 → 可对位置命名 → 确定写回；组件默认显示位置名称。
- *
- * 【值契约】modelValue = string：
- * - 命名了位置 → 保存位置名称（如「总部仓库」）——组件默认显示
- * - 未命名 → 兜底保存 '纬度,经度'（至多 6 位小数，去尾零，兼容 v1 值格式）
- * - '' → 未设置
- * 旧 v1 坐标值（'39.9,116.4'）自动识别：展示为坐标文本，进入弹窗可继续选点覆盖。
+ * 【升级说明】v2 缺陷修复：v2 命名后只存位置名称、坐标丢失，重新打开弹窗无法回放标记。
+ * v3 值契约（详见 @/utils/locationValue）：
+ * - 命名位置 → JSON 复合文本 '{"name":"总部仓库","lat":39.9,"lng":116.4}'
+ *   （名称与坐标同时持久化；触发框/列表列仍显示名称）
+ * - 未命名 → 兜底 'lat,lng'（至多 6 位小数去尾零，兼容 v1 值格式）
+ * - 旧值自动识别（v1 坐标文本 / v2 纯名称文本），进入弹窗可继续选点覆盖
  *
  * 【坐标系】高德瓦片为 GCJ-02，标记与点选坐标同为 GCJ-02 口径（点在图上位置精确，
  * 坐标可直接用于高德/腾讯系应用）；无 key 瓦片仅供内部演示。
@@ -98,9 +96,12 @@ import { Aim, ArrowDown, EditPen, Location, LocationInformation } from '@element
 import { ElMessage } from 'element-plus'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import {
+  buildLocationValue, formatLocationText, hasCoords, parseLocationValue, parseCoordText,
+} from '@/utils/locationValue'
 
 const props = withDefaults(defineProps<{
-  /** 值：位置名称（命名）| 'lat,lng'（未命名兜底，兼容 v1）| ''（未设置） */
+  /** 值：JSON 复合文本（命名，含坐标）| 'lat,lng'（未命名兜底，兼容 v1）| ''（未设置） */
   modelValue?: string
   /** 禁用 */
   disabled?: boolean
@@ -123,33 +124,12 @@ const emit = defineEmits<{
   'change': [value: string]
 }>()
 
-/* ---------- 值解析 / 展示 ---------- */
-
-/** '39.9042,116.4074' → [lat, lng]；支持中英文逗号/空白分隔，非法返回 null（v1 值兼容） */
-function parseCoordText(text: string): [number, number] | null {
-  const parts = String(text || '').trim().split(/[,，;\s;]+/).filter(Boolean)
-  if (parts.length !== 2) return null
-  const a = Number(parts[0])
-  const b = Number(parts[1])
-  if (!Number.isFinite(a) || !Number.isFinite(b)) return null
-  if (a < -90 || a > 90 || b < -180 || b > 180) return null
-  return [a, b]
-}
-
-/** 数值 → 至多 6 位小数字符串（去尾零：39.9 → '39.9'） */
-function trimCoord(n: number): string {
-  return String(parseFloat(Number(n).toFixed(6)))
-}
+/* ---------- 值解析 / 展示（解析逻辑共享于 @/utils/locationValue，列表列同源） ---------- */
 
 const hasValue = computed(() => String(props.modelValue || '').trim() !== '')
 
-/** 触发框显示文本：坐标值 → 「lat, lng」；名称值 → 原样 */
-const displayText = computed(() => {
-  const v = String(props.modelValue || '').trim()
-  if (!v) return ''
-  const parsed = parseCoordText(v)
-  return parsed ? `${trimCoord(parsed[0])}, ${trimCoord(parsed[1])}` : v
-})
+/** 触发框显示文本：命名 → 名称；坐标值 → 「lat, lng」（旧值自动识别） */
+const displayText = computed(() => formatLocationText(props.modelValue))
 
 /* ---------- 弹窗 / 地图状态 ---------- */
 
@@ -165,10 +145,10 @@ let marker: L.Marker | null = null
 
 function openDialog() {
   if (props.disabled) return
-  // 回填：已有坐标值 → 弹窗定位到该点；名称值 → 仅名称回显（无坐标可定位）
-  const parsed = parseCoordText(props.modelValue || '')
-  picked.value = parsed ? { lat: parsed[0], lng: parsed[1] } : null
-  locationName.value = parsed ? '' : String(props.modelValue || '').trim()
+  // 回填：坐标+名称同时还原（v3 核心修复——重开弹窗回放既有标记）；旧值形态自动识别
+  const parsed = parseLocationValue(props.modelValue)
+  picked.value = hasCoords(parsed) ? { lat: parsed.lat, lng: parsed.lng } : null
+  locationName.value = parsed?.name || ''
   dialogVisible.value = true
 }
 
@@ -256,11 +236,10 @@ function locateMe() {
   )
 }
 
-/** 确定：命名 → 保存名称；未命名 → 兜底 'lat,lng'（与 v1 值格式一致） */
+/** 确定：命名 → JSON 复合文本（名称+坐标同时持久化）；未命名 → 兜底 'lat,lng'（与 v1 值格式一致） */
 function confirmPick() {
   if (!picked.value) return
-  const name = locationName.value.trim()
-  const value = name || `${trimCoord(picked.value.lat)},${trimCoord(picked.value.lng)}`
+  const value = buildLocationValue(locationName.value, picked.value.lat, picked.value.lng)
   if (value !== (props.modelValue || '')) {
     emit('update:modelValue', value)
     emit('change', value)
@@ -275,19 +254,22 @@ function handleClear() {
   emit('change', '')
 }
 
-/** 外部值变化时同步弹窗内回显状态（弹窗未开时仅清 picked，避免脏状态） */
+/** 外部值变化时同步弹窗内回显状态（弹窗未开时仅刷新 picked，避免脏状态） */
 watch(
   () => props.modelValue,
   () => {
     if (!dialogVisible.value) return
-    const parsed = parseCoordText(props.modelValue || '')
-    picked.value = parsed ? { lat: parsed[0], lng: parsed[1] } : picked.value
+    const parsed = parseLocationValue(props.modelValue)
+    if (hasCoords(parsed)) {
+      picked.value = { lat: parsed.lat, lng: parsed.lng }
+      if (parsed.name) locationName.value = parsed.name
+    }
   },
 )
 
 defineOptions({ name: 'LocationPicker' })
 defineExpose({
-  parseCoordText, displayText, hasValue,
+  parseCoordText, parseLocationValue, formatLocationText, displayText, hasValue,
   openDialog, confirmPick, handleClear, initMap, placeMarker, destroyMap,
   /** 以下供测试与宿主调试：弹窗开关 / 点选坐标 / 位置命名 */
   dialogVisible, picked, locationName,

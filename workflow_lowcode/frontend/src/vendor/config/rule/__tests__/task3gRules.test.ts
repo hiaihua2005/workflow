@@ -101,9 +101,9 @@ describe('locationPicker rule（基础组件）', () => {
     expect(rule.$required).toBe(false)
   })
 
-  it('默认 props：clearable 开启、disabled 关闭', () => {
+  it('默认 props：placeholder 占位 + clearable 开启、disabled 关闭（v2 地图选点版同步）', () => {
     const rule = locationPicker.rule({ t })
-    expect(rule.props).toEqual({ disabled: false, clearable: true })
+    expect(rule.props).toEqual({ placeholder: '点击选择位置', disabled: false, clearable: true })
   })
 
   it('props 面板含 disabled/clearable', () => {

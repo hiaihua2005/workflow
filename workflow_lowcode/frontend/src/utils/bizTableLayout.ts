@@ -9,6 +9,7 @@ import { h, type VNode } from 'vue'
 import type { ColumnConfigItem } from '@/api/bizData'
 import type { SearchField, TableColumn } from '@/components/business/types'
 import { leafDisplayText } from '@/views/form/arrayValueLabel'
+import { formatLocationText } from '@/utils/locationValue'
 
 /** 查询组件类型映射：数据引用 → LookupPicker（弹窗选择）；日期 → date-picker；其余（选项类/文本）→ input */
 const QUERY_PICKER_TYPES = ['LookupPicker', 'DataPicker']
@@ -162,6 +163,9 @@ export function renderByComponentType(
       return formatArray(v)
     case 'slider':
       return Array.isArray(v) ? v.join(' ~ ') : formatCell(v)
+    case 'LocationPicker':
+      // 定位（v3）：命名 → JSON 复合文本（name+lat+lng）；未命名 → 'lat,lng' —— 统一解析为可读文本
+      return formatLocationText(v) || '—'
     default:
       return formatCell(v)
   }

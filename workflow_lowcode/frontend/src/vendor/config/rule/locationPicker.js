@@ -1,9 +1,10 @@
 /**
- * 定位 LocationPicker v2（地图选点版）——表单设计器「基础组件」分组 vendor rule。
+ * 定位 LocationPicker v3（地图选点+命名坐标双持久化）——表单设计器「基础组件」分组 vendor rule。
  *
  * 与 signaturePad.js 同构（menu:'main' + input + mask）；点击弹出 Leaflet 地图
  * （高德 XYZ 瓦片免 key，GCJ-02），点选位置 → 可命名 → 确定写回；组件默认显示位置名称。
- * 值形态：位置名称（命名后）| 'lat,lng'（未命名兑底，兼容 v1 坐标值）| ''（VARCHAR 直存）。
+ * 值形态（详见 src/utils/locationValue.ts）：命名 → JSON 复合文本（name+lat+lng 双持久化，
+ * v3 修复 v2 命名丢坐标缺陷）| 'lat,lng'（未命名兜底，兼容 v1 坐标值）| ''（VARCHAR(255) 直存）。
  * - props 面板：placeholder / disabled / clearable；地图交互仅在预览/运行态
  *   （画布 mask 遮罩，避免设计态误触弹窗）
  * - 各 prop 的 title 内联中文，不依赖 locale 新增词条（localeProps 找不到
@@ -34,7 +35,7 @@ export default {
             type: name,
             field: uniqueId(),
             title: label,
-            info: '点击弹出地图选点，可对位置命名；默认显示位置名称（未命名时按坐标保存）',
+            info: '点击弹出地图选点，可对位置命名；名称与坐标同时保存，重开可回放标记',
             $required: false,
             props: {
                 placeholder: '点击选择位置',
