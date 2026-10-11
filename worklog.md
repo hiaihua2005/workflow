@@ -6896,3 +6896,21 @@ Stage Summary:
 - 7 扩展组件（地址/字典下拉/关联记录卡片/定位/自动编号/分步表单/抽屉容器）全链路演示就绪：/biz-data/onsite_service_demo 列表 2 条真实数据，设计器画布可看可改
 - 关键教训：①租户头是数据可见性的第一开关（default 才是前端正统）②StepsForm 点击步骤头导航 ③agent-browser 弹窗内「确定」按钮匹配必须锁定弹窗容器（两次误点外层提交）④AI 助手自动填表会污染 E2E 断言
 - 演示资产：service_type 字典、onsite_service_demo 表单（物理表含编号/主题/类型/地址/定位/纪要/客户 id+text/备注/回访 11 列）
+---
+Task ID: components-demo-e2e
+Agent: Z.ai Code (main session)
+Task: 用户指令「构造一个例子来演示增加的表单组件（地址/字典下拉/关联记录卡片/定位/自动编号/分步表单/抽屉容器）」——演示资产 + 三个真 bug 修复 + 全链路 E2E
+
+Work Log:
+- 【重供给余波二次修复】恢复脚本按 mtime 选 dump 被 13:37 拉平时间戳坑了（导入了空快照 131646）→ 手动导入 r12 快照 120513（21 表单/28 数据源回位）；Java 缓存空数据 → 重启；mvn 13:07 构建的 jar 缺 30 个迁移文件（13:37 才恢复齐）→ flyway validate 全线 not resolved → 重新构建 jar（42 迁移文件）→ 修复 recover-dplus.sh 改按文件名时间戳选 dump
+- 【演示资产】API 构造 visit_demo（StepsForm+3 卡片+7 组件）发布成功；发现用户已同步在建同主题 onsite_service_demo（小智 AI 助手 tenant=1 会话建的 v1 + 用户 default 会话重建的 v2）——尊用户资产，E2E 用用户的 v2（dataPicker→cust_rel_demo + RelationCard→a4187314 数据源 + dictSelect→service_type 全部自洽）；补建 service_type/customer_level 字典 + cust_demo（后被我误建的 DRAFT 污染 key 缓存，清理+重启恢复）；租户 1→default 迁移（form_def/ds/biz 行；软删行占 uk 冲突先物理删）
+- 【bug① elCard 未注册】form-create element 版无 el-card 内置映射、物料从未注册（历史 0 使用）→ 运行态直通渲染把父容器 children 拍平（StepsForm 步骤条 9 步）；main.ts 双实例注册（FcDesigner.component + formCreate.component，designer 与运行时独立——注释已记录）
+- 【bug② Comment 锚点】form-create 运行态在 display/v-if 处插 Comment VNode，StepsForm.flattenSlotChildren / DrawerContainer.isDesign 未过滤 → 9 pane=3 卡片+6 注释；两处展平函数补 `n.type===Comment` 过滤
+- 【bug③ 步骤切不动】props.active 是 form-create 静态值无 v-model 回写 → emit('update:active') 无处落地、activeIndex 恒 0；StepsForm 增加 innerActive 内部状态接管（props.active 降级为初值语义）
+- 【E2E 全绿（onsite_service_demo，真实浏览器）】AutoNumber 占位「SVD20261011xxxx」+落库流水 SVD202610110003（用户 0002 后正确递增）；dictSelect 安装调试→install；areaPicker 江苏省/苏州市/姑苏区；LocationPicker 点选+命名「客户厂区大门」→ JSON 复合文本 {"name":...,"lat":34.85,"lng":101.60}；DrawerContainer 抽屉内 internalNote+revisit 落库；dataPicker 点行选华东石化→Tag+id+；RelationCard 实时徽标+4 字段实时拉取（客户名称/状态/负责人/电话）；StepsForm 3 步切换；提交「创建成功」→ 列表渲染 → 0003 行全字段对账 ✓
+- 【测试】business 组件 448/448 全过；vue-tsc 改动文件 0 错误
+
+Stage Summary:
+- 7 组件演示资产双份在位：用户的 onsite_service_demo（default 租户，E2E 验证过）+ 我的 visit_demo（API 构造）；演示数据 SVD202610110001~0003
+- 三个平台级修复：elCard 双实例注册、Comment 锚点过滤（StepsForm/DrawerContainer）、StepsForm 内部步骤状态——均为所有后续用户的公共能力
+- 遗留：①修复行为（Comment 过滤/innerActive）未补专项单测（E2E 已覆盖）②小智 AI 助手 tenant=1 会话成因未查（用户 default 会话正常，观察项）③agent-browser 合成 click 会被小智全局监听干扰的定位手段待记录（用 ref 点击+移除 orb 节点规避）
