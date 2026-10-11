@@ -254,3 +254,114 @@ describe('RelationCard v2 — 实时模式', () => {
     expect(wrapper.find('.relation-card__value').text()).toBe('纯文本值')
   })
 })
+
+// ===== v3 数据源模式（三级解析：页面绑定 dataSourceId > 全局数据源 globalDataSourceId >
+// 业务表单 sourceFormKey；数据源模式走 dataSourceApi 统一取数，支持非业务表单数据） =====
+vi.mock('../../../api/data-source', () => ({
+  dataSourceApi: {
+    getData: vi.fn(),
+    getMetadata: vi.fn(),
+  },
+}))
+
+import { dataSourceApi } from '../../../api/data-source'
+import { activeDsBindings } from '../../../utils/formDsBindingsStore'
+
+const dsDataMock = vi.mocked(dataSourceApi.getData)
+const dsMetaMock = vi.mocked(dataSourceApi.getMetadata)
+
+describe('RelationCard v3 — 数据源模式', () => {
+  function createDsWrapper(props: any = {}) {
+    return mount(RelationCard, {
+      props: { modelValue: null, ...props },
+      global: { plugins: [ElementPlus] },
+    })
+  }
+
+  function dsRow(id: string) {
+    return {
+      id,
+      data: { username: 'zhangwei', nickname: '张伟', status: '启用', orgName: '信息部' },
+      updatedAt: '2026-10-11 11:00:00',
+    }
+  }
+
+  const userColumns = [
+    columnCfg('id', '用户 ID'),
+    columnCfg('username', '用户名'),
+    columnCfg('nickname', '昵称'),
+    columnCfg('orgId', '部门 ID'),
+    columnCfg('orgName', '部门名称'),
+    columnCfg('status', '状态'),
+  ]
+
+  beforeEach(() => {
+    dsDataMock.mockReset()
+    dsMetaMock.mockReset()
+    activeDsBindings.value = []
+  })
+
+  it('全局数据源直连：优先于 sourceFormKey，走 dataSourceApi.getData，label 来自 metadata.columns', async () => {
+    dsDataMock.mockResolvedValue({ data: dsRow('u-1') } as any)
+    dsMetaMock.mockResolvedValue({ data: { columns: userColumns } } as any)
+    const wrapper = createDsWrapper({
+      sourceFormKey: 'cust_form',
+      globalDataSourceId: 'ds-user',
+      modelValue: '["u-1"]',
+      displayFields: ['nickname', 'orgName'],
+    })
+    await flushPromises()
+    expect(dsDataMock).toHaveBeenCalledWith('ds-user', 'u-1')
+    // 三级优先级：配置了数据源时不再走业务表单直连
+    expect(detailMock).not.toHaveBeenCalled()
+    expect(wrapper.find('.relation-card__badge').text()).toBe('实时')
+    const fields = wrapper.findAll('.relation-card__field')
+    expect(fields[0].text()).toContain('昵称')
+    expect(fields[0].text()).toContain('张伟')
+    expect(fields[1].text()).toContain('部门名称')
+    expect(fields[1].text()).toContain('信息部')
+  })
+
+  it('页面级绑定 dataSourceId 优先于全局数据源：经 activeDsBindings 解析 refId 取数', async () => {
+    dsDataMock.mockResolvedValue({ data: dsRow('u-2') } as any)
+    dsMetaMock.mockResolvedValue({ data: { columns: userColumns } } as any)
+    activeDsBindings.value = [{ id: 'bind-1', refId: 'ds-org', name: '组织机构' } as any]
+    const wrapper = createDsWrapper({
+      dataSourceId: 'bind-1',
+      globalDataSourceId: 'ds-user',
+      modelValue: '["u-2"]',
+    })
+    await flushPromises()
+    expect(dsDataMock).toHaveBeenCalledWith('ds-org', 'u-2')
+    expect(dsDataMock).not.toHaveBeenCalledWith('ds-user', expect.anything())
+  })
+
+  it('页面绑定 id 无匹配时回退业务表单直连（三级解析兜底）', async () => {
+    detailMock.mockResolvedValue({ data: mockRow('row-1') } as any)
+    const wrapper = createDsWrapper({
+      dataSourceId: 'bind-missing',
+      sourceFormKey: 'cust_form',
+      modelValue: '["row-1"]',
+    })
+    await flushPromises()
+    expect(detailMock).toHaveBeenCalledWith('cust_form', 'row-1')
+    expect(dsDataMock).not.toHaveBeenCalled()
+  })
+
+  it('数据源记录被删（404）显示「关联记录不存在」警示态', async () => {
+    dsDataMock.mockRejectedValue(new Error('request failed with status 404 not found'))
+    const wrapper = createDsWrapper({ globalDataSourceId: 'ds-user', modelValue: '["gone"]' })
+    await flushPromises()
+    expect(wrapper.find('.relation-card__placeholder.is-warning').text()).toContain('关联记录不存在')
+  })
+
+  it('displayFields 留空时自动取数据源 metadata 可见列前 4 个非空字段', async () => {
+    dsDataMock.mockResolvedValue({ data: dsRow('u-3') } as any)
+    dsMetaMock.mockResolvedValue({ data: { columns: userColumns } } as any)
+    const wrapper = createDsWrapper({ globalDataSourceId: 'ds-user', modelValue: '["u-3"]' })
+    await flushPromises()
+    const labels = wrapper.findAll('.relation-card__field').map((f) => f.text())
+    expect(labels.length).toBeLessThanOrEqual(4)
+    expect(labels.join('|')).toContain('用户名')
+  })
+})
