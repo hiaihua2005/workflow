@@ -6691,3 +6691,22 @@ Work Log:
 Stage Summary:
 - 两个用户需求全部落地且浏览器端到端实证；LocationPicker 值形态向后兼容（旧 lat,lng 数据显示不破），发布白名单/列映射无需后端改动（VARCHAR 直存位置名称）
 - 踩坑沉淀：①el-dialog 懒渲染+不销毁特性对自动化测试的 select 命中影响大——脚本必须限定可见元素（offsetParent!==null+rect 宽>0）②fc-designer 画布 mask 挡真实点击但挡不住 dispatchEvent 合成事件——E2E 值写到了画布实例差点误判，验证必须锁定目标 dialog ③业务表单「删除」=归档（软删）语义
+---
+Task ID: location-v3-coord-persist
+Agent: Z.ai Code (main session)
+Task: 用户报障「定位组件选点后经纬度没有持久化，重新打开定位丢失」+ 追加需求「位置名称之外同时保存坐标」——LocationPicker v3 值契约升级
+
+Work Log:
+- 【根因定位】v2 confirmPick 值契约 `name || 'lat,lng'` 二选一：命名后只存名称、坐标丢弃；重开弹窗 parseCoordText 解析不出坐标 → picked=null 无法回放标记。存储侧 ColumnConfigDialog 把 LocationPicker 映射为 VARCHAR(64)（上轮 worklog「VARCHAR 直存位置名称」即此契约）
+- 【方案定稿】值契约 v3：命名 → JSON 复合文本 '{"name":..,"lat":..,"lng":..}'（双持久化）；未命名 → 'lat,lng'（v1 兼容）；旧值自动识别。明确排除 JSON 列方案：MariaDB JSON 列=longtext+CHECK(json_valid)，存量列里「纯名称」旧值会让发布时 VARCHAR→JSON MODIFY 失败（BIGINT→JSON 特例仅因数值本身合法 JSON）；VARCHAR 64→255 同大类加宽零风险
+- 【新建 frontend/src/utils/locationValue.ts】共享解析器：parseLocationValue（对象/JSON 文本/坐标文本/纯名称四形态，lat|lng=null 表示无坐标）、buildLocationValue、formatLocationText、hasCoords、parseCoordText、trimCoord
+- 【LocationPicker.vue v3】displayText/弹窗回填/confirmPick/watch 全面切 v3 解析；openDialog 坐标+名称同时还原；解析逻辑与列表列同源
+- 【列映射】ColumnConfigDialog LocationPicker VARCHAR 64→255（存量表单重发布自动 MODIFY）；后端 ColumnTypeMapper 加 LocationPicker→VARCHAR(255) 对齐 case（发布链路走前端 columnConfig，后端 case 为映射文档对齐；mvn -o compile 校验通过，未重建 jar/未重启——死代码路径，下次自然重启生效）
+- 【展示层】bizTableLayout.ts 与 BizDataListPage.vue 两处 renderByComponentType 加 LocationPicker case → formatLocationText（列表显示名称/坐标文本而非原始 JSON）
+- 【测试】LocationPicker.test.ts 重写 26 用例（含往返持久化★用例：选点+命名→确定值回灌新实例→重开弹窗坐标+名称同时还原）；顺手修 task3gRules.test.ts 存量失败断言（v2 加 placeholder 后未同步，上轮只回归 business 目录漏跑 vendor 规则用例）；回归 482+129 全绿；vue-tsc 54=基线；eslint 0 error
+- 【E2E（agent-browser）】新建业务表单（定位列映射实测 VARCHAR 255 ✓）→ 发布 → 管理数据新增记录：地图点选+命名「鄂尔多斯中转站」→ 创建成功 → 列表单元格显示名称（非原始 JSON）→ 编辑重开：触发框名称 ✓ + 地图弹窗「已选坐标」与 DB 存值一致 ✓ + 命名框回填 ✓ → 不碰地图确定保存后再重开坐标幂等无漂移 ✓；mariadb 直查证 `{"name":"鄂尔多斯中转站","lat":41.346918,"lng":109.511719}` 复合值落库；测试记录已删，测试表单保留（发布态列表菜单仅「版本」无删除项）
+
+Stage Summary:
+- 用户报障闭环：名称与坐标同时持久化（JSON 复合文本 VARCHAR(255)），重开弹窗按存值回放标记+回填命名——组件、列映射、存储、列表展示四层同源解析；v1/v2 旧数据只读兼容（v2 已丢坐标不可恢复，显示名称可重新选点覆盖）
+- E2E 教训：新增流程中一次猜测 ref 的杂散 click（e1632）落在地图上移动了标记，导致「点击时快照坐标≠存库坐标」假象——排查时先查库对账再怀疑组件；agent-browser 合成点击会命中意外可点元素，坐标类交互验证必须锁定目标元素几何边界
+- 发布态业务表单列表 more 菜单仅「版本」，删除/归档入口缺失（与上轮「删除=归档」经验不一致，疑似发布态差异）——遗留观察项
