@@ -338,9 +338,8 @@ function mapComponentToColumn(type: string, propsMap: Record<string, any>): { co
       // 未命名 → 'lat,lng'。VARCHAR(255)（不用 JSON 列：MariaDB json_valid CHECK 会让
       // 存量「纯名称」旧值的 MODIFY 失败；同类加宽 64→255 自动迁移）
       return { columnType: 'VARCHAR', length: 255, scale: null }
-    case 'RelationCard':
-      // 关联记录卡片（Task 3-g）：值形态对齐 LookupPicker（对象/数组）→ JSON
-      return { columnType: 'JSON', length: null, scale: null }
+    // RelationCard（v4 实时展示）不在此映射：数据经数据源实时查询显示，值不落业务列，
+    // 由 collectFields/collectSubFields 显式跳过（生成草案会被标记 unsupported 阻止发布）
     default:
       return null
   }
@@ -464,6 +463,12 @@ function collectSubFields(rules: any[], existingSub: ColumnConfigItem[] | undefi
         }),
         existingType: existing?.columnType,
       })
+      continue
+    }
+    // 关联记录卡片（v4 实时展示）：数据经数据源实时查询显示，自身值恒空不落业务列
+    //（关联关系由「记录 ID 字段」指向的字段承载，如 dataPicker id 列）→ 不生成列草案。
+    // 注意必须显式 continue：落到 mapComponentToColumn 会返回 null 被标记 unsupported 阻止发布
+    if (type === 'RelationCard') {
       continue
     }
     const mapped = mapComponentToColumn(type, rule?.props || {})
@@ -605,6 +610,12 @@ function collectFields(rules: any[], out: ColumnConfigItem[]) {
         }),
         existingType: existing?.columnType,
       })
+      continue
+    }
+    // 关联记录卡片（v4 实时展示）：数据经数据源实时查询显示，自身值恒空不落业务列
+    //（关联关系由「记录 ID 字段」指向的字段承载，如 dataPicker id 列）→ 不生成列草案，
+    // 发布列表/物理表不再出现恒空的 RelationCard JSON 列；存量列按「禁 DROP」保留但恒空
+    if (type === 'RelationCard') {
       continue
     }
     const mapped = mapComponentToColumn(type, rule?.props || {})

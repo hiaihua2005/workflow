@@ -8,8 +8,10 @@
  *   多字段摘要 + 详情弹窗 + 刷新；不配置则保持 v1 被动模式（值由关联记录选择/联动规则写入，仅做摘要展示）
  * - props 面板（v4 单一数据源绑定）：title（卡内标题）/ description（说明文字）/
  *   globalDataSourceId（数据源，唯一来源入口）/ recordIdField（记录 id 所在字段）/
- *   displayField（被动模式对象取显示字段）/ displayFields（摘要字段多选）/
- *   clickable（是否可点击查看详情）。
+ *   displayFields（摘要展示字段多选）/ clickable（是否可点击查看详情）。
+ *   v1 遗留的 displayField（被动模式对象取值键）已从面板移除（实时模式下无用，
+ *   渲染端 prop 保留兼容存量）；卡片值不落业务列（ColumnConfigDialog 显式跳过），
+ *   关联关系由「记录 ID 字段」指向的字段（如 dataPicker id 列）承载。
  *   单源依据：业务表单/审批表单发布时 DataSourceSyncListener 自动生成对应
  *   FORM/WORKFLOW 数据源（存量已核验全覆盖），面板无需再双轨暴露业务表单直连；
  *   sourceFormKey 仅作为渲染端兼容回退保留（不暴露面板），面板打开时由
@@ -33,18 +35,6 @@ const name = 'RelationCard';
 
 // 静态兜底候选字段：未配置源表单 / 加载失败时回退使用（同时作为 rule.options
 // 供测试契约断言 ≥9 项；动态候选由 RelationFieldSelect 按源表单字段列表加载）
-const DISPLAY_FIELD_FALLBACK = [
-    { value: 'name', label: 'name（名称）' },
-    { value: 'title', label: 'title（标题）' },
-    { value: 'label', label: 'label（标签）' },
-    { value: 'id', label: 'id（记录 ID）' },
-    { value: 'code', label: 'code（编码）' },
-    { value: 'status', label: 'status（状态）' },
-    { value: 'value', label: 'value（值）' },
-    { value: 'text', label: 'text（文本）' },
-    { value: 'remark', label: 'remark（备注）' },
-];
-
 const SUMMARY_FIELD_FALLBACK = [
     { value: 'name', label: 'name（名称）' },
     { value: 'title', label: 'title（标题）' },
@@ -113,24 +103,6 @@ export default {
                     clearable: true,
                     canvasRule: rule,
                     migrateFromField: 'sourceFormKey',
-                },
-            },
-            {
-                type: 'RelationFieldSelect',
-                field: 'displayField',
-                title: '显示字段',
-                info: '值为对象时按该字段取显示文本（被动模式取值）；配置来源（数据源或源表单）后，下拉自动加载其字段列表（中文 label + 字段名），也可手填',
-                options: DISPLAY_FIELD_FALLBACK,
-                props: {
-                    mode: 'field',
-                    multiple: false,
-                    canvasRule: rule,
-                    formKeyField: 'sourceFormKey',
-                    dsKeyField: 'globalDataSourceId',
-                    fallbackOptions: DISPLAY_FIELD_FALLBACK,
-                    allowCreate: true,
-                    clearable: true,
-                    placeholder: '选择或输入字段名',
                 },
             },
             {

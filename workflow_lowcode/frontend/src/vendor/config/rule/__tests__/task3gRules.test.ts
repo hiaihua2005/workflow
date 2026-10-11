@@ -39,9 +39,12 @@ describe('relationCard rule（基础组件）', () => {
     })
   })
 
-  it('props 面板含 title/description/displayField/clickable', () => {
-    const fields = relationCard.props({}, { t }).map((p: any) => p.field)
-    expect(fields).toEqual(expect.arrayContaining(['title', 'description', 'displayField', 'clickable']))
+  it('props 面板含 title/description/clickable，v1 遗留 displayField 已从面板移除', () => {
+    const items = relationCard.props({}, { t }) as any[]
+    const fields = items.map((p) => p.field)
+    expect(fields).toEqual(expect.arrayContaining(['title', 'description', 'clickable']))
+    // displayField（被动模式对象取值键）在实时模式下无用，面板不再暴露（渲染端 prop 兼容保留）
+    expect(fields).not.toContain('displayField')
   })
 
   it('v2 props 面板含 globalDataSourceId/recordIdField/displayFields，且 displayFields 支持多选手填', () => {

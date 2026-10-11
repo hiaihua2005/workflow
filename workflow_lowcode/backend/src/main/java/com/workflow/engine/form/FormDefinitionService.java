@@ -58,10 +58,12 @@ public class FormDefinitionService {
             "input", "textarea", "inputNumber", "select", "radio", "checkbox",
             "datePicker", "timePicker", "switch", "rate", "slider", "cascader",
             "colorPicker", "upload", "tree", "elTreeSelect", "fcEditor", "signaturePad",
-            // 业务扩展字段（Task 3-a/3-c/3-g）：地址/字典下拉/自动编号/关联卡片/定位
-            "areaPicker", "dictSelect", "AutoNumber", "RelationCard", "LocationPicker",
-            // 外部数据展示（合法、不生成业务列）
-            "dataPicker", "page-list-cards", "page-table", "LookupPicker",
+            // 业务扩展字段（Task 3-a/3-c/3-g）：地址/字典下拉/自动编号/定位
+            "areaPicker", "dictSelect", "AutoNumber", "LocationPicker",
+            // 外部数据展示（合法、不生成业务列）：dataPicker 值=id 数组（关联关系本体）；
+            // RelationCard（v4 实时展示）数据经数据源实时查询显示、自身值恒空——
+            // 其 JSON 列为 v1 被动模式遗留，发布列映射已不再生成（存量列按禁 DROP 保留但恒空）
+            "dataPicker", "page-list-cards", "page-table", "LookupPicker", "RelationCard",
             // 子表（发布流程建独立物理表）
             "group", "tableForm", "subForm",
             // 布局/辅助（无 field，纯渲染）
