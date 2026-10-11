@@ -6976,3 +6976,23 @@ Stage Summary:
 - 5 组演示例子可一键迁移到任意同构环境：mariadb workflow < 01..06 按序执行即得与仓库演示一致的完整资产（表单/页面/数据/字典/菜单）
 - 关键决策：无自然唯一键表用「事务内 DELETE+INSERT」而非 ODKU（首版实测翻倍踩坑）；auto_increment 主键 9xxx 重映射是跨环境导入的通用安全做法
 - 导出器可重跑（python3 scripts/export_demo_sql.py），演示数据演进后可随时刷新脚本包
+---
+Task ID: logicflow-scenario-demo
+Agent: Z.ai Code (main session)
+Task: 用户需求「设计 2 个业务场景示例：①工作流审批中触发逻辑流更新另一业务表单 ②操作业务表单触发逻辑流更新另外 2 个业务表单」——设计 + 资产构造 + API/浏览器双级 E2E
+
+Work Log:
+- 【机制查证】逻辑流引擎（engine/logicflow）：触发点=FormLogicBinding（BUSINESS: BEFORE/AFTER_CREATE/UPDATE/DELETE；WORKFLOW: AFTER_TASK_APPROVE/AFTER_PROCESS_FINISH 等 21 种）；节点 19 种（DATA_QUERY/DATA_INSERT/DATA_UPDATE SET/ADD/SUB/DATA_UPSERT/CONDITION 等）；DATA_UPSERT 冲突键要求 (tenant_id, conflictKey) 唯一索引（表单唯一字段发布产物）；绑定 API POST /v1/form-logic-bindings；流程↔表单连接=NodeConfig nodeId=__PROCESS__ configJson {"form":{"formDefId":...}}（发起人节点>流程默认）
+- 【场景 1 设计】请假审批联动年假台账：WORKFLOW 表单 leave_apply_demo（请假人/部门/天数 inputNumber/开始日期/事由）+ 流程 leave_approval_demo（发起节点(第一个 UserTask 启动时自动完成)→主管审批 assignee="1"→结束）+ 业务表单 leave_ledger_demo（employeeName 唯一/部门/总额/已用）+ 逻辑流 leave_ledger_sync（DATA_QUERY 查台账→CONDITION total EQ 0→true: DATA_INSERT 首次建档(总额10/已用0)→DATA_UPDATE ADD 已用+天数；false: 直接累加）+ 绑定 AFTER_PROCESS_FINISH→SYNC_IN_TX
+- 【踩坑①发起节点】单 UserTask 流程被「自动完成发起人节点」（ProcessInstanceService，第一个 UserTask=发起节点启发式）启动即自动通过——改两段式（apply_1 发起+approve_1 审批）
+- 【踩坑②assignee 键】平台任务办理人以 userId 为键（前端待办查 assignee=user.id），BPMN 写 assignee="admin" 页面不可见——改 assignee="1"（1=admin）
+- 【踩坑③ODKU 重置】DATA_UPSERT 的 UPDATE 子句=全量 values 列+onUpdate 追加——upsert 方案每次审批把 usedDays 重置 0 再累加，永不累计；改「DATA_QUERY+CONDITION+DATA_INSERT/DATA_UPDATE」四节点设计（KEY 拆包 total 写扁平变量供 CONDITION 比较）
+- 【场景 2 设计】物料领用联动：material_pickup_demo（AFTER_CREATE→SYNC_IN_TX）→ 逻辑流 pickup_stock_sync（DATA_UPDATE wf_biz_material_stock_demo SUB stockQty WHERE productCode → DATA_INSERT pickup_log_demo 含 sourceNote='来源领用单 {{dataId}}'）；种子库存 P001×200/P002×50/P003×80
+- 【构造器】scripts/build_logicflow_demo.py 幂等：表单×5 发布（唯一列 unique=true）→ 逻辑流×2 发布 → 绑定×2 → 流程草稿+design(BPMN DI 全)+deploy → 种子 → API 自测（场景 2: P001×5→195+流水+1 行→清理还原；场景 1: 王五+2 累计断言）
+- 【E2E 全绿】API 级：场景 2 库存 200→195→还原 200、流水 +1→清；场景 1 王五 2→4→6 跨次累计 ✓。浏览器级：流程中心发起 李四 3 天 → 待办处理显示（assignee 修复后）→ 任务详情「通过」→ /biz-data/leave_ledger_demo 渲染 李四 市场部 3/10 + 王五 6/10；领用单新增 P001×5 李四 → 库存 195 + 流水 1 行（来源领用单 a714dfd5…）✓；截图×3 入 docs/screenshots/；E2E 窗口后端 0 ERROR、9 次 flow run SUCCESS
+- 【说明】process 资产含 Flowable 部署态（act_re_ 表），SQL 导出无法还原部署——本组演示以 build_logicflow_demo.py 为可复现载体（幂等可重跑），不并入 sql/demo-examples
+
+Stage Summary:
+- 两个逻辑流业务场景演示资产全链路就绪：①审批联动（leave_approval_demo 流程 + leave_ledger_sync 逻辑流，演示态：李四 3/10、王五 6/10）②领用联动（pickup_stock_sync，演示态：库存 P001=195 + 流水 1 行）
+- 平台级经验：发起节点=第一个 UserTask 自动完成；assignee 用 userId；DATA_UPSERT update 路径含全量 values（累计场景须用 QUERY+CONDITION+INSERT/UPDATE 组合）；DATA_QUERY 的 results KEY 拆包是 CONDITION 取嵌套值的唯一通道
+- 遗留观察：脚本重跑会持续累计王五天数（语义正确）；存量旧定义实例（assignee=admin）不可见于待办页，已通过 API 清理完毕
