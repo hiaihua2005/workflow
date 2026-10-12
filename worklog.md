@@ -7433,3 +7433,21 @@ Stage Summary:
 - P0 修复完成：Groovy 节点拖入即崩问题根治（vite.config optimizeDeps.exclude，2 文件改动）
 - items 24 功能补全贯通：SCRIPT 输入框 Bean 名/方法名补全真实可用（后端 scriptToolkit Bean 4 方法）
 - 经验入库：①CM6 项目升级 import 图谱后必查 .vite/deps chunk 内嵌副本（grep "class Facet"）②Bash 管道显示会吞 [m 等序列，源码真伪以 Read 工具为准 ③诊断递归必须防环（CM6 扩展自引用是常态）
+
+---
+Task ID: groovy-freeze-fix-20261012
+Agent: 主会话（Z.ai Code）
+Task: 用户报告「Groovy 组件拖入画布后整个画布无法操作、无法返回」——P0 修复
+
+Work Log:
+- agent-browser 实测复现：拖入 SCRIPT 节点 → console 出现 4-5×「Unhandled error during execution of mounted hook at ExpressionEditor」+ 1×「CM6-DEBUG bad-extensions」（15 个顶级扩展全标 CYCLE）→ 渲染管线僵死
+- 静态排查（buildStaticExtensions/buildDynamicExtensions/assembleCompartments/makeVarCompletionSource/templateLang/补全源）全部无环；浏览器内动态 import 二分复现三组合全 OK——与页面实际崩溃矛盾
+- 根因定位：磁盘 cm6.ts 756 行 od -c 验证为正确字节，但 vite dev 下发给页面的是带旧时间戳查询（?t=）的 transform 缓存——历史会话编辑时工具链曾吞「[m」两字符（[makeVar→akeVar），磁盘后来被修复而 vite 模块图未失效；页面跑损坏模块 → assembleCompletionSources 引用不存在的 akeVarCompletionSource → EditorState.create 抛错 → mounted 崩溃
+- 修复：按 start-services.sh 规范重启 vite（bun run dev + NODE_OPTIONS=--max-old-space-size=512）；npm/node 直启会被静默 SIGKILL（根因待查，bun 方式稳定）
+- E2E 验证：Groovy 拖入 → CM6 挂载 → 面板正常 → console 零错误；点击开始/Groovy 节点面板正常切换；返回按钮与浏览器 back 均可离开设计器；beans 补全三级全通（bea → beans. → scriptToolkit → beans.scriptToolkit. → dictLabel(String, String)/dictMap(String)/now()/uuid()，items 24 验收通过）；临时测试流程 groovy_debug_tmp 已删除
+- 【工具链事故①】bash 传输层吞「[m」序列：sed/grep/diff/node console.log 输出中含 [m 的文本全部显示为损坏态（本次 5 处假象误导排查 3 轮）——判定磁盘字节必须用 od -c 或 Edit 工具实测匹配，勿信管道文本
+- 【工具链事故②】git 全对象枚举（rev-list --objects / cat-file --batch-all-objects）在本仓库（jar 115MB×N + db dumps 备份）会吃 2GB+ 内存，两次 OOM（oom_kill 8→10，被杀对象均为 git）——后续避免 --batch-all-objects，优先 rev-list --objects 限定范围并 head 截断
+
+Stage Summary:
+- Groovy 画布卡死 P0 已修复（vite 陈旧缓存重启即愈，磁盘代码本无 bug、零代码改动）；items 23/24 补全功能 E2E 验收通过
+- 遗留观察：vite 长跑稳定性（今日两次假死/秒死）与 cgroup 内存压力（oom_kill=10 基线上升）建议后续巡检持续关注
