@@ -1171,7 +1171,7 @@
           <template v-else-if="node.data.nodeType === 'LLM'">
             <el-form-item required>
               <template #label>
-                <FieldLabel label="提示词（Prompt）" tip="用户提示词，支持 {{var}} 取上下文；模型由平台内置网关提供，无需管理 API Key" />
+                <FieldLabel label="提示词（Prompt）" tip="用户提示词，支持 {{var}} 取上下文；模型端点/密钥/名称在 系统管理 → 模型配置 统一设置（默认平台内置网关，支持任意 OpenAI 兼容服务），此处无需填写" />
               </template>
               <VarInput
                 v-model="llmCfg.prompt"

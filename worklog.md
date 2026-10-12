@@ -7451,3 +7451,25 @@ Work Log:
 Stage Summary:
 - Groovy 画布卡死 P0 已修复（vite 陈旧缓存重启即愈，磁盘代码本无 bug、零代码改动）；items 23/24 补全功能 E2E 验收通过
 - 遗留观察：vite 长跑稳定性（今日两次假死/秒死）与 cgroup 内存压力（oom_kill=10 基线上升）建议后续巡检持续关注
+
+---
+Task ID: llm-config-ui-20261012
+Agent: 主会话（Z.ai Code）
+Task: 用户提出「平台可能不在这个环境里运行，模型需要可配置」——大模型服务动态配置落地（系统管理→模型配置）
+
+Work Log:
+- 现状分析：原实现模型写死（AiProperties yml/env 静态 + SandboxAiConfigBridge 沙箱桥接 → 启动期单例 OpenAiCompatibleChatModel），外部部署只能改环境变量重启，无产品内配置入口
+- 后端新增 com.workflow.ai.aiconfig 包：SysAiConfig 实体（sys_ai_config 单行表，ddl-auto=update 自动建表）/ SysAiConfigRepository / EffectiveLlmConfig 快照 record / AiConfigService（effective 合成·单行 upsert·连通性测试）/ DynamicChatModel（指纹比对自动重建底层 OpenAiCompatibleChatModel：端点/密钥/模型/超时变化即热切换）
+- AiAutoConfiguration 改造：装配 DynamicChatModel 平台唯一 ChatModel bean；移除「静态 api-key 非空才建 bean」条件（外部部署改为页面配置，未配置时调用期给出明确提示）；逻辑流 LLM 节点、AI 对话、Agent、表单生成等全部消费方零改动获得动态配置
+- API：GET /api/ai-config（apiKey 脱敏 sk-ab****yz + source 来源标识）/ PUT（留空=保持不变，"-"=显式清空，保存即生效）/ POST /test（草稿配置连通性测试不落库，16 token ping 计时）
+- 关键修复①（自查发现）：首次保存密钥留空 → 新行 key=null 覆盖静态桥接密钥 → LLM 调用突然失败；修复=新建行留空时继承静态默认密钥（含桥接），测试中实际踩中并回滚验证
+- 关键规则②：DB 配置 baseUrl 与静态默认同端点时继承沙箱桥接 extraHeaders（X-Token 等），保证「只调参数不改端点」场景内置网关仍可用
+- 前端：types/aiConfig.ts + api/aiConfig.ts + views/system/ai-config/AiConfigPage.vue（启用开关/端点预设 chips（部署默认动态回填）/Key 密码框（留空保持不变提示）/模型预设/温度/maxTokens/超时折叠区/连通性结果卡/优先级说明卡）+ 路由 system/ai-config
+- Flyway V55__ai_config_menu.sql：sys_menu id=320（父=1 系统管理，sort 6，permission system:aiconfig:list，component system/ai-config/AiConfigPage）+ ROLE_ADMIN 授权，NOT EXISTS 幂等
+- PropertyPanel.vue LLM 分支提示更新：指向「系统管理 → 模型配置」；BackendLlmConfig javadoc 同步
+- 构建部署：JAVA_HOME=/home/z/tools/jdk21 mvn -o package（116M jar 仅磁盘）；重启遇后台进程被环境回收（nohup 直接拉起无输出即死），改用 start-services.sh detached 子壳拉起成功（pid 9140，18s 就绪，V55 迁移 OK）
+- E2E 验证全绿：curl PUT 保存→hasApiKey=true（继承）→POST test 连接成功 448ms；/api/v1/ai/chat SSE 实调返回「收到」（DynamicChatModel DB 配置路径真通）；agent-browser 登录→侧边栏「模型配置」菜单出现（e466）→页面渲染完整（来源 tag=数据库配置、端点/模型回填）→UI 点「测试连接」=「连接成功 · 285ms · glm-4-plus」→console 零错误；截图 backups/ai-config-page-verified.png
+
+Stage Summary:
+- 大模型服务可视化动态配置落地：外部部署在「系统管理→模型配置」填 OpenAI 兼容端点/Key/模型名即可，保存即生效无需重启；静态 env/yml/沙箱桥接降级为默认兜底，开箱即用语义不变
+- 未决观察：①配置接口鉴权沿用平台惯例（仅登录态，无方法级角色注解，与现有 system 控制器一致）②前端无 lint 脚本（Vue 子项目仅 dev/build），以 vite 实时编译+浏览器 console 为准

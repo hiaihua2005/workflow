@@ -89,6 +89,14 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '数据字典管理' }
       },
       {
+        // 大模型动态配置（系统管理 → 模型配置）：OpenAI 兼容端点/API Key/模型，
+        // 保存即生效；外部部署无需改环境变量
+        path: 'system/ai-config',
+        name: 'AiConfigManagement',
+        component: () => import('@/views/system/ai-config/AiConfigPage.vue'),
+        meta: { title: '模型配置' }
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/profile/ProfilePage.vue'),

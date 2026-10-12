@@ -3,7 +3,9 @@ package com.workflow.engine.logic.config;
 /**
  * 后端业务逻辑 - 大模型调用（LLM）节点子配置。
  *
- * <p>调用平台内置 LLM（复用 ai 模块 ChatModel → 内部 OpenAI 兼容网关）：
+ * <p>模型服务可配置：优先取「系统管理 → 模型配置」的动态配置（OpenAI 兼容
+ * 端点/API Key/模型名，保存即生效），未配置时回退平台内置 LLM（ai 模块
+ * ChatModel → 内部 OpenAI 兼容网关）：
  *
  * <pre>{@code
  * {
