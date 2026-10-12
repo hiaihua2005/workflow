@@ -7353,3 +7353,18 @@ Stage Summary:
 - 推送诉求已满足：GitHub main 已包含本地全部工作（lf-du-expr-1~4 全链条），本地对齐 314e127d 无待推内容；PAT 已按历史实践写入 .git/config（仅本地文件不入库、不记 worklog）
 - 合并演练收益：验证了两条并行线的内容关系（本地线为前端功能超集、后端引擎表达式为超集），后续避免重复整合
 - 存量风险登记（未修）：①双 PostController bean 冲突导致集成测试（Spring 上下文）在沙箱永远起不来——修复需给其中一个改名 bean 或加 excludeFilter，影响面 25 例集成测试 ②数据族表单下拉 allow-create 手输中文名造出假表单值（lf-du-expr-4 观察项）
+
+---
+Task ID: push-sync-20261012b
+Agent: 主会话（Z.ai Code）
+Task: push 后续——裹挟提交溯源 + 双 PostController 删除的安全性验证 + 集成测试复活确认
+
+Work Log:
+- 溯源：origin/main reflog 证实 314e127d（merge commit，parents=04acd8e8+f397ba52）由本机 push——同沙箱存在并行会话进程共享 .git：我解决完 merge 冲突（已 add 未 commit）期间，并行进程执行了 git commit（继承 staged 解决结果，默认消息取远端 HEAD）并 push；其随后在工作区做了「删除 system/controller/PostController.java」的未提交修复，被我下一次 worklog commit 裹挟提交（f89dedb5）并推送
+- 删除安全性验证：api 版与 system 版 PostController 为同一功能两份实现（同为 /api/posts 5 端点：GET 列表/GET options/POST/PUT id/DELETE id），api 版为本地线更新版（V43 对位注释更全、含 keyword/status 过滤注释）；前端 api/post.ts 契约（GET/POST /posts + options/PUT/DELETE）由 api 版完整覆盖，删除 system 版不丢任何端点 → 判定保留删除（正确的去重修复）
+- 集成测试复活确认：修复前 5 类 25 例全挂（Spring ApplicationContext 加载失败，ConflictingBeanDefinitionException）；修复后 SysMenuRepositoryTest 2/2 ✓、MessageEndToEndTest 2/2 ✓、SqlDataSourceIntegrationTest 6/6 ✓、FormJoinQueryIntegrationTest 11/11 ✓、LeaveBillWorkflowIntegrationTest 4/4 ✓ —— 全量后端 1320 例现应为 0 fail 0 err
+- 风险登记：同沙箱多会话并行操作同一 .git 极易互相踩（merge 被代提交、未提交修复被裹挟提交）——后续会话操作 git 前务必先查 git status + MERGE_HEAD 存在性，commit 前 git diff --cached 核对暂存内容与预期一致
+
+Stage Summary:
+- f89dedb5 已推送：worklog 记录 + 双 PostController 去重（集成测试全绿）；远端 main 与本地一致
+- 后端测试基线跃升：集成测试从「沙箱永远起不来」恢复为可用回归资产
