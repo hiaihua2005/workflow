@@ -20,7 +20,7 @@
 -- Current Database: `workflow`
 --
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `workflow` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `workflow` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */;
 
 USE `workflow`;
 
@@ -3278,7 +3278,8 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `wf_biz_material_pickup_demo` WRITE;
 /*!40000 ALTER TABLE `wf_biz_material_pickup_demo` DISABLE KEYS */;
 INSERT INTO `wf_biz_material_pickup_demo` VALUES
-('a714dfd5dd1c43a6912bf787164617e0','default','P001','深沟球轴承 6204',5,'李四','装配线补料-浏览器演示（场景2）',1,NULL,NULL,NULL);
+('a714dfd5dd1c43a6912bf787164617e0','default','P001','深沟球轴承 6204',5,'李四','装配线补料-浏览器演示（场景2）',1,NULL,NULL,NULL),
+('ce941a897dd8413e8eb1a686eb4f2c9e','default','P001','深沟球轴承 6204',10,'张三',NULL,1,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `wf_biz_material_pickup_demo` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -3316,7 +3317,7 @@ LOCK TABLES `wf_biz_material_stock_demo` WRITE;
 INSERT INTO `wf_biz_material_stock_demo` VALUES
 ('22eb5c24ff164b5fb70995632ac218d2','default','P003','温度传感器 DS18B20',80,1,NULL,NULL,NULL),
 ('b144f3ddd89d41d2948267a3e97b704a','default','P002','直流减速电机 24V',50,1,NULL,NULL,NULL),
-('dfcb4ecfb51d45a584632288f4f614cf','default','P001','深沟球轴承 6204',195,11,NULL,NULL,'2026-10-11 16:21:56');
+('dfcb4ecfb51d45a584632288f4f614cf','default','P001','深沟球轴承 6204',185,11,NULL,NULL,'2026-10-11 16:21:56');
 /*!40000 ALTER TABLE `wf_biz_material_stock_demo` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -3473,7 +3474,8 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `wf_biz_pickup_log_demo` WRITE;
 /*!40000 ALTER TABLE `wf_biz_pickup_log_demo` DISABLE KEYS */;
 INSERT INTO `wf_biz_pickup_log_demo` VALUES
-('455988fd0e714ab29eda178f3ef834ab','default','P001','深沟球轴承 6204',5,'李四','来源领用单 a714dfd5dd1c43a6912bf787164617e0',1,NULL,NULL,NULL);
+('455988fd0e714ab29eda178f3ef834ab','default','P001','深沟球轴承 6204',5,'李四','来源领用单 a714dfd5dd1c43a6912bf787164617e0',1,NULL,NULL,NULL),
+('9710184373c148a083f518de244922ac','default','P001','深沟球轴承 6204',10,'张三','来源领用单 ce941a897dd8413e8eb1a686eb4f2c9e',1,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `wf_biz_pickup_log_demo` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -3820,6 +3822,8 @@ CREATE TABLE `wf_logic_flow_run` (
 SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `wf_logic_flow_run` WRITE;
 /*!40000 ALTER TABLE `wf_logic_flow_run` DISABLE KEYS */;
+INSERT INTO `wf_logic_flow_run` VALUES
+('1c8e98b467924526a28de6d41d813611','2026-10-12 00:33:02.915193',20,NULL,'fbefdda018464d64ad24fbda9ecc349e','pickup_stock_sync','领用登记联动库存与流水','{\"formData\":{\"productCode\":\"P001\",\"productName\":\"深沟球轴承 6204\",\"qty\":10,\"pickupBy\":\"张三\"},\"formDataExisting\":null,\"formKey\":\"material_pickup_demo\",\"formType\":\"BUSINESS\",\"dataId\":\"ce941a897dd8413e8eb1a686eb4f2c9e\",\"opType\":\"CREATE\",\"operator\":\"admin\",\"__trigger\":{\"source\":\"form-submit\",\"formType\":\"BUSINESS\",\"formKey\":\"material_pickup_demo\",\"trigger\":\"AFTER_CREATE\",\"opType\":\"CREATE\"}}','{\"formData\":{\"productCode\":\"P001\",\"productName\":\"深沟球轴承 6204\",\"qty\":10,\"pickupBy\":\"张三\"},\"formDataExisting\":null,\"formKey\":\"material_pickup_demo\",\"formType\":\"BUSINESS\",\"dataId\":\"ce941a897dd8413e8eb1a686eb4f2c9e\",\"opType\":\"CREATE\",\"operator\":\"admin\",\"__trigger\":{\"source\":\"form-submit\",\"formType\":\"BUSINESS\",\"formKey\":\"material_pickup_demo\",\"trigger\":\"AFTER_CREATE\",\"opType\":\"CREATE\"},\"du_stock\":1,\"di_log\":{\"id\":\"9710184373c148a083f518de244922ac\",\"version\":1,\"data\":{\"productCode\":\"P001\",\"productName\":\"深沟球轴承 6204\",\"qty\":10,\"pickupBy\":\"张三\",\"sourceNote\":\"来源领用单 ce941a897dd8413e8eb1a686eb4f2c9e\"}}}','2026-10-12 00:33:02.876930','SUCCESS','[{\"nodeId\":\"start1\",\"nodeName\":\"开始\",\"type\":\"START\",\"status\":\"SUCCESS\",\"result\":null,\"error\":null,\"durationMs\":\"0\"},{\"nodeId\":\"du_stock\",\"nodeName\":\"扣减物料库存\",\"type\":\"DATA_UPDATE\",\"status\":\"SUCCESS\",\"result\":1,\"error\":null,\"durationMs\":\"10\"},{\"nodeId\":\"di_log\",\"nodeName\":\"写入领用流水\",\"type\":\"DATA_INSERT\",\"status\":\"SUCCESS\",\"result\":{\"id\":\"9710184373c148a083f518de244922ac\",\"version\":1,\"data\":{\"productCode\":\"P001\",\"productName\":\"深沟球轴承 6204\",\"qty\":10,\"pickupBy\":\"张三\",\"sourceNote\":\"来源领用单 ce941a897dd8413e8eb1a686eb4f2c9e\"}},\"error\":null,\"durationMs\":\"8\"},{\"nodeId\":\"end1\",\"nodeName\":\"结束\",\"type\":\"END\",\"status\":\"SUCCESS\",\"result\":null,\"error\":null,\"durationMs\":\"0\"}]');
 /*!40000 ALTER TABLE `wf_logic_flow_run` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -4106,4 +4110,4 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-10-11 22:20:08
+-- Dump completed on 2026-10-12  1:05:13
