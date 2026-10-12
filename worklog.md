@@ -7152,3 +7152,21 @@ Stage Summary:
 - 数据族三节点（查询/新增/删除）目标从「仅业务表单」开放为「业务表单 / 数据表」：业务表单保持表单语义（租户隔离/必填/JSON 列/日期归一/托管列），任意数据表走直连路径（元数据校验+参数绑定+条件租户守卫），value 语义向后完全兼容（formKey 优先判定）
 - 值表达式全面支持数据表字段：上游查询行 rows[0].<字段> 与循环行 item.<字段> 可在设计器点选插入（中文名标注），引擎点路径新增 [n] 列表索引解析，插入即可运行
 - 修改文件：后端 3（LogicFlowEngine/BizDataSupport/LogicFlowDslValidator）+ 前端 3（PropertyPanel.vue/LogicFlowDesigner.vue/nodeMeta.ts）+ E2E 脚本 1（test-lf-rawtable-e2e.sh）
+
+---
+Task ID: lf-expr-editor-feasibility
+Agent: Z.ai Code (main session)
+Task: 用户咨询——表达式输入能否换成带代码提示/自动补全的代码编辑器，体积增量评估
+
+Work Log:
+- 探查现状：表达式输入 = el-input/textarea + VariablePicker（{ } 浮层树）+ VarMentionInput（# 呼出）+ chips，PropertyPanel 共 24 处 VarInput/VarMentionInput；无语法高亮、无即时补全
+- 确认 LogicFlowDesigner/ListPage 均为路由懒加载（src/router/index.ts:34/185），新增依赖只进设计器 chunk，不影响主包
+- /tmp/cm-bench 实测（bun build --minify --target=browser + gzip -9）：
+  · CM6 完整形态（JS 语言/折叠/lint/补全/行号，适配 Groovy 条件）：481KB min / 160KB gzip
+  · CM6 精简形态（{{var}} 占位符高亮 + 变量补全 + 基础编辑，适配值表达式）：324KB min / 106KB gzip
+- Monaco/Ace 未实测（引用社区公认量级）：Monaco ≈ 2.5-4MB min / ≈1MB gzip + worker 文件；Ace ≈ 450-700KB min / ≈150-200KB gzip
+
+Stage Summary:
+- 结论：可行，推荐 CodeMirror 6（补全源直接复用 flowVars.ts 的 FlowVarItem 变量树，{{...}} 占位符用 StreamLanguage 高亮；不推荐 Monaco，体积超其 6-8 倍且移动端差）
+- 设计器 chunk 预估增重 15-25%（min），gzip 传输 +106~160KB，仅设计器路由受影响
+- 实施建议：新建 ExpressionEditor.vue（VarInput 加 editor 开关渐进替换），值表达式字段先行、Groovy 条件次之；保留 { } 选择钮与 chips；预计 1 个工作日；待用户确认后实施

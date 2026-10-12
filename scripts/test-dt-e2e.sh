@@ -34,8 +34,8 @@ mkflow() { # $1=dsl_json $2=name $3=key → echo flow_id
 echo "== 1. 流A：查台账表单（张三） → 任意表插入 {{dq1.rows[0].xxx}} =="
 DSL_A='{"nodes":[
  {"id":"s","type":"START","name":"开始","x":80,"y":60},
- {"id":"dq1","type":"DATA_QUERY","name":"查台账","x":80,"y":176,"config":{"formKey":"leave_ledger_demo","filter":[{"column":"employee_name","op":"EQ","value":"张三"}],"size":10},"errorAction":"FAIL_FLOW"},
- {"id":"di1","type":"DATA_INSERT","name":"写临时表","x":80,"y":292,"config":{"formKey":"tmp_e2e_dt","data":[{"column":"product_code","value":"{{dq1.rows[0].employee_name}}"},{"column":"stock_qty","value":"{{dq1.rows[0].annual_days}}"},{"column":"note","value":"from-rows-index"}]},"errorAction":"FAIL_FLOW"},
+ {"id":"dq1","type":"DATA_QUERY","name":"查台账","x":80,"y":176,"config":{"formKey":"leave_ledger_demo","filter":[{"column":"employeeName","op":"EQ","value":"张三"}],"size":10},"errorAction":"FAIL_FLOW"},
+ {"id":"di1","type":"DATA_INSERT","name":"写临时表","x":80,"y":292,"config":{"formKey":"tmp_e2e_dt","data":[{"column":"product_code","value":"{{dq1.rows[0].employeeName}}"},{"column":"stock_qty","value":"{{dq1.rows[0].annualDays}}"},{"column":"note","value":"from-rows-index"}]},"errorAction":"FAIL_FLOW"},
  {"id":"e","type":"END","name":"结束","x":80,"y":408}],
  "edges":[{"id":"e1","source":"s","target":"dq1"},{"id":"e2","source":"dq1","target":"di1"},{"id":"e3","source":"di1","target":"e"}]}'
 FA=$(mkflow "$DSL_A" "临时E2E-任意表插入" "tmp_e2e_dt_flow_a")
