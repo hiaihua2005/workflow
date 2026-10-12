@@ -7204,3 +7204,21 @@ Work Log:
 Stage Summary:
 - 【事故小节】oom_kill 0→1（基线上涨）：自上一轮巡检 2026-10-11 17:05 后 cgroup 发生过一次 OOM kill，当前系统已自愈（四链路 200×4、真绿、内存 2.68GB 正常、vite/Java/mariadbd 均在位），无需干预；持续观察
 - r18 全绿 200×4 真绿，内存 2.68GB，oom 1（已自愈），dump OK
+---
+Task ID: lf-du-hash-fields
+Agent: Z.ai Code (main session, trace 82fa5836)
+Task: 用户需求——数据更新组件的表达式中输入 # 下拉出所选业务表单的所有字段
+
+Work Log:
+- 【协作发现】开工时工作区有一批 cron webDevReview agent 的在途改动（FormulaExpressionEditor/SqlEditor/ColumnAdvancedConfig 统一 CM6 + ExpressionEditor customSource/extraSources 扩展点 + makeSnippetCompletionSource 片段源工厂 + insertAtCursor cursorBack 增强 + 删除死代码 VarMentionInput）：监控确认停止编辑（4 分钟无 mtime 变化）后复核 vue-tsc 54=基线/目标文件 0 错误，先独立提交收口 704b5e51，再在其扩展点之上实现本需求
+- 【CM6 过滤机制源码调研】@codemirror/autocomplete 6.20.3 渲染层用 sliceDoc(result.from, 光标) 对 label 做 FuzzyMatcher 过滤（# 非词字符单字符模式仅匹配 label 开头→变量 label 在 {{# 场景被自然滤除）；CompletionResult.filter=false 可关闭渲染层过滤（源自过滤接管）→ 据此定稿补全源设计
+- 【cm6.ts】新增 HashFieldOption + makeHashFieldCompletionSource(fields|getter, syntax='mustache')：输入 # 呼出字段下拉；占位符外插 {{formData.字段}}（uel 为 ${...}）插入即可运行；占位符内（{{…# ）从占位符内容起点整体替换（# 前残缺路径一并清掉）+ 后方无 }} 自动补闭合（与变量补全同语义）；filter:false + 源内自过滤（key/中文名大小写不敏感子串，中文过滤不被 label 模糊匹配限制）；fields 支持 getter 闭包（元数据异步就绪实时生效，恒定身份免编辑器扩展重建）；detail=中文名 · 类型（剥掉 中文名(key) 格式的括号尾）
+- 【VarInput.vue】新增 hashFields 属性；hashSource=getter 闭包工厂实例（常驻 customSource 通道，未配置时每查询空返回零开销）
+- 【PropertyPanel.vue】entryHashFields(u)：条目目标为业务表单（wf_biz_*）→ bizEntryColumns(table)（真实列优先/columnConfig 回退 + 中文名·类型，排除 tenant_id/version，与 SET 字段下拉同源）；其他数据表不启用；SET 值 + WHERE 值两处 VarInput 接 :hash-fields="entryHashFields(u)"；SET/WHERE FieldLabel tips 与 placeholder（「值或 {{formData.xxx}}，# 选表单字段」）同步提示
+- 【验证】vue-tsc 54=既有基线（本改动 0 新增）；vitest logicflow 86/86；agent-browser E2E（pickup_stock_sync 数据更新节点，临时修改未保存即离开）：①SET 值输 # → 浮层列 wf_biz_material_stock_demo 全部 7 字段（productCode 物料编码·VARCHAR/stockQty 库存数量·INT…，无 tenant_id/version）②点选 stockQty → {{formData.qty}}# → {{formData.qty}}{{formData.stockQty}}（# 被替换为可运行引用）③中文过滤「#库」→ 仅剩 stockQty ④占位符内 {{# → 7 项齐全 → 键盘 ↓×4+Enter → {{formData.productName}}（内容起点替换+自动闭合，无残留 #）⑤WHERE 值「#prod」→ 过滤 productCode/productName → Enter 插入成功 ⑥{{ 变量补全回归正常（formData 组完整）⑦console 无错误；截图 /tmp/e2e_hash_fields.png
+- 【未动】DSL/引擎零改动：插入物 {{formData.字段}} 即引擎既有 formData 点路径语义（面板 tips 本就文档化该写法）；演示流未保存零污染
+
+Stage Summary:
+- 数据更新组件 SET/WHERE 值表达式新增 # 手势：输入 # 即下拉所选业务表单全部字段（中文名·类型标注、支持中英文过滤、键盘可选），选中插入引擎可直接解析的 {{formData.字段}}，与 {{ 变量补全、{ } 选择器三通道并存
+- 机制全项目可复用：VarInput hashFields 属性 + cm6 makeHashFieldCompletionSource 工厂（getter 动态源/filter:false 自过滤/uel 兼容），后续数据查询/新增/删除等值表达式接入仅需一行 prop
+- 提交 704b5e51（cron agent CM6 统一收口）+ 本需求提交
