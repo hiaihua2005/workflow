@@ -7097,3 +7097,21 @@ Stage Summary:
 - 逻辑流数据族五类节点（查询/新增/删除/更新/写入）的表单与字段配置全面中文化下拉，使用门槛显著降低
 - 修复数据查询/新增/删除表单下拉为空的既有 bug
 - 未修改引擎/DSL：value 语义不变（列 key/物理表名），纯展示层增强
+
+---
+Task ID: lf-designer-mod21
+Agent: main
+Task: 修改21——逻辑流设计器数据族组件属性交互四项优化（筛选比较符/表单下拉一致化/SET固定/删除条件两行）
+
+Work Log:
+- ①数据查询「等值筛选」→「筛选」：filter 项新增比较符下拉（等于/不等于/大于/大于等于/小于/小于等于/为空/不为空，与删除组件同款 DATA_UPDATE_OPS），字段+比较符一行、比较值另起一行；后端配套——BackendDataQueryConfig.DataFilter 增 op 字段（缺省 EQ 兼容存量），LogicFlowEngine.executeDataQuery 改产结构化筛选 {logic:AND, conditions:[{column,op,value}]}（IS_NULL→isempty/NOT_NULL→isnotempty），BizDataQueryBuilder.appendStructuredFilters 补 gt/gte/lt/lte 四运算符（值参数绑定），DslValidator.validateDataQuery 校验 op ∈ DML_OPS
+- ②数据查询/新增/删除的业务表单下拉与数据更新组件一致：el-option-group「业务表单」分组 + 选项 label=中文名（wf_biz_key）（value 仍为 formKey，DSL 兼容；新增/删除/查询仅业务表单故无「其他数据表」组）
+- ③数据更新 SET 行移除 SET/ADD+/SUB− 模式下拉：字段下拉与字段值各占一行；新配置一律 SET；存量非 SET 行显示只读标记 tag（如「SUB −」，title 说明引擎仍兼容）——pickup_stock_sync 的扣库存 SUB 模式不破坏、引擎 SET/ADD/SUB 支持保留
+- ④数据删除条件：字段+比较符一行、值单独一行（为空/不为空自动隐藏值行，与查询筛选同款 du-cond 两行布局）
+- 附带：dataQueryCfg computed 对存量无 op 筛选归一 op=EQ（编辑态显示「等于」，序列化后行为不变）；nodeMeta DATA_QUERY 描述改「筛选」、DATA_UPDATE 描述去 ADD/SUB 宣传；FieldLabel tips 同步
+- 验证：vue-tsc 全库存量 54 处基线不变（本文件零新增）；vitest logicflow 86/86；后端 E2E 四用例（GTE→P001 一行 / LT+NOT_NULL→两行 / 无op缺省EQ→一行 / IS_NULL→0行不报错）全过；存量流回归 leave_ledger_sync（建档+累加）/pickup_stock_sync（SUB 扣库存 80→78+写流水）SUCCESS，回归副作用数据已还原（P003=80、流水回2条、测试台账删除）；agent-browser UI E2E——更新面板（SET 无模式下拉+SUB− 标记+两行）、查询面板（筛选标签+比较符8选项+为空联动隐藏值行+存量归一等于）、删除面板（两行+中文字段/比较符）、新增/查询/删除表单分组下拉均符合预期；临时验证流已删除
+- 收口：dump-db 快照（20261012-022946）后提交
+
+Stage Summary:
+- 四项 UI 优化全部落地且引擎级验证通过；DSL 向后完全兼容（无 op 旧 DSL 走 EQ 等值，存量 ADD/SUB 引擎保留、UI 只读展示）
+- 修改文件：后端 4（BackendDataQueryConfig/LogicFlowEngine/BizDataQueryBuilder/LogicFlowDslValidator）+ 前端 3（PropertyPanel.vue/dsl.ts/nodeMeta.ts）+ E2E 脚本 2（test-lf-op-e2e.sh/test-demo-flow-regression.sh）

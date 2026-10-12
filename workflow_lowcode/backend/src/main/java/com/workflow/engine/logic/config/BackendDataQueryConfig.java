@@ -10,7 +10,7 @@ import java.util.List;
  * <pre>{@code
  * {
  *   "formKey": "bill_test",
- *   "filter": [ {"column":"person_name", "value":"{{formData.person_name}}"} ],
+ *   "filter": [ {"column":"amount", "op":"GTE", "value":"100"} ],
  *   "keyword": "张",
  *   "keywordColumn": "person_name",
  *   "size": 50
@@ -19,7 +19,8 @@ import java.util.List;
  *
  * <ul>
  *   <li>formKey：业务表单 key（决定目标动态表，须已发布且已建表）；</li>
- *   <li>filter：等值筛选（AND 连接），value 支持 {@code {{var}}} 与点路径取值；</li>
+ *   <li>filter：筛选（AND 连接），op 可选（EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL，缺省 EQ 等值兼容存量 DSL），
+ *       value 支持 {@code {{var}}} 与点路径取值；</li>
  *   <li>keyword/keywordColumn：可选关键字模糊筛选（列须在最新 schema 白名单内）；</li>
  *   <li>size：单次返回行数上限（默认 50，硬上限 100，对齐 BizDataSupport 通用查询钳制）。</li>
  * </ul>
@@ -55,13 +56,17 @@ public class BackendDataQueryConfig {
     public Integer getSize() { return size; }
     public void setSize(Integer size) { this.size = size; }
 
-    /** 等值筛选条件（AND 连接）。 */
+    /** 筛选条件（AND 连接；op 缺省 EQ 等值，兼容存量无 op 的 DSL）。 */
     public static class DataFilter {
         private String column;
+        private String op;
         private String value;
 
         public String getColumn() { return column; }
         public void setColumn(String column) { this.column = column; }
+
+        public String getOp() { return op; }
+        public void setOp(String op) { this.op = op; }
 
         public String getValue() { return value; }
         public void setValue(String value) { this.value = value; }

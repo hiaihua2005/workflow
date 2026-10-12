@@ -780,6 +780,12 @@ public class LogicFlowDslValidator {
                 }
                 if (isBlankText(item, "column")) {
                     errors.add("DATA_QUERY 节点 " + node.getId() + " filter 第 " + (i + 1) + " 项缺少 column");
+                    continue;
+                }
+                String op = textOrNull(item, "op");
+                if (op != null && !DML_OPS.contains(op.trim().toUpperCase())) {
+                    errors.add("DATA_QUERY 节点 " + node.getId() + " filter 第 " + (i + 1)
+                            + " 项 op 非法(须 EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL): " + op);
                 }
             }
         }

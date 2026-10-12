@@ -268,9 +268,10 @@ export interface SqlScriptNodeConfig {
   maxRows?: number
 }
 
-/** 数据查询筛选条件（等值，AND 连接） */
+/** 数据查询筛选条件（AND 连接；op 缺省 EQ 等值，兼容存量无 op 的 DSL） */
 export interface DataQueryFilter {
   column: string
+  op?: DataUpdateWhereOp
   value: string
 }
 

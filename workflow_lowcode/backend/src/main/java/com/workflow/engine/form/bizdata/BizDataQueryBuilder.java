@@ -377,7 +377,7 @@ public final class BizDataQueryBuilder {
 
     /**
      * 结构化多条件：按 logic 组合 AND/OR，括号包裹；列名白名单校验，值参数绑定。
-     * 运算符：eq/ne/like/in/isEmpty/isNotEmpty（isEmpty/isNotEmpty 忽略 value）。
+     * 运算符：eq/ne/gt/gte/lt/lte/like/in/range/isEmpty/isNotEmpty（isEmpty/isNotEmpty 忽略 value）。
      */
     private static void appendStructuredFilters(StringBuilder sql, List<Object> params,
                                                 List<String> allowedColumns, Map<String, String> columnTypeOf,
@@ -409,6 +409,17 @@ public final class BizDataQueryBuilder {
                         fragments.add(column + " <> ?");
                         params.add(c.get("value"));
                     }
+                }
+                case "gt", "gte", "lt", "lte" -> {
+                    if (c.get("value") == null) continue;
+                    String symbol = switch (op) {
+                        case "gt" -> ">";
+                        case "gte" -> ">=";
+                        case "lt" -> "<";
+                        default -> "<=";
+                    };
+                    fragments.add(column + " " + symbol + " ?");
+                    params.add(c.get("value"));
                 }
                 case "like" -> {
                     if (c.get("value") == null) continue;

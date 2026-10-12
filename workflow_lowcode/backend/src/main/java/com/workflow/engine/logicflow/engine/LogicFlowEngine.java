@@ -1417,8 +1417,8 @@ public class LogicFlowEngine {
      * 执行数据查询节点：按 formKey 复用 {@link BizDataSupport#queryGeneric}
      * （租户隔离内建：tenant_id 由上下文强制注入，动态表列白名单防注入）。
      *
-     * <p>config：{@code { formKey, filter?: [{column, value}], keyword?, keywordColumn?, size? }}。
-     * 输出 {@code { total, page, size, rows: [...] }}（rows 行 = {id, version, ...业务列}）。
+     * <p>config：{@code { formKey, filter?: [{column, op?, value}], keyword?, keywordColumn?, size? }}，
+     * filter.op 缺省 EQ（等值，兼容存量 DSL）；输出 {@code { total, page, size, rows: [...] }}（rows 行 = {id, version, ...业务列}）。
      */
     private Object executeDataQuery(LogicFlowDsl.NodeDef node, Map<String, Object> vars) {
         if (bizDataSupport == null) {
@@ -1429,18 +1429,35 @@ public class LogicFlowEngine {
             throw new IllegalArgumentException("DATA_QUERY 节点缺少 formKey 配置: " + node.getId());
         }
         BizDataQueryRequest req = new BizDataQueryRequest();
-        Map<String, Object> filters = new LinkedHashMap<>();
+        // 结构化筛选（AND 连接）：{logic, conditions:[{column, op, value}]}，op 缺省 EQ 与存量等值行为一致
+        List<Map<String, Object>> conditions = new ArrayList<>();
         if (config.getFilter() != null) {
             for (BackendDataQueryConfig.DataFilter f : config.getFilter()) {
                 if (f == null || isBlank(f.getColumn())) {
                     continue;
                 }
-                Object value = resolveDataUpdateValue(f.getValue(), vars);
-                filters.put(f.getColumn().trim(), value);
+                String op = f.getOp() == null || f.getOp().isBlank()
+                        ? "EQ" : f.getOp().trim().toUpperCase(Locale.ROOT);
+                Map<String, Object> cond = new LinkedHashMap<>();
+                cond.put("column", f.getColumn().trim());
+                switch (op) {
+                    case "IS_NULL" -> cond.put("op", "isempty");
+                    case "NOT_NULL" -> cond.put("op", "isnotempty");
+                    case "EQ", "NE", "GT", "GTE", "LT", "LTE" -> {
+                        cond.put("op", op.toLowerCase(Locale.ROOT));
+                        cond.put("value", resolveDataUpdateValue(f.getValue(), vars));
+                    }
+                    default -> throw new IllegalArgumentException(
+                            "DATA_QUERY 节点 filter.op 非法(须 EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL): " + f.getOp());
+                }
+                conditions.add(cond);
             }
         }
-        if (!filters.isEmpty()) {
-            req.setFilter(writeJsonSafe(filters));
+        if (!conditions.isEmpty()) {
+            Map<String, Object> structured = new LinkedHashMap<>();
+            structured.put("logic", "AND");
+            structured.put("conditions", conditions);
+            req.setFilter(writeJsonSafe(structured));
         }
         req.setKeyword(orNullToTrimmed(config.getKeyword()));
         req.setKeywordColumn(orNullToTrimmed(config.getKeywordColumn()));
