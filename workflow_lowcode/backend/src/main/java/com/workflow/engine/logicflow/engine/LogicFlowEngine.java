@@ -771,6 +771,27 @@ public class LogicFlowEngine {
             }
             String mode = setOp.getMode() == null || setOp.getMode().isBlank()
                     ? BackendDataUpdateConfig.MODE_SET : setOp.getMode().trim().toUpperCase(Locale.ROOT);
+            // = 前缀表达式（仅 SET 模式）：裸列名引用该行当前值，{{path}}/字面量全转 ? 参数绑定；
+            // == 前缀为转义（字面量以 = 开头）。ADD/SUB 模式不支持表达式（requireNumeric 自然拒绝）。
+            String trimmedValue = setOp.getValue() == null ? "" : setOp.getValue().trim();
+            if (BackendDataUpdateConfig.MODE_SET.equals(mode) && trimmedValue.startsWith("=")) {
+                if (trimmedValue.startsWith("==")) {
+                    setParts.add(column + " = ?");
+                    params.add(trimmedValue.substring(1));
+                } else {
+                    UpdateExprTranslator.Result r;
+                    try {
+                        r = UpdateExprTranslator.translate(trimmedValue.substring(1), columns,
+                                path -> resolvePath(path, vars));
+                    } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException(
+                                "DATA_UPDATE 节点 " + nodeId + " SET 列 " + column + " " + e.getMessage());
+                    }
+                    setParts.add(column + " = " + r.sql());
+                    params.addAll(r.params());
+                }
+                continue;
+            }
             Object value = resolveDataUpdateValue(setOp.getValue(), vars);
             switch (mode) {
                 case BackendDataUpdateConfig.MODE_SET -> setParts.add(column + " = ?");

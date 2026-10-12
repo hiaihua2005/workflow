@@ -192,6 +192,7 @@ public class LogicFlowDslValidator {
      * 单表形态 table 必填且为合法标识符；多表形态 updates 逐项校验（table 合法标识符 /
      * setOps 非空 / alias 可选 \w+ 且唯一 / 条目数 ≤ {@link BackendDataUpdateConfig#MAX_UPDATES}）。
      * setOps 逐项 column 非空 / mode ∈ SET,ADD,SUB / value 非空（ADD/SUB 须数字）；
+     * SET 的 value 以 = 开头（表达式）时做语法/函数白名单/占位符格式校验（列存在性运行期校验）；
      * where 逐项 column 非空 / op ∈ EQ,NE,GT,GTE,LT,LTE,IS_NULL,NOT_NULL / 非空判定类 op 须带 value。
      * 表/列存在性运行期校验（发布时目标表可能尚未由表单发布创建）。
      */
@@ -276,6 +277,17 @@ public class LogicFlowDslValidator {
             } else if (("ADD".equals(normalizedMode) || "SUB".equals(normalizedMode))
                     && !isNumericText(setOp.get("value").asText())) {
                 errors.add(label + mode + " 模式 value 须为数字或 {{数值变量}}: " + setOp.get("value").asText());
+            } else if ("SET".equals(normalizedMode)) {
+                // = 前缀表达式（== 为转义）：发布期无列元数据，仅做语法/函数白名单/占位符格式校验，
+                // 列存在性由运行期引擎按目标表元数据校验
+                String v = setOp.get("value").asText().trim();
+                if (v.startsWith("=") && !v.startsWith("==")) {
+                    try {
+                        UpdateExprTranslator.translate(v.substring(1), null, null);
+                    } catch (IllegalArgumentException e) {
+                        errors.add(label + " " + e.getMessage());
+                    }
+                }
             }
         }
     }

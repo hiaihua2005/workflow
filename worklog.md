@@ -7238,3 +7238,21 @@ Work Log:
 Stage Summary:
 - 方案已定稿并经用户确认开工；契约：value 以 = 开头 → 引擎剥 = 后走 UpdateExprTranslator（词法:{{path}}/数字/单引号串/标识符/+-*/%(), 语法:递归下降；语义:标识符→列白名单输出真实列名、{{}}→resolver→参数、字面量→参数；SQL 文本仅含白名单列名/函数名/运算符，其余全 ? 参数绑定，防注入不破坏）；== 前缀=转义字面量=；ADD/SUB 不支持 = 前缀（requireNumeric 自然拒绝）；refScan/renameRef 零改动（value 字段不变）
 - 串行任务：2-a 后端 UpdateExprTranslator+引擎分支+发布校验+JUnit → 2-b 前端 bare #/列补全/高亮/面板接入 → 3 集成 E2E
+
+---
+Task ID: patrol-446961-r19
+Agent: cron-patrol
+Task: D+ 轻量运维巡检（Job 446961）——假绿检出与全链路恢复
+
+Work Log:
+- r19 dump 失败（workflow dump 无效）→ 四链路 200 但 8080 真伪核验 "no such table: SYS_USER" = Node 假绿（环境重供给）
+- recover-dplus.sh 执行：MariaDB 拉起 ok，但 dump 导入环节 mariadb 客户端 libncurses.so.6 加载失败 → 导入未执行，workflow 库为 Flowable 半建表态（flw_ru_batch already exists，Java 起不来）
+- 手工修复：①TCP(127.0.0.1:3306) root/740130 可用（socket root@localhost 插件异常）②drop 半建库遇 errno 39 → 清 datadir 残留老 .ibd（Oct8 混合态）③重建 workflow/workflow_v6 + 导入 r18 有效 dump（051233：95+40 表、sys_user=2）④ALTER root@localhost IDENTIFIED BY '740130' 修复 socket 认证
+- Java 手动 setsid 拉起成功（Started 17s、服务过请求）但随后无声消失（非 OOM，oom_kill=0）→ 改用 start-services.sh（前台探活循环长致 300s 超时截断，但服务实际全部拉起）
+- 清理卡死残留 recover 进程（pid1312，wait mariadbd）
+
+Stage Summary:
+- r19 终态：全绿 200×4 + accessToken 真绿；dump OK（062449）；vite/Java/MariaDB 均在位
+- 【已知问题】recover-dplus.sh 的 dump 导入环节 libncurses 库路径依赖脆弱（重供给后首跑必失败）→ 建议：脚本内统一 export LD_LIBRARY_PATH 且导入命令加库路径前缀；start-services.sh 前台探活超 300s 需后台化
+- 【git 核查】CM6 文件（expression/{cm6.ts,ExpressionEditor.vue,uelVars.ts}）在重供给后完好，仓库历史经恢复链路重建（哈希变更），工作树干净
+- 开发任务（lf-du-expr 数据更新表达式）：方案已定稿（worklog lf-du-expr-1）；后端 2-a 子代理两次派发均被 context cancel 中断，实施待续

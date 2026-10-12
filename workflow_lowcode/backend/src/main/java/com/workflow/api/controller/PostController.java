@@ -1,7 +1,6 @@
 package com.workflow.api.controller;
 
 import com.workflow.common.domain.R;
-import com.workflow.system.domain.entity.SysPost;
 import com.workflow.system.service.PostService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,47 +38,24 @@ public class PostController {
                                        @RequestParam(defaultValue = "20") int size,
                                        @RequestParam(required = false) String keyword,
                                        @RequestParam(required = false) Integer status) {
-        List<SysPost> all = postService.listAll();
-        List<SysPost> filtered = all.stream()
-                .filter(p -> status == null || status.equals(p.getStatus()))
-                .filter(p -> matchKeyword(p, keyword))
-                .toList();
-
-        int safePage = Math.max(page, 1);
-        int safeSize = Math.max(size, 1);
-        int from = Math.min((safePage - 1) * safeSize, filtered.size());
-        int to = Math.min(from + safeSize, filtered.size());
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("rows", filtered.subList(from, to));
-        body.put("total", filtered.size());
-        body.put("page", safePage);
-        body.put("size", safeSize);
-        return R.ok(body);
+        // 分页/过滤/包装由服务层完成（对齐 PostService.list）
+        return R.ok(postService.list(page, size, keyword, status));
     }
 
     /** 启用岗位下拉选项（用户表单 / 成员组规则用）。 */
     @GetMapping("/options")
     public R<List<Map<String, Object>>> options() {
-        List<Map<String, Object>> rows = new ArrayList<>();
-        for (SysPost p : postService.options()) {
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("id", p.getId());
-            row.put("postCode", p.getPostCode());
-            row.put("postName", p.getPostName());
-            rows.add(row);
-        }
-        return R.ok(rows);
+        return R.ok(postService.listOptions());
     }
 
     @PostMapping
-    public R<SysPost> create(@RequestBody PostSaveRequest form) {
+    public R<Map<String, Object>> create(@RequestBody PostSaveRequest form) {
         return R.ok(postService.create(form.postCode(), form.postName(),
                 form.description(), form.sortOrder(), form.status()));
     }
 
     @PutMapping("/{id}")
-    public R<SysPost> update(@PathVariable Long id, @RequestBody PostSaveRequest form) {
+    public R<Map<String, Object>> update(@PathVariable Long id, @RequestBody PostSaveRequest form) {
         return R.ok(postService.update(id, form.postCode(), form.postName(),
                 form.description(), form.sortOrder(), form.status()));
     }
@@ -88,15 +64,6 @@ public class PostController {
     public R<Void> delete(@PathVariable Long id) {
         postService.delete(id);
         return R.ok();
-    }
-
-    private boolean matchKeyword(SysPost p, String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            return true;
-        }
-        String k = keyword.toLowerCase();
-        return (p.getPostName() != null && p.getPostName().toLowerCase().contains(k))
-                || (p.getPostCode() != null && p.getPostCode().toLowerCase().contains(k));
     }
 
     /** 保存表单（create/update 共用；字段全部可选，服务端按语义校验）。 */

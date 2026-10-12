@@ -36,6 +36,11 @@ import java.util.List;
  *   <li>setOps.mode：SET（直接赋值）| ADD（col = col + ?）| SUB（col = col - ?），
  *       ADD/SUB 的 value 须为数值（字面量或 {{var}} 解析结果）；</li>
  *   <li>value：支持 {@code {{var}}} 与 {@code {{formData.xxx}}} 点路径取值，否则按字面量；</li>
+ *   <li>value 以 {@code =} 开头（仅 SET 模式）→ 表达式：裸列名引用目标表该行当前值、
+ *       {@code {{var}}} 与数字/单引号字符串全部转 ? 参数绑定（SQL 文本不内联字面量），
+ *       函数白名单 ROUND/ABS/FLOOR/CEIL/IFNULL/COALESCE/GREATEST/LEAST，
+ *       例 {@code "= qty * {{formData.rate}} + 10"}；{@code ==} 前缀为转义（字面量 {@code =} 开头值）；
+ *       列名/函数白名单由引擎按目标表元数据校验（发布期做语法校验）；</li>
  *   <li>where.op：EQ | NE | GT | GTE | LT | LTE | IS_NULL | NOT_NULL（AND 连接）；</li>
  *   <li>updates[].alias：可选输出别名（\w+，多表内唯一），缺省输出键为 t{序号}；</li>
  *   <li>多表形态输出：{@code { total, affected, <别名|t{i}>: {table, affected}, ... }}，
