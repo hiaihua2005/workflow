@@ -82,7 +82,7 @@
 
 <script setup lang="ts">
 import ContainerButtons from '@/views/form/components/ContainerButtons.vue'
-import { ref, reactive, computed, onMounted, provide, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, provide, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import formCreate from '@form-create/element-ui'
@@ -110,6 +110,8 @@ import { normalizeForRender, deepDisableRules } from '@/views/form/schemaRules'
 import { setActiveDsBindings } from '@/utils/formDsBindingsStore'
 import { resolveOptionRules, hasOptionDatasource } from '@/vendor/option-datasource'
 import { useLinkageContainer } from '@/views/form/composables/useLinkageContainer'
+import { registerPageExecutor, type ActionOutcome } from '@/utils/aiPageExecutor'
+import type { AiPageAction } from '@/types/aiPageAction'
 
 // 注册页面数据组件到 form-create（type: page-table / page-tree）
 formCreate.component('page-table', PageDataTable)
@@ -312,6 +314,205 @@ const dialogPopContainers = computed(() => dialogContainers.value.filter((c) => 
 const drawerContainers = computed(() => dialogContainers.value.filter((c) => c.displayMode === 'drawer'))
 
 onMounted(load)
+
+// ==================== AI 页面操作（L1 执行器 + 组件清单上报） ====================
+/** 数据组件能力表（type → 可用动作） */
+const AI_PAGE_CAPS: Record<string, string[]> = {
+  'page-table': ['refresh', 'set-filter', 'open-create', 'delete-rows', 'read-table', 'get-selected'],
+  'page-tree': ['refresh', 'read-table'],
+  'page-list-cards': ['refresh', 'set-filter', 'read-table'],
+  'page-form': ['set-value', 'set-values', 'submit', 'get-values', 'load'],
+  'page-tree-table': ['refresh', 'read-table'],
+  'page-detail': [],
+  'page-chart': [],
+}
+
+const unregisterAiExecutor = registerPageExecutor({
+  routePath: route.path,
+  pageType: 'page',
+  manifest: () => buildPageManifest(),
+  execute: (action) => executePageAction(action),
+})
+onUnmounted(unregisterAiExecutor)
+
+/** PAGE 轨组件清单（供 page_control 定位） */
+function buildPageManifest(): Record<string, unknown> {
+  const nodes = collectPageNodes(rule.value)
+  const dsNodes = new Map<string, { type: string; title?: string }>()
+  for (const n of nodes) {
+    if (n.props?.dataSourceId && !dsNodes.has(n.props.dataSourceId)) {
+      dsNodes.set(n.props.dataSourceId, { type: String(n.type), title: n.props.title ? String(n.props.title) : undefined })
+    }
+  }
+  return {
+    pageType: 'page',
+    title: pageKey.value,
+    dataSources: pageSchema.dataSources.map((d) => {
+      const node = dsNodes.get(d.id)
+      return {
+        id: d.id,
+        type: node?.type ?? 'unknown',
+        title: node?.title,
+        capabilities: node ? (AI_PAGE_CAPS[node.type] ?? []) : [],
+      }
+    }),
+    formFields: collectRuleFields(rule.value),
+    buttons: ['refresh', 'set-filter', 'set-value', 'open-create', 'submit', 'read-table', 'get-state', 'expect', 'open-container', 'close-container'],
+    note: 'page-form 的字段以 get-values/get-state 返回为准；容器（弹窗表单）用 open-container/close-container 控制',
+  }
+}
+
+/** 递归收集 rule 树节点（含 children/props.rule） */
+function collectPageNodes(rules: any[], out: any[] = []): any[] {
+  for (const node of rules ?? []) {
+    if (!node || typeof node !== 'object') continue
+    out.push(node)
+    if (Array.isArray(node.children)) collectPageNodes(node.children, out)
+    if (Array.isArray(node.props?.rule)) collectPageNodes(node.props.rule, out)
+  }
+  return out
+}
+
+/** 递归收集表单字段（field/title/type） */
+function collectRuleFields(rules: any[]): { field: string; title: string; type: string }[] {
+  const fields: { field: string; title: string; type: string }[] = []
+  for (const node of collectPageNodes(rules)) {
+    if (typeof node.field === 'string' && node.field) {
+      fields.push({ field: node.field, title: typeof node.title === 'string' ? node.title : '', type: String(node.type ?? '') })
+    }
+  }
+  return fields
+}
+
+/** PAGE 轨动作执行（数据组件筛选/刷新/赋值/提交/读表格/容器控制/断言） */
+async function executePageAction(action: AiPageAction): Promise<ActionOutcome> {
+  const op = action.op
+  const target = action.target as string | undefined
+  const field = (action.field ?? (target && !componentRefs[target] && !target.startsWith('lc-') ? target : '')) as string
+  const compOf = (t?: string) => (t ? componentRefs[t] : undefined)
+  const okData = (data?: unknown) => ({ ok: true, data })
+  switch (op) {
+    case 'set-filter': {
+      const comp = compOf(target)
+      if (!comp?.setFilter) return { ok: false, error: `目标「${target ?? '缺失'}」不是可筛选数据组件（可用：${Object.keys(componentRefs).join('/') || '无'}）` }
+      comp.setFilter({ [field]: action.value })
+      await sleepMs(600)
+      return okData(`已筛选 ${field}=${JSON.stringify(action.value)}`)
+    }
+    case 'refresh': {
+      if (target) {
+        if (!compOf(target)?.refresh) return { ok: false, error: `目标「${target}」不支持刷新` }
+        compOf(target).refresh()
+      } else {
+        Object.values(componentRefs).forEach((c) => (c as { refresh?: () => void })?.refresh?.())
+      }
+      await sleepMs(600)
+      return okData('数据已刷新')
+    }
+    case 'set-value':
+    case 'set-values': {
+      const comp = compOf(target)
+      const partial = op === 'set-values' && action.params && typeof action.params === 'object'
+        ? (action.params as Record<string, unknown>)
+        : { [field]: action.value }
+      if (comp?.setValue || comp?.setValues) {
+        if (comp.setValues) comp.setValues(partial)
+        else comp.setValue(field, action.value)
+        return okData(`已赋值 ${JSON.stringify(partial).slice(0, 80)}`)
+      }
+      // 回退：主表单 formData（formContainer 场景）
+      if (field && collectRuleFields(rule.value).some((f) => f.field === field)) {
+        formData.value = { ...formData.value, ...partial }
+        return okData(`已赋值 ${JSON.stringify(partial).slice(0, 80)}`)
+      }
+      return { ok: false, error: `set-value 目标必须是 page-form 数据组件（target=数据源id）或主表单字段（field）；可用字段：${collectRuleFields(rule.value).map((f) => f.field).join('/') || '无'}` }
+    }
+    case 'open-create': {
+      const comp = compOf(target)
+      if (!comp?.openCreate) return { ok: false, error: `目标「${target ?? '缺失'}」不支持打开新增（需 page-table）` }
+      comp.openCreate()
+      return okData('已打开新增弹窗')
+    }
+    case 'submit': {
+      const comp = target ? compOf(target) : Object.values(componentRefs).find((c) => typeof (c as { submit?: unknown })?.submit === 'function')
+      if (!comp?.submit) return { ok: false, error: '未找到可提交的 page-form 组件（target=其数据源id）' }
+      await comp.submit()
+      return okData('提交完成')
+    }
+    case 'get-values': {
+      const comp = target ? compOf(target) : Object.values(componentRefs).find((c) => typeof (c as { getValues?: unknown })?.getValues === 'function')
+      if (!comp?.getValues) return { ok: false, error: '未找到 page-form 组件（target=其数据源id）' }
+      return okData({ values: comp.getValues() })
+    }
+    case 'delete-rows': {
+      const comp = compOf(target)
+      if (!comp?.deleteRows) return { ok: false, error: `目标「${target ?? '缺失'}」不支持批量删除（需 page-table 且已勾选行）` }
+      await comp.deleteRows()
+      return okData('删除完成')
+    }
+    case 'read-table': {
+      const comp = (target ? compOf(target) : Object.values(componentRefs).find((c) => Array.isArray((c as { records?: unknown })?.records))) as { records?: unknown[] } | undefined
+      const rows = Array.isArray(comp?.records) ? comp!.records : []
+      const limit = Number((action.params as { limit?: number } | undefined)?.limit ?? 10)
+      return okData({ total: rows.length, rows: rows.slice(0, Math.max(1, Math.min(limit, 50))) })
+    }
+    case 'open-container': {
+      const c = findContainer(target ?? '')
+      if (!c) return { ok: false, error: `容器「${target}」不存在（可用：${containers.value.map((x) => x.key).join('/') || '无'}）` }
+      openContainer(target ?? '', String(action.value ?? eventDataRowId() ?? ''))
+      return okData(`已打开容器 ${target}`)
+    }
+    case 'close-container': {
+      closeContainer(target ?? '')
+      return okData('容器已关闭')
+    }
+    case 'get-state':
+      return okData({
+        formData: { ...formData.value },
+        currentRecordId: currentRecordId.value,
+        components: Object.keys(componentRefs),
+        containers: containers.value.map((x) => ({ key: x.key, title: x.title, visible: x.visible })),
+      })
+    case 'expect': {
+      const p = (action.params ?? {}) as { type?: string; expected?: unknown; comparator?: string }
+      let actual: unknown
+      if (p.type === 'rows') {
+        const comp = (target ? compOf(target) : Object.values(componentRefs).find((c) => Array.isArray((c as { records?: unknown })?.records))) as { records?: unknown[] } | undefined
+        actual = Array.isArray(comp?.records) ? comp!.records.length : 0
+      } else if (p.type === 'value') {
+        actual = formData.value[field]
+      } else {
+        actual = JSON.stringify(formData.value)
+      }
+      const pass = compareExpect(actual, p.expected, p.comparator ?? 'eq')
+      return pass
+        ? okData({ actual, expected: p.expected, pass })
+        : { ok: false, data: { actual, expected: p.expected, pass }, error: `断言失败：actual=${JSON.stringify(actual)} ${p.comparator ?? 'eq'} ${JSON.stringify(p.expected)}` }
+    }
+    default:
+      return { ok: false, error: `自定义页面不支持「${op}」（支持：set-filter/refresh/set-value/open-create/submit/get-values/delete-rows/read-table/open-container/close-container/get-state/expect）` }
+  }
+}
+
+function eventDataRowId(): string {
+  return String(currentRecordId.value ?? '')
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((r) => window.setTimeout(r, ms))
+}
+
+function compareExpect(actual: unknown, expected: unknown, comparator: string): boolean {
+  switch (comparator) {
+    case 'contains': return String(actual ?? '').includes(String(expected ?? ''))
+    case 'notEmpty': return actual !== '' && actual !== null && actual !== undefined
+    case 'gt': return Number(actual) > Number(expected)
+    case 'lt': return Number(actual) < Number(expected)
+    case 'ge': return Number(actual) >= Number(expected)
+    case 'le': return Number(actual) <= Number(expected)
+    default: return String(actual ?? '') === String(expected ?? '')
+  }
+}
 
 // ========== 强制刷新（keep-alive 场景） ==========
 // AdminLayout 菜单重击当前页签时携带 query._t 强制导航。缓存的所有实例都会收到

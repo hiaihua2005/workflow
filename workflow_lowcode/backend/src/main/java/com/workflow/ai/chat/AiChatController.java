@@ -56,6 +56,8 @@ public class AiChatController {
         List<ChatMessage> history = toHistory(request.history());
         List<PageRef> pages = request.context() == null || request.context().menus() == null
                 ? List.of() : request.context().menus();
+        // 当前页面组件清单（前端上报 JSON 字符串，供 page_control 精准定位；可能为空）
+        JsonNode pageManifest = parseManifest(request.context() == null ? null : request.context().pageManifest());
 
         if (!properties.isConfigured()) {
             return sse("error", Map.of("code", AiException.Code.CONFIG_MISSING.name(), "msg", "AI 服务未配置"));
@@ -64,7 +66,7 @@ public class AiChatController {
         StringBuilder body = new StringBuilder();
         body.append(sse("meta", Map.of("model", properties.getModel())));
         try {
-            agentService.chat(history, message, pages, new AiAgentService.Events() {
+            agentService.chat(history, message, pages, pageManifest, new AiAgentService.Events() {
                 @Override
                 public void toolCall(String name, JsonNode args) {
                     body.append(sse("tool_call", Map.of("name", name, "args", args)));
@@ -80,6 +82,11 @@ public class AiChatController {
                     body.append(sse("message", Map.of(
                             "text", text,
                             "navigations", navigations == null ? List.of() : navigations)));
+                }
+
+                @Override
+                public void pageActions(JsonNode actions) {
+                    body.append(sse("page_action", Map.of("actions", actions == null ? List.of() : actions)));
                 }
             });
             body.append(sse("done", Map.of()));
@@ -101,6 +108,20 @@ public class AiChatController {
             json = "{}";
         }
         return "event:" + event + "\n" + "data:" + json + "\n\n";
+    }
+
+    /** 页面清单 JSON 字符串 → JsonNode（本项目 ObjectMapper 对 record 内 JsonNode 字段反序列化异常，故走 String 传输） */
+    private JsonNode parseManifest(String manifest) {
+        if (manifest == null || manifest.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(manifest);
+            return node == null || node.isNull() || !node.isObject() ? null : node;
+        } catch (Exception e) {
+            log.debug("pageManifest 解析失败，忽略: {}", e.getMessage());
+            return null;
+        }
     }
 
     private static String safe(String s) {
@@ -144,8 +165,11 @@ public class AiChatController {
          * @param route 当前路由标识
          * @param formId 当前表单 id（可空）
          * @param menus 用户可访问菜单页面（供 open_page 白名单）
+         * @param pageManifest 当前页面组件清单 JSON 字符串（page_control 定位依据，可空；
+         *                     结构：{pageType,title,queryFields[],tableColumns[],dataSources[],formFields[],buttons[],domElements[]}
+         *                     ，由前端 getActiveManifest 构建）
          */
-        public record ChatContext(String route, String formId, List<PageRef> menus) {
+        public record ChatContext(String route, String formId, List<PageRef> menus, String pageManifest) {
         }
     }
 }

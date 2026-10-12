@@ -7473,3 +7473,23 @@ Work Log:
 Stage Summary:
 - 大模型服务可视化动态配置落地：外部部署在「系统管理→模型配置」填 OpenAI 兼容端点/Key/模型名即可，保存即生效无需重启；静态 env/yml/沙箱桥接降级为默认兜底，开箱即用语义不变
 - 未决观察：①配置接口鉴权沿用平台惯例（仅登录态，无方法级角色注解，与现有 system 控制器一致）②前端无 lint 脚本（Vue 子项目仅 dev/build），以 vite 实时编译+浏览器 console 为准
+
+---
+Task ID: ai-page-action-impl
+Agent: main
+Task: 「AI 助手通过 LLM 操作页面」全量落地（用户确认按对话方案全量不打折扣实施）
+
+Work Log:
+- 环境恢复：发现容器重供给导致本地代码回退（缺 ai-config 等近期功能），核对 origin/main 为全量正本后备份分叉（backup/local-divergence-20261013 @ ade87418）并 reset 到 origin/main（213b3746）；重建 jar 使模型配置功能恢复（/api/ai-config 200）
+- 数据修复：为 test1 页面补挂菜单（sys_menu 9320 + 授权）；重建被环境重置丢失的 bill_test 表单定义（wf_form_def 补 schema + column_config 含 person_id 主表关联字段），恢复请假表格数据链路
+- 后端（5 文件）：新增 PageControlTool（page_control 工具，actions 结构校验原样透传）；AiAgentService 扩展 Events.pageActions + chat 增加 pageManifest 参数注入系统提示（上限 8000 字符）+ BASE_PROMPT 增「页面操作」章节（op 语义/observation 回传约定/测试用例生成协议 [TESTGEN]）+ MAX_STEPS 5→8；AiChatController 新增 SSE page_action 帧 + ChatContext.pageManifest（String 传输，服务端 readTree 解析）+ parseManifest；两处测试文件适配新签名
+- 前端新增（5 文件）：types/aiPageAction.ts（协议：AiPageAction/AiActionResult/AiPageManifest/DANGER_OPS/ExecuteOptions）；utils/aiPageContext.ts（页面清单注册中心 + L3 DOM 扫描器：可见性判定/label 提取/data-ai-idx 标记/重扫防漂移，上限 50 元素）；utils/aiPageExecutor.ts（三层分发执行器：L1/L2 PageExecutor 注册 + routePath 守卫防 keep-alive 串页、L3 click/fill/get-state/expect、danger 确认钩子、目标高亮 .ai-flash-target、navigate 全局路由、录制钩子、registerPageActions L2 组合式）；utils/aiTestRecorder.ts（用例录制/回放/导入导出/报告，localStorage 持久化）；components/ai/AiTestPanel.vue（用例页签：录制开关/回放报告/重命名/删除/导入导出/AI 生成）
+- 前端改造（7 文件）：api/ai.ts 增加 page_action 事件；aiAssistantStore 增加 mode(float/dock)/executing/panelTab/autoConfirm + AiMessage.actionResults/observation；AiAssistantOrb 重写（对话/用例页签、float/dock 双形态停靠、执行时自动收起成球+进度徽标、动作结果芯片、observation 占位行、多轮动作循环编排 ≤6 轮、ElMessageBox 危险确认、manifest 随请求上报）；PageRenderer 注册 VIEW 轨执行器（set-query/search/reset/refresh/sort/open-create/set-value 弹窗表单/validate/submit/delete-rows/read-table/get-state/expect + buildViewManifest）；PageRendererPage 注册 PAGE 轨执行器（set-filter/refresh/set-value/open-create/submit/get-values/delete-rows/read-table/open-container/close-container/get-state/expect + buildPageManifest 按 dataSourceId 聚合能力表）；FormRenderer 增加 setFormData（字段白名单过滤）；PageDataForm 增加 setValue/setValues/submit/getValues；AiConfigPage 作 L2 示范注册（set-value/click save-test/get-state/expect）
+- E2E 排障：①PageRendererPage onUnmounted(unregister) TDZ 引用错误致页面崩溃 → 调整声明顺序 ②PageControlTool schema 中 value 写成字符串 "any" 被 GLM 网关 400 拒绝（API 1210）→ 改为标准 object schema ③ChatContext.pageManifest 用 JsonNode 字段在本项目 ObjectMapper 下反序列化异常（Type definition error→前端侧表现为 401）→ 改 String 传输 + readTree 解析 ④L3 parseDomTarget 被无条件调用导致 get-state/expect 误报 → 移入 click/fill 分支
+- E2E 全绿（agent-browser）：L1 读表格（AI 回显真实行数据 admin/事假/1 天）、L2 模型配置改模型名保存+改回、L3 用户管理页 get-state 读回 5 个输入框 + fill admin + click 查询（错误反馈引导 LLM 自纠正 #ai-N）、多步链式（refresh→read-table 一次指令两动作）、停靠模式（body 让位 380px）、用例录制→回放→报告「全部通过 601ms」；控制台无 JS 错误；截图 backups/ai-page-action-e2e.png
+- 类型检查：本特性全部文件 0 错误（vue-tsc 56 个预存错误均非本次改动文件）；后端 mvn package 通过
+
+Stage Summary:
+- 全量方案六层能力全部落地：L1 结构化动作（VIEW/PAGE 双轨）+ L2 页面注册层（含示范页）+ L3 DOM 兜底 + get_state 回读 + 多步循环（≤6 轮防死循环）+ 危险动作确认 + 目标高亮 + 执行时浮窗自动收起 + 侧边栏停靠 + 测试用例录制/回放/AI 生成（[TESTGEN] 协议）
+- 设计者产出的新页面自动获得 AI 可操作性（动作层在运行时）；关键教训：GLM 网关对工具 schema 严格校验（属性值必须是 schema 对象）；本项目 record 内 JsonNode 字段反序列化异常，跨端结构化数据走 String
+- 遗留观察：L1 高亮目前 best-effort（VIEW 轨闪烁查询卡，组件级高亮需组件 expose $el）；L3 el-select 填值仅基础实现；L2 注册层其余管理页可按 AiConfigPage 模式增量铺开

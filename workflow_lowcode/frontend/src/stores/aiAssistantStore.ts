@@ -10,9 +10,14 @@ export interface AiMessage {
   formResult?: { applied: boolean }
   /** 助手提供的页面入口（点击跳转） */
   navigations?: { label: string; path: string }[]
+  /** 页面动作执行结果（多步操作气泡，紧凑芯片展示） */
+  actionResults?: import('@/types/aiPageAction').AiActionResult[]
+  /** observation 回传消息（隐藏正文，仅显示占位行） */
+  observation?: boolean
 }
 
 const VISIBLE_KEY = 'ai_assistant_visible'
+const MODE_KEY = 'ai_assistant_mode'
 
 let seq = 0
 function nextId(): string {
@@ -28,6 +33,19 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
   const visible = ref(localStorage.getItem(VISIBLE_KEY) !== '0')
   const messages = ref<AiMessage[]>([])
   const context = ref<Record<string, unknown> | null>(null)
+  /** 面板形态：float=悬浮窗（默认）/ dock=右侧停靠栏（不遮挡页面） */
+  const mode = ref<'float' | 'dock'>((localStorage.getItem(MODE_KEY) as 'float' | 'dock') || 'float')
+  /** AI 正在执行页面动作（面板收起让出视野 + 悬浮球进度态） */
+  const executing = ref(false)
+  /** 面板页签：chat=对话 / tests=测试用例 */
+  const panelTab = ref<'chat' | 'tests'>('chat')
+  /** 危险动作自动确认（测试回放场景可开；默认关闭走确认弹窗） */
+  const autoConfirm = ref(false)
+
+  function setMode(value: 'float' | 'dock'): void {
+    mode.value = value
+    localStorage.setItem(MODE_KEY, value)
+  }
 
   function toggle(): void {
     setVisible(!visible.value)
@@ -43,8 +61,9 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
     content: string,
     formResult?: AiMessage['formResult'],
     navigations?: AiMessage['navigations'],
+    extra?: Pick<AiMessage, 'actionResults' | 'observation'>,
   ): AiMessage {
-    const message: AiMessage = { id: nextId(), role, content, formResult, navigations }
+    const message: AiMessage = { id: nextId(), role, content, formResult, navigations, ...extra }
     messages.value.push(message)
     return message
   }
@@ -58,5 +77,8 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
     context.value = value
   }
 
-  return { visible, messages, context, toggle, setVisible, addMessage, clear, setContext }
+  return {
+    visible, messages, context, mode, executing, panelTab, autoConfirm,
+    toggle, setVisible, setMode, addMessage, clear, setContext,
+  }
 })

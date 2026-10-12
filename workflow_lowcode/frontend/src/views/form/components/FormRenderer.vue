@@ -590,6 +590,29 @@ function getFormData(): Record<string, unknown> {
   return withArrayLabels(formData.value, resolvedSchema.value)
 }
 
+/** 外部赋值（AI 页面操作/联动）：合并写入表单数据模型，仅写入已定义字段避免污染 */
+function setFormData(partial: Record<string, unknown>): void {
+  const fields = new Set<string>()
+  collectFieldNames(resolvedSchema.value, fields)
+  const merged: Record<string, unknown> = { ...formData.value }
+  for (const [key, value] of Object.entries(partial ?? {})) {
+    if (fields.size === 0 || fields.has(key)) merged[key] = value
+  }
+  formData.value = merged
+}
+
+/** 递归收集 rule 树的字段名 */
+function collectFieldNames(rules: unknown[], out: Set<string>): void {
+  for (const item of rules ?? []) {
+    const node = item as Record<string, unknown>
+    if (typeof node?.field === 'string' && node.field) out.add(node.field)
+    if (Array.isArray(node?.children)) collectFieldNames(node.children as unknown[], out)
+    if (Array.isArray(node?.rule)) collectFieldNames(node.rule as unknown[], out)
+    const propsRule = (node?.props as Record<string, unknown> | undefined)?.rule
+    if (Array.isArray(propsRule)) collectFieldNames(propsRule as unknown[], out)
+  }
+}
+
 /** form-create 实例 API（校验等），通过全局注入获取 */
 const formCreateApi = ref<{ validate: () => Promise<boolean> } | null>(null)
 onMounted(() => {
@@ -797,7 +820,7 @@ async function saveSnapshot(): Promise<boolean> {
   }
 }
 
-defineExpose({ submit, saveSnapshot, getFormData, validate, loadSchema, loadData, reloadRecord })
+defineExpose({ submit, saveSnapshot, getFormData, setFormData, validate, loadSchema, loadData, reloadRecord })
 </script>
 
 <style scoped>

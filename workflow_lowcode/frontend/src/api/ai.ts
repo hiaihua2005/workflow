@@ -27,6 +27,8 @@ export interface AiChatHandlers {
   onToolCall?: (name: string, args: unknown) => void
   onToolResult?: (name: string, result: unknown) => void
   onMessage?: (text: string, navigations: AiNavigation[]) => void
+  /** page_control 动作序列下发（AI 页面操作，执行后需回传 observation） */
+  onPageAction?: (actions: unknown[]) => void
   onDone?: () => void
   onError?: (error: { code: string; msg: string }) => void
 }
@@ -131,6 +133,11 @@ function dispatchBlock(block: string, handlers: AiChatHandlers): void {
         typeof payload?.text === 'string' ? payload.text : '',
         Array.isArray(payload?.navigations) ? payload.navigations : [],
       )
+      break
+    case 'page_action':
+      if (Array.isArray(payload?.actions)) {
+        handlers.onPageAction?.(payload.actions)
+      }
       break
     case 'done':
       handlers.onDone?.()

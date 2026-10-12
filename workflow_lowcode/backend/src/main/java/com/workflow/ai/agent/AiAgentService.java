@@ -14,6 +14,7 @@ import com.workflow.ai.support.AiUsageRecorder;
 import com.workflow.ai.tool.AiToolContext;
 import com.workflow.ai.tool.AiToolRegistry;
 import com.workflow.ai.tool.OpenPageTool;
+import com.workflow.ai.tool.page.PageControlTool;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -28,8 +29,11 @@ import java.util.Map;
 @Service
 public class AiAgentService {
 
-    /** 单次请求最大工具调用步数。 */
-    private static final int MAX_STEPS = 5;
+    /** 单次请求最大工具调用步数（页面操作多步链需更多步数）。 */
+    private static final int MAX_STEPS = 8;
+
+    /** 页面清单注入系统提示的最大字符数（防 prompt 膨胀）。 */
+    private static final int MAX_MANIFEST_CHARS = 8000;
 
     /** 单条回复最多附带的页面入口数。 */
     private static final int MAX_NAVIGATIONS = 3;
@@ -67,6 +71,22 @@ public class AiAgentService {
             - 工具执行后，用简洁的中文说明结果或操作步骤。
             - 与平台操作无关的问题，礼貌说明你只能协助平台内的操作。
             - 始终使用中文，回复简洁；列表用 `-`，不要输出多余空行。
+
+            ## 页面操作（page_control）
+            - 用户提出页面操作诉求（查询、填表、点击、提交、筛选、读取数据、测试页面等）时，
+              调用 page_control 下发动作序列；可用 op：
+              set-query(查询条件赋值)/search(执行查询)/reset(清空条件)/set-value(表单赋值)/
+              set-filter(数据组件筛选)/click(点击)/fill(输入)/open-create(打开新增)/
+              submit(提交表单)/validate(校验)/delete-rows(删除选中行，危险)/refresh(刷新)/
+              sort(排序 params:{sort,order})/navigate(跳转菜单路径)/get-state(读页面状态)/
+              read-table(读表格行数据 params:{limit})/expect(断言 params:{type,expected,comparator})。
+            - 动作结果以 {"observation":"page_action_result","results":[...]} 的用户消息回传：
+              ok=false 时阅读 error 修正后重试；需要分步时每次调用只带下一步动作。
+            - 只能使用「当前页面组件清单」中存在的 target/field；清单为空或无对应能力时如实告知用户。
+            - 填表时只写入用户明确给出的值，禁止编造；submit/delete-rows 等写操作前先用 get-state
+              确认关键值，并在回复中说明将要执行的操作。
+            - 若用户要求“生成测试用例/设计测试用例”（不执行）：直接输出 JSON 数组，不调用工具，
+              每条 {"name":"用例名","actions":[...]}，actions 使用上述 op；仅当用户要求“执行/回放”时才调用 page_control。
             """;
 
     private final ObjectProvider<ChatModel> chatModelProvider;
@@ -95,11 +115,11 @@ public class AiAgentService {
      * @param pages       当前用户可访问页面（供 open_page 白名单与系统提示）
      * @param events      事件回调（工具调用/结果/最终回复）
      */
-    public void chat(List<ChatMessage> history, String userMessage, List<PageRef> pages, Events events) {
+    public void chat(List<ChatMessage> history, String userMessage, List<PageRef> pages, JsonNode pageManifest, Events events) {
         ChatModel model = requireModel();
 
         List<ChatMessage> messages = new ArrayList<>();
-        messages.add(ChatMessage.system(buildSystemPrompt(pages)));
+        messages.add(ChatMessage.system(buildSystemPrompt(pages, pageManifest)));
         if (history != null) {
             messages.addAll(history);
         }
@@ -133,6 +153,10 @@ public class AiAgentService {
                 JsonNode toolResult = parse(toolResultJson);
                 events.toolResult(toolCall.name(), toolResult);
                 collectNavigation(toolCall.name(), toolResult, navigations);
+                // page_control：动作原样透传前端（SSE page_action 事件），工具结果仅回执 dispatched
+                if (PageControlTool.NAME.equals(toolCall.name()) && toolResult.path("dispatched").asBoolean(false)) {
+                    events.pageActions(toolResult.path("actions"));
+                }
                 messages.add(ChatMessage.tool(toolCall.id(), toolResultJson));
             }
         }
@@ -172,15 +196,22 @@ public class AiAgentService {
         return matched;
     }
 
-    /** 组装系统提示：固定约束 + 当前用户可访问页面清单。 */
-    private String buildSystemPrompt(List<PageRef> pages) {
-        if (pages == null || pages.isEmpty()) {
-            return BASE_PROMPT;
-        }
+    /** 组装系统提示：固定约束 + 当前用户可访问页面清单 + 当前页面组件清单（AI 页面操作依据）。 */
+    private String buildSystemPrompt(List<PageRef> pages, JsonNode pageManifest) {
         StringBuilder sb = new StringBuilder(BASE_PROMPT);
-        sb.append("\n用户可访问页面（open_page 的 path 必须取自此处）：\n");
-        for (PageRef page : pages) {
-            sb.append("- ").append(page.label()).append(" : ").append(page.path()).append('\n');
+        if (pages != null && !pages.isEmpty()) {
+            sb.append("\n用户可访问页面（open_page 的 path 必须取自此处）：\n");
+            for (PageRef page : pages) {
+                sb.append("- ").append(page.label()).append(" : ").append(page.path()).append('\n');
+            }
+        }
+        if (pageManifest != null && !pageManifest.isNull() && pageManifest.isObject()) {
+            String manifest = pageManifest.toString();
+            if (manifest.length() > MAX_MANIFEST_CHARS) {
+                manifest = manifest.substring(0, MAX_MANIFEST_CHARS) + "...（已截断）";
+            }
+            sb.append("\n当前页面组件清单（page_control 的 target/field 必须取自此处；\"\"=页面未识别，如实告知用户）：\n")
+              .append(manifest).append('\n');
         }
         return sb.toString();
     }
@@ -215,5 +246,9 @@ public class AiAgentService {
         void toolResult(String name, JsonNode result);
 
         void message(String text, List<PageRef> navigations);
+
+        /** page_control 动作序列下发（SSE page_action 事件，前端执行器消费）。 */
+        default void pageActions(JsonNode actions) {
+        }
     }
 }

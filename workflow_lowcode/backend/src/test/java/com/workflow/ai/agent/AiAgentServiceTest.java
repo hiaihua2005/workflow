@@ -98,7 +98,7 @@ class AiAgentServiceTest {
         when(chatModelProvider.getIfAvailable()).thenReturn(scripted(new ChatResult("你好", List.of())));
         Recorder rec = new Recorder();
 
-        service(new AiToolRegistry(List.of(new StubTool()))).chat(List.of(), "hi", List.of(), rec);
+        service(new AiToolRegistry(List.of(new StubTool()))).chat(List.of(), "hi", List.of(), null, rec);
 
         assertThat(rec.messages).containsExactly("你好");
         assertThat(rec.navigations).isEmpty();
@@ -112,7 +112,7 @@ class AiAgentServiceTest {
                 new ChatResult("已完成", List.of())));
         Recorder rec = new Recorder();
 
-        service(new AiToolRegistry(List.of(new StubTool()))).chat(List.of(), "生成", List.of(), rec);
+        service(new AiToolRegistry(List.of(new StubTool()))).chat(List.of(), "生成", List.of(), null, rec);
 
         assertThat(rec.calls).containsExactly("stub");
         assertThat(rec.results).containsExactly("stub");
@@ -127,7 +127,7 @@ class AiAgentServiceTest {
         Recorder rec = new Recorder();
         AiToolRegistry registry = new AiToolRegistry(List.of(new OpenPageTool(new ObjectMapper())));
 
-        service(registry).chat(List.of(), "表单管理在哪", List.of(new PageRef("/form", "表单管理")), rec);
+        service(registry).chat(List.of(), "表单管理在哪", List.of(new PageRef("/form", "表单管理")), null, rec);
 
         assertThat(rec.resultPayloads.get(0).path("path").asText()).isEqualTo("/form");
         assertThat(rec.navigations).extracting(PageRef::path).containsExactly("/form");
@@ -142,7 +142,7 @@ class AiAgentServiceTest {
                 new PageRef("/system/user", "用户管理"),
                 new PageRef("/system/role", "角色管理"));
 
-        service(new AiToolRegistry(List.of())).chat(List.of(), "怎么添加用户", pages, rec);
+        service(new AiToolRegistry(List.of())).chat(List.of(), "怎么添加用户", pages, null, rec);
 
         assertThat(rec.navigations).extracting(PageRef::path).containsExactly("/system/user");
     }
@@ -152,7 +152,7 @@ class AiAgentServiceTest {
         properties.setEnabled(false);
         Recorder rec = new Recorder();
 
-        assertThatThrownBy(() -> service(new AiToolRegistry(List.of())).chat(List.of(), "x", List.of(), rec))
+        assertThatThrownBy(() -> service(new AiToolRegistry(List.of())).chat(List.of(), "x", List.of(), null, rec))
                 .isInstanceOf(AiException.class)
                 .extracting(e -> ((AiException) e).getCode())
                 .isEqualTo(AiException.Code.CONFIG_MISSING);
