@@ -7074,3 +7074,26 @@ Work Log:
 Stage Summary:
 - 推送链路恢复；本地/远端完全同步
 - 后续每次重供给后需用户重新提供 PAT（已知既定模式）
+
+---
+Task ID: lf-designer-cn-dropdowns
+Agent: frontend-dev
+Task: 逻辑流设计器数据族组件的表单/字段属性改为中文名下拉选择（降低使用门槛）
+
+Work Log:
+- 需求：数据查询/数据新增/数据更新组件的「业务表单」「业务表单字段」属性全部改为下拉选择，下拉展示中文名称（或中英文）
+- 数据源：表单详情 API /v1/form-definitions/by-key/{key} 的 columnConfig（key/label/columnType/unique），沿用数据源筛选列标杆口径 columnOptionLabel（中文名(列名)）
+- PropertyPanel.vue 改造：
+  · DATA_QUERY 等值筛选列/关键字列：el-input → el-select（filterable+allow-create，字段选项=该表单 columnConfig）
+  · DATA_INSERT 新增字段：el-input → el-select（排除引擎托管列）
+  · DATA_DELETE 删除条件列：el-input → el-select
+  · DATA_UPDATE 目标表：全表平铺下拉 → 分组下拉（「业务表单」组 label=中文名（wf_biz_key），「其他数据表」组保留全表清单；value 仍为物理表名，DSL 兼容）；SET/WHERE 列选项附中文名
+  · DATA_UPSERT 冲突键/写入字段/更新覆盖：选项附中文名
+  · 新增共享业务表单清单 loadBizFormOptions（content/rows 双形状兼容）+ 列元数据缓存 ensureFormColumns + formKey 联动预取 watcher
+- 顺带修复既有 bug：loadBizForms 误读 res.data?.rows（后端实为 Spring content 形状）→ 数据查询/新增/删除的表单下拉一直为空；共享清单仅收 PUBLISHED（DRAFT 无动态表，运行期会失败）
+- 验证：vue-tsc PropertyPanel 0 错误（全库存量错误不涉及本文件）；vitest logicflow 86/86 通过；agent-browser E2E——pickup_stock_sync 数据新增字段下拉显示「物料编码(productCode) VARCHAR」等、leave_ledger_sync 数据查询等值筛选显示「员工姓名(employeeName) VARCHAR」等、数据更新目标表分组下拉（业务表单 8 项/其他数据表）与 SET 列「库存数量(stockQty) INT」全部符合预期；DSL 存量值不受影响（label 仅展示层）
+
+Stage Summary:
+- 逻辑流数据族五类节点（查询/新增/删除/更新/写入）的表单与字段配置全面中文化下拉，使用门槛显著降低
+- 修复数据查询/新增/删除表单下拉为空的既有 bug
+- 未修改引擎/DSL：value 语义不变（列 key/物理表名），纯展示层增强

@@ -419,17 +419,22 @@
 
                 <el-form-item required>
                   <template #label>
-                    <FieldLabel label="目标表" tip="下拉取数据库全部表清单；表名运行时校验合法性与存在性，值经参数绑定防注入" />
+                    <FieldLabel label="目标表单 / 表" tip="优先下拉业务表单（中文名 + 物理表名），字段列同步展示中文名；也可在「其他数据表」选库内其余表；表名运行时校验合法性与存在性，值经参数绑定防注入" />
                   </template>
                   <el-select
                     v-model="u.table"
                     filterable
                     :loading="duTablesLoading"
-                    placeholder="选择平台动态数据表"
+                    placeholder="选择业务表单或数据表"
                     clearable
                     class="du-table-select"
                   >
-                    <el-option v-for="t in duEntryTableOptions(u.table)" :key="t" :label="t" :value="t" />
+                    <el-option-group v-if="duFormTableOptions.length" label="业务表单">
+                      <el-option v-for="o in duFormTableOptions" :key="o.table" :label="o.label" :value="o.table" />
+                    </el-option-group>
+                    <el-option-group v-if="duOtherTableOptions(u.table).length" label="其他数据表">
+                      <el-option v-for="t in duOtherTableOptions(u.table)" :key="t" :label="t" :value="t" />
+                    </el-option-group>
                   </el-select>
                 </el-form-item>
 
@@ -452,9 +457,9 @@
                       placeholder="列名"
                       class="du-col"
                     >
-                      <el-option v-for="c in duEntryColumns(u)" :key="c.key" :label="c.key" :value="c.key">
+                      <el-option v-for="c in duEntryColumns(u)" :key="c.key" :label="c.label || c.key" :value="c.key">
                         <span class="du-col-opt">
-                          <span>{{ c.key }}</span>
+                          <span>{{ c.label || c.key }}</span>
                           <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
                         </span>
                       </el-option>
@@ -497,9 +502,9 @@
                       placeholder="列名"
                       class="du-col"
                     >
-                      <el-option v-for="c in duEntryColumns(u)" :key="c.key" :label="c.key" :value="c.key">
+                      <el-option v-for="c in duEntryColumns(u)" :key="c.key" :label="c.label || c.key" :value="c.key">
                         <span class="du-col-opt">
-                          <span>{{ c.key }}</span>
+                          <span>{{ c.label || c.key }}</span>
                           <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
                         </span>
                       </el-option>
@@ -594,7 +599,7 @@
                     placeholder="选择唯一字段"
                     class="du-table-select"
                   >
-                    <el-option v-for="c in upsertEntryConflictOptions(u.formKey)" :key="c" :label="c" :value="c" />
+                    <el-option v-for="c in upsertEntryConflictOptions(u.formKey)" :key="c.key" :label="c.label" :value="c.key" />
                   </el-select>
                   <div v-if="u.formKey && !upsertEntryLoading(u.formKey) && !upsertEntryConflictOptions(u.formKey).length" class="rows-empty du-warn">
                     该表单还没有任何标记为「唯一」的业务字段，因此无法判定数据重复：请到表单设计器的字段配置中，把用于判重的字段打开「唯一」开关并重新发布（发布时自动生成 (tenant_id, 字段) 复合唯一索引；tenant_id 列由系统自动创建和维护，不是缺少它）
@@ -620,9 +625,9 @@
                       placeholder="字段"
                       class="du-col"
                     >
-                      <el-option v-for="c in upsertColumnOptions(u.formKey, op.column)" :key="c.key" :label="c.key" :value="c.key">
+                      <el-option v-for="c in upsertColumnOptions(u.formKey, op.column)" :key="c.key" :label="c.label || c.key" :value="c.key">
                         <span class="du-col-opt">
-                          <span>{{ c.key }}</span>
+                          <span>{{ c.label || c.key }}</span>
                           <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
                         </span>
                       </el-option>
@@ -660,9 +665,9 @@
                       placeholder="字段"
                       class="du-col"
                     >
-                      <el-option v-for="c in upsertColumnOptions(u.formKey, op.column)" :key="c.key" :label="c.key" :value="c.key">
+                      <el-option v-for="c in upsertColumnOptions(u.formKey, op.column)" :key="c.key" :label="c.label || c.key" :value="c.key">
                         <span class="du-col-opt">
-                          <span>{{ c.key }}</span>
+                          <span>{{ c.label || c.key }}</span>
                           <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
                         </span>
                       </el-option>
@@ -720,7 +725,25 @@
               </div>
               <div v-if="!dataQueryCfg.filter.length" class="rows-empty">无条件：返回该表单全部数据</div>
               <div v-for="(f, i) in dataQueryCfg.filter" :key="i" class="du-row">
-                <el-input v-model="f.column" size="small" class="du-col" placeholder="列名" />
+                <el-select
+                  v-model="f.column"
+                  size="small"
+                  class="du-col"
+                  filterable
+                  allow-create
+                  default-first-option
+                  :loading="formColLoading(dataQueryCfg.formKey)"
+                  :disabled="!dataQueryCfg.formKey"
+                  :title="dataQueryCfg.formKey ? undefined : '先选择业务表单'"
+                  placeholder="选择字段"
+                >
+                  <el-option v-for="c in formColOptions(dataQueryCfg.formKey, f.column)" :key="c.key" :label="c.label" :value="c.key">
+                    <span class="du-col-opt">
+                      <span>{{ c.label }}</span>
+                      <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
+                    </span>
+                  </el-option>
+                </el-select>
                 <VarInput
                   v-model="f.value"
                   :variables="variables"
@@ -744,9 +767,27 @@
               </el-form-item>
               <el-form-item>
                 <template #label>
-                  <FieldLabel label="关键字列" tip="关键字匹配的目标列（须在表单列白名单内）" />
+                  <FieldLabel label="关键字列" tip="关键字匹配的目标列（须在表单列白名单内）；下拉列出该表单字段（中文名 + 列名）" />
                 </template>
-                <el-input v-model="dataQueryCfg.keywordColumn" placeholder="如：person_name" clearable />
+                <el-select
+                  v-model="dataQueryCfg.keywordColumn"
+                  filterable
+                  allow-create
+                  default-first-option
+                  clearable
+                  :loading="formColLoading(dataQueryCfg.formKey)"
+                  :disabled="!dataQueryCfg.formKey"
+                  :title="dataQueryCfg.formKey ? undefined : '先选择业务表单'"
+                  placeholder="选择关键字匹配字段"
+                  class="du-table-select"
+                >
+                  <el-option v-for="c in formColOptions(dataQueryCfg.formKey, dataQueryCfg.keywordColumn)" :key="c.key" :label="c.label" :value="c.key">
+                    <span class="du-col-opt">
+                      <span>{{ c.label }}</span>
+                      <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
+                    </span>
+                  </el-option>
+                </el-select>
               </el-form-item>
             </div>
             <el-form-item>
@@ -786,7 +827,25 @@
               </div>
               <div v-if="!dataInsertCfg.data.length" class="rows-empty">暂无字段</div>
               <div v-for="(f, i) in dataInsertCfg.data" :key="i" class="du-row">
-                <el-input v-model="f.column" size="small" class="du-col" placeholder="列名" />
+                <el-select
+                  v-model="f.column"
+                  size="small"
+                  class="du-col"
+                  filterable
+                  allow-create
+                  default-first-option
+                  :loading="formColLoading(dataInsertCfg.formKey)"
+                  :disabled="!dataInsertCfg.formKey"
+                  :title="dataInsertCfg.formKey ? undefined : '先选择业务表单'"
+                  placeholder="选择字段"
+                >
+                  <el-option v-for="c in formColOptions(dataInsertCfg.formKey, f.column, { excludeManaged: true })" :key="c.key" :label="c.label" :value="c.key">
+                    <span class="du-col-opt">
+                      <span>{{ c.label }}</span>
+                      <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
+                    </span>
+                  </el-option>
+                </el-select>
                 <VarInput
                   v-model="f.value"
                   :variables="variables"
@@ -854,7 +913,25 @@
                 </div>
                 <div v-if="!dataDeleteCfg.filter?.length" class="rows-empty du-warn">未配置条件（按 ID 删除请切换删除方式）</div>
                 <div v-for="(c, i) in dataDeleteCfg.filter ?? []" :key="i" class="du-row">
-                  <el-input v-model="c.column" size="small" class="du-col" placeholder="列名" />
+                  <el-select
+                    v-model="c.column"
+                    size="small"
+                    class="du-col"
+                    filterable
+                    allow-create
+                    default-first-option
+                    :loading="formColLoading(dataDeleteCfg.formKey)"
+                    :disabled="!dataDeleteCfg.formKey"
+                    :title="dataDeleteCfg.formKey ? undefined : '先选择业务表单'"
+                    placeholder="选择字段"
+                  >
+                    <el-option v-for="f in formColOptions(dataDeleteCfg.formKey, c.column)" :key="f.key" :label="f.label" :value="f.key">
+                      <span class="du-col-opt">
+                        <span>{{ f.label }}</span>
+                        <span v-if="f.type" class="du-col-type">{{ f.type }}</span>
+                      </span>
+                    </el-option>
+                  </el-select>
                   <el-select v-model="c.op" size="small" class="du-mode">
                     <el-option v-for="op in DATA_UPDATE_OPS" :key="op.value" :label="op.label" :value="op.value" />
                   </el-select>
@@ -1224,6 +1301,8 @@ import { logicFlowApi } from '@/api/logicFlow'
 import type { BackendBeanInfo } from '@/api/logicFlow'
 import { dataSourceApi } from '@/api/data-source'
 import { formApi } from '@/api/form'
+import { columnOptionLabel } from '@/utils/columnOption'
+import type { ColumnConfigItem } from '@/api/bizData'
 import { nodeTypeLabel as typeLabel } from '../utils/nodeMeta'
 import { defaultConfig, type DataUpdateNodeConfig, type DataUpdateTableUpdate, type DataUpdateWhereOp, type DataUpsertNodeConfig, type DataUpsertUpsertItem, type DataQueryNodeConfig, type DataInsertNodeConfig, type DataDeleteNodeConfig, type NotifyNodeConfig, type DelayNodeConfig, type TransformNodeConfig, type AggregateNodeConfig, type LlmNodeConfig, type FlowNode, type FlowEdge, type HttpNodeConfig, type SqlScriptNodeConfig, OUTPUT_VAR_TYPES, type ResultVarDef } from '../utils/dsl'
 import { parseSqlScriptPreview } from '../utils/sqlScript'
@@ -1422,23 +1501,36 @@ const dataUpdateCfg = computed(() => {
   return cfg
 })
 
-// ===== 数据查询/新增/删除：业务表单清单（懒加载一次，降级手输） =====
-const bizForms = ref<{ key: string; name: string }[]>([])
+// ===== 共享业务表单清单（已发布 BUSINESS；QUERY/INSERT/DELETE/UPDATE/UPSERT 复用） =====
+// 兼容两种分页形状（content/rows，防止单一取法落空导致下拉为空）；仅收已发布表单（DRAFT 无动态表，运行期会失败）
+const bizFormOptionsShared = ref<{ key: string; name: string }[]>([])
 const bizFormsLoading = ref(false)
-let bizFormsLoaded = false
-async function loadBizForms(): Promise<void> {
-  if (bizFormsLoaded || bizFormsLoading.value) return
+let bizFormOptionsPromise: Promise<void> | null = null
+
+async function loadBizFormOptions(): Promise<void> {
+  if (bizFormOptionsShared.value.length) return
+  if (bizFormOptionsPromise) return bizFormOptionsPromise
   bizFormsLoading.value = true
-  try {
-    const res = await formApi.getFormDefinitions({ page: 1, size: 100, type: 'BUSINESS' })
-    const rows = res.data?.rows ?? []
-    bizForms.value = rows.map((f) => ({ key: f.key, name: f.name }))
-    bizFormsLoaded = true
-  } catch {
-    // 降级：下拉为空时 allow-create 手输 key 仍可用
-  } finally {
-    bizFormsLoading.value = false
-  }
+  bizFormOptionsPromise = (async () => {
+    try {
+      const res = await formApi.getFormDefinitions({ page: 1, size: 1000, type: 'BUSINESS', status: 'PUBLISHED' })
+      const page = res.data as unknown as { content?: { key: string; name: string | null }[]; rows?: { key: string; name: string | null }[] } | null
+      const list = page?.content ?? page?.rows ?? []
+      bizFormOptionsShared.value = list.filter((f) => f?.key).map((f) => ({ key: f.key, name: f.name || f.key }))
+    } catch {
+      // http 拦截器已提示；下拉为空时 allow-create 手输 key 仍可用
+    } finally {
+      bizFormsLoading.value = false
+      bizFormOptionsPromise = null
+    }
+  })()
+  return bizFormOptionsPromise
+}
+
+// ===== 数据查询/新增/删除：业务表单清单（懒加载一次，降级手输） =====
+const bizForms = bizFormOptionsShared
+async function loadBizForms(): Promise<void> {
+  await loadBizFormOptions()
 }
 
 const dataQueryCfg = computed(() => ensureConfig<DataQueryNodeConfig>())
@@ -1452,6 +1544,79 @@ const dataDeleteMode = computed<'id' | 'filter'>({
     else if (!dataDeleteCfg.value.id) dataDeleteCfg.value.id = ''
   },
 })
+
+// ===== 业务表单列元数据缓存（中文名字段下拉数据源；by-key 详情 columnConfig） =====
+const formColumnsByKey = reactive(new Map<string, ColumnConfigItem[]>())
+const formColumnsPending = reactive(new Set<string>())
+
+/** 拉取并缓存表单列元数据（失败置空数组，下拉降级 allow-create 手输列名） */
+async function ensureFormColumns(formKey: string): Promise<void> {
+  const k = String(formKey ?? '').trim()
+  if (!k || formColumnsByKey.has(k) || formColumnsPending.has(k)) return
+  formColumnsPending.add(k)
+  try {
+    const res = await formApi.getFormDefinitionByKey(k)
+    const cc = res.data?.columnConfig
+    const parsed = cc ? (JSON.parse(cc) as ColumnConfigItem[]) : []
+    formColumnsByKey.set(k, Array.isArray(parsed) ? parsed : [])
+  } catch {
+    formColumnsByKey.set(k, [])
+  } finally {
+    formColumnsPending.delete(k)
+  }
+}
+
+function formColLoading(formKey: string): boolean {
+  const k = String(formKey ?? '').trim()
+  return k ? formColumnsPending.has(k) : false
+}
+
+/** 列名中文文案：有中文名且不同于列名 → 中文名(列名)；否则列名（与数据源筛选列口径一致） */
+function formColLabelText(formKey: string, columnKey: string): string {
+  const k = String(formKey ?? '').trim()
+  const col = k ? (formColumnsByKey.get(k) ?? []).find((c) => c.key === columnKey) : undefined
+  return col?.label ? columnOptionLabel({ key: columnKey, label: col.label }) : columnKey
+}
+
+interface FormColOption { key: string; label: string; type: string; unique: boolean }
+
+/** 表单业务列选项：columnConfig 展示列 + 已填列名兑底；excludeManaged 排除引擎托管列 */
+function formColOptions(formKey: string, current: string | undefined, opts?: { excludeManaged?: boolean }): FormColOption[] {
+  const k = String(formKey ?? '').trim()
+  const cols = k ? (formColumnsByKey.get(k) ?? []) : []
+  const managed = new Set(['id', 'tenant_id', 'version', 'created_by', 'created_at', 'updated_at'])
+  const seen = new Set<string>()
+  const out: FormColOption[] = []
+  const push = (key: string, label: string, type: string) => {
+    const kk = String(key ?? '').trim()
+    if (!kk || seen.has(kk)) return
+    if (opts?.excludeManaged && managed.has(kk.toLowerCase())) return
+    seen.add(kk)
+    out.push({ key: kk, label: label ? columnOptionLabel({ key: kk, label }) : kk, type, unique: false })
+  }
+  for (const c of cols) {
+    if (c.unsupported || c.hidden) continue
+    push(c.key, c.label, c.columnType)
+  }
+  const filled = String(current ?? '').trim()
+  if (filled) push(filled, '', '')
+  return out
+}
+
+// 表单切换/节点选中时预取列元数据（数据查询/新增/删除按 formKey）
+watch(
+  () => {
+    const t = node.value?.data.nodeType
+    if (t === 'DATA_QUERY') return dataQueryCfg.value?.formKey ?? ''
+    if (t === 'DATA_INSERT') return dataInsertCfg.value?.formKey ?? ''
+    if (t === 'DATA_DELETE') return dataDeleteCfg.value?.formKey ?? ''
+    return ''
+  },
+  (k) => {
+    if (k) void ensureFormColumns(k)
+  },
+  { immediate: true }
+)
 
 // ===== NOTIFY / DELAY / TRANSFORM / AGGREGATE / LLM =====
 const notifyCfg = computed(() => ensureConfig<NotifyNodeConfig>())
@@ -1555,15 +1720,20 @@ watch(
       : '',
   (joined) => {
     for (const t of joined.split('\u0001')) {
-      if (t) void ensureDuColumns(t)
+      if (!t) continue
+      void ensureDuColumns(t)
+      // 业务表单映射表（wf_biz_<key>）：同步取列中文名元数据
+      if (t.startsWith('wf_biz_')) void ensureFormColumns(t.slice(7))
     }
   },
   { immediate: true }
 )
 
-/** 多表条目列选项：该表真实列（除 tenant_id）+ SET/WHERE 已填列名兜底（含字面量占位历史值） */
-function duEntryColumns(u: DataUpdateTableUpdate): { key: string; type: string }[] {
-  const real = duColumnsByTable.get(String(u?.table ?? '').trim()) ?? []
+/** 多表条目列选项：该表真实列（除 tenant_id）+ SET/WHERE 已填列名兜底（含字面量占位历史值）；业务表单列附中文名 */
+function duEntryColumns(u: DataUpdateTableUpdate): { key: string; type: string; label: string }[] {
+  const t = String(u?.table ?? '').trim()
+  const real = duColumnsByTable.get(t) ?? []
+  const fk = t.startsWith('wf_biz_') ? t.slice(7) : ''
   const cur = new Set<string>(real.map((c) => c.key))
   for (const op of u?.setOps ?? []) {
     const col = String(op.column ?? '').trim()
@@ -1576,7 +1746,7 @@ function duEntryColumns(u: DataUpdateTableUpdate): { key: string; type: string }
   return [...cur]
     .filter((key) => key.toLowerCase() !== 'tenant_id')
     .sort()
-    .map((key) => ({ key, type: real.find((c) => c.key === key)?.columnType ?? '' }))
+    .map((key) => ({ key, type: real.find((c) => c.key === key)?.columnType ?? '', label: fk ? formColLabelText(fk, key) : key }))
 }
 
 // ===== DATA_UPSERT（统一多表单编辑器：单条目 = 单表写入；多条目单事务顺序执行） =====
@@ -1605,28 +1775,12 @@ const dataUpsertCfg = computed(() => {
   return cfg
 })
 
-/** 已发布 BUSINESS 表单选项（全局共享：选择表单 → 物理表 wf_biz_<formKey>） */
-interface UpsertFormOption {
-  key: string
-  name: string
-}
-const upsertFormOptions = ref<UpsertFormOption[]>([])
-const upsertFormsLoading = ref(false)
+/** 已发布 BUSINESS 表单选项（全局共享 bizFormOptionsShared：选择表单 → 物理表 wf_biz_<formKey>） */
+const upsertFormOptions = bizFormOptionsShared
+const upsertFormsLoading = bizFormsLoading
 
 async function loadUpsertForms(): Promise<void> {
-  if (upsertFormOptions.value.length || upsertFormsLoading.value) return
-  upsertFormsLoading.value = true
-  try {
-    const res = await formApi.getFormDefinitions({ type: 'BUSINESS', status: 'PUBLISHED', size: 1000 })
-    const data = res.data as { content?: { key: string; name: string | null }[] } | null
-    upsertFormOptions.value = (data?.content ?? [])
-      .filter((f) => f?.key)
-      .map((f) => ({ key: f.key, name: f.name || f.key }))
-  } catch {
-    // http 拦截器已提示；可稍后重开面板重试
-  } finally {
-    upsertFormsLoading.value = false
-  }
+  await loadBizFormOptions()
 }
 
 /** 唯一索引列组缓存（键 = 物理表名）：冲突键下拉取 (tenant_id, 字段) 二列组的第二列 */
@@ -1661,10 +1815,10 @@ async function ensureUpsertUniqueKeys(formKey: string): Promise<void> {
   }
 }
 
-/** 条目冲突键选项：(tenant_id, 字段) 二列唯一索引的第二列清单 */
-function upsertEntryConflictOptions(formKey: string): string[] {
+/** 条目冲突键选项：(tenant_id, 字段) 二列唯一索引的第二列清单（附中文名） */
+function upsertEntryConflictOptions(formKey: string): { key: string; label: string }[] {
   const k = String(formKey ?? '').trim()
-  return k ? (upsertUniqueByTable.get('wf_biz_' + k) ?? []) : []
+  return k ? (upsertUniqueByTable.get('wf_biz_' + k) ?? []).map((key) => ({ key, label: formColLabelText(k, key) })) : []
 }
 
 /** 条目表单切换：预取列结构与唯一键；清空不再可选的冲突键 */
@@ -1674,6 +1828,7 @@ function onUpsertEntryFormChange(u: DataUpsertUpsertItem): void {
     if (k) {
       void ensureDuColumns('wf_biz_' + k)
       void ensureUpsertUniqueKeys(k)
+      void ensureFormColumns(k)
     }
     const opts = k ? (upsertUniqueByTable.get('wf_biz_' + k) ?? []) : []
     if (u.conflictKey && !opts.includes(u.conflictKey)) {
@@ -1689,8 +1844,8 @@ function addUpsertEntry(): void {
   cfg.upserts.push({ formKey: '', conflictKey: '', values: [{ column: '', value: '' }], onUpdate: [] })
 }
 
-/** 写入字段列选项：该表单真实业务列（排除引擎管理列）+ 已填列名兜底 */
-function upsertColumnOptions(formKey: string, current: string): { key: string; type: string }[] {
+/** 写入字段列选项：该表单真实业务列（排除引擎管理列）+ 已填列名兜底；列名附中文名 */
+function upsertColumnOptions(formKey: string, current: string): { key: string; type: string; label: string }[] {
   const k = String(formKey ?? '').trim()
   const real = k ? (duColumnsByTable.get('wf_biz_' + k) ?? []) : []
   const managed = new Set(['id', 'tenant_id', 'version', 'created_by', 'created_at', 'updated_at'])
@@ -1699,7 +1854,7 @@ function upsertColumnOptions(formKey: string, current: string): { key: string; t
   if (filled) cur.add(filled)
   return [...cur]
     .sort()
-    .map((key) => ({ key, type: real.find((c) => c.key === key)?.columnType ?? '' }))
+    .map((key) => ({ key, type: real.find((c) => c.key === key)?.columnType ?? '', label: k ? formColLabelText(k, key) : key }))
 }
 
 watch(
@@ -1716,6 +1871,17 @@ function duEntryTableOptions(cur: string): string[] {
   const c = String(cur ?? '').trim()
   if (c) set.add(c)
   return [...set].sort()
+}
+
+/** 业务表单映射表选项（目标表下拉优先分组）：label = 中文名（wf_biz_<key>），value 仍为物理表名（DSL 兼容） */
+const duFormTableOptions = computed(() =>
+  bizFormOptionsShared.value.map((f) => ({ table: 'wf_biz_' + f.key, label: `${f.name}（wf_biz_${f.key}）` }))
+)
+
+/** 其余数据表选项：全表清单剔除业务表单映射表（保留当前已填值兜底） */
+function duOtherTableOptions(cur: string): string[] {
+  const formTables = new Set(duFormTableOptions.value.map((o) => o.table))
+  return duEntryTableOptions(cur).filter((t) => !formTables.has(t))
 }
 
 /** 汇总输出键预览（别名合法时用别名，否则 t{序号}） */
@@ -1735,6 +1901,7 @@ const flowsLoading = ref(false)
 onMounted(async () => {
   flowsLoading.value = true
   loadDuTables()
+  void loadBizFormOptions()
   try {
     const res = await logicFlowApi.list({ page: 1, size: 100 })
     const content: any[] = (res.data as any)?.content || []
