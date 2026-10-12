@@ -7513,3 +7513,21 @@ Stage Summary:
 - L2 注册层三页落地（模型配置示范 + 用户 + 角色），「代替人工操作系统页」高频场景打通：查询/筛选/开弹窗/填表/提交/读表/断言全链可用
 - 关键教训：ref 转发的异步方法必须返回 Promise 供编排方 await，否则多步动作链存在读旧态竞态
 - cron 收尾：删除暂停标记 + webDevReview 重建（继续 L2 余下管理页铺开：菜单/组织/字典/岗位）
+
+---
+Task ID: cron-446961-r30
+Agent: main
+Task: 轻量运维巡检 r30（05:05 +08）——环境重供给事故恢复
+
+Work Log:
+- 04:05 与 05:05 两轮合并执行；dump-db 报「workflow dump 无效」，四链路 200 但 8080 真伪核验假绿（{"code":500,"msg":"no such table: SYS_USER"}），且 Java 进程消失、mariadbd 为重建空壳 → 判定环境已被重供给
+- 执行 recover-dplus.sh（10 分钟超时截断但已完成关键步骤）：MariaDB 重建、jar 缺失但 backend/target 存量 jar 可用、Java 拉起，t+80s 真绿；但 workflow 库为 Flyway 空壳（warn：无可用 dump）
+- 【数据丢失排查】backups/ 在 .gitignore（第 64 行）中，r28 快照 264K/128K 及 19:05/18:08 等 dump 随重供给全部丢失，git 树中仅有删除记录
+- 【数据找回】git 历史 3ad4ea0b（backup: db dump 20261012-061423）树内含强制添加的 db-workflow-full-20261012-061423.sql（261,545B）+ db-workflow_v6-20261012-061423.sql（130,215B）→ git show 还原后经 mariadb 客户端导入（需 LD_LIBRARY_PATH=$MDB/sysroot/usr/lib/x86_64-linux-gnu:$MDB/root/usr/lib/x86_64-linux-gnu，直接调用报 libncurses.so.6 缺失）
+- 导入成功：SYS_USER=2 行，数据回灌完成；收口 dump-db OK 20261012-211904 workflow=260K v6=128K（与事故前 264K/128K 量级一致，仅丢 06:14 UTC 后增量）
+- 复探：四链路 200×4，真绿（accessToken），内存 3.28G，oom 0
+
+Stage Summary:
+- 事故：环境重供给 → Java 进程丢失 + MariaDB 数据清空 + backups/ 磁盘 dump 全失（gitignore 盲区）
+- 恢复：recover-dplus.sh 重建链路 + git blob 历史找回 061423 数据快照回灌，终态真绿，数据量恢复至事故前水平
+- 教训：①backups/ 被 .gitignore 忽略导致 dump 不入 git，重供给即全失——建议 dump-db.sh 改为 git add -f 强制入库（保留最近 N 份）②recover-dplus.sh 的「无可用 dump」告警是数据丢失的关键前兆，应触发告警而非仅 warn
