@@ -52,6 +52,7 @@ class LogicFlowNewNodesTest {
     private MessageSender messageSender;
     private ChatModel chatModel;
     private JdbcTemplate jdbcTemplate;
+    private DynamicTableManager tableManager;
     private LogicFlowEngine engine;
 
     @BeforeEach
@@ -64,8 +65,11 @@ class LogicFlowNewNodesTest {
         messageSender = mock(MessageSender.class);
         chatModel = mock(ChatModel.class);
         jdbcTemplate = mock(JdbcTemplate.class);
-        DynamicTableManager tableManager = mock(DynamicTableManager.class);
+        tableManager = mock(DynamicTableManager.class);
         when(tenantProvider.getTenantId()).thenReturn("t1");
+        // 数据族目标解析（resolveDataTable）：bill_test 视为已发布业务表单（表单路径）
+        when(tableManager.tableExists("wf_biz_bill_test")).thenReturn(true);
+        when(bizDataSupport.hasPublishedBusinessColumns("bill_test")).thenReturn(true);
         engine = new LogicFlowEngine(httpExecutor, groovyScriptLogic, beanRegistry,
                 new VariableResolver(), objectMapper, null, jdbcTemplate, tableManager,
                 bizDataSupport, tenantProvider, messageSender, chatModel);
@@ -210,6 +214,111 @@ class LogicFlowNewNodesTest {
         verify(jdbcTemplate).update(anyString(), any(Object[].class));
         assertThat(outcome.outputVars().get("dd2")).isInstanceOfSatisfying(Map.class, m -> {
             assertThat(m.get("deleted")).isEqualTo(3);
+            assertThat(m.get("mode")).isEqualTo("filter");
+        });
+    }
+
+    @Test
+    void dataQueryRawTableResolvesPathIndexing() {
+        // 任意数据表路径：formKey 传物理表名 → information_schema 列校验 + 结构化条件（值参数绑定）
+        when(tableManager.tableExists("wf_material_stock")).thenReturn(true);
+        when(tableManager.findTableColumns("wf_material_stock")).thenReturn(List.of(
+                new ColumnInfo("id", "BIGINT", false, true),
+                new ColumnInfo("product_code", "VARCHAR", true, false)));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(Object[].class))).thenReturn(1L);
+        when(jdbcTemplate.queryForList(anyString(), any(Object[].class)))
+                .thenReturn(List.of(Map.of("id", 7L, "product_code", "P001")));
+
+        LogicFlowDsl dsl = dsl(List.of(
+                node("s", NodeType.START),
+                node("dq2", NodeType.DATA_QUERY,
+                        "{\"formKey\":\"wf_material_stock\",\"filter\":[{\"column\":\"product_code\",\"op\":\"EQ\",\"value\":\"{{dq1.rows[0].productCode}}\"}]}"),
+                node("e", NodeType.END)),
+                List.of(edge("s", "dq2"), edge("dq2", "e")));
+
+        // dq1 模拟上游查询产出：rows[0].productCode = P001（[n] 列表索引取值）
+        LogicFlowEngine.RunOutcome outcome = engine.run(dsl,
+                vars("dq1", Map.of("rows", List.of(Map.of("productCode", "P001")))));
+        assertThat(outcome.status()).isEqualTo(LogicFlowEngine.STATUS_SUCCESS);
+        org.mockito.ArgumentCaptor<Object[]> params = org.mockito.ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).queryForObject(anyString(), eq(Long.class), params.capture());
+        assertThat(params.getValue()).containsExactly("P001");
+        assertThat(outcome.outputVars().get("dq2")).isInstanceOfSatisfying(Map.class, m -> {
+            assertThat(((Number) m.get("total")).longValue()).isEqualTo(1L);
+            assertThat((List<?>) m.get("rows")).hasSize(1);
+        });
+    }
+
+    @Test
+    void dataInsertRawTableAutoTenantFill() {
+        when(tableManager.tableExists("wf_material_stock")).thenReturn(true);
+        when(tableManager.findTableColumns("wf_material_stock")).thenReturn(List.of(
+                new ColumnInfo("id", "BIGINT", false, true),
+                new ColumnInfo("product_code", "VARCHAR", true, false),
+                new ColumnInfo("stock_qty", "INT", true, false),
+                new ColumnInfo("tenant_id", "VARCHAR", false, false)));
+        when(jdbcTemplate.update(any(org.springframework.jdbc.core.PreparedStatementCreator.class),
+                any(org.springframework.jdbc.support.KeyHolder.class))).thenReturn(1);
+
+        LogicFlowDsl dsl = dsl(List.of(
+                node("s", NodeType.START),
+                node("di2", NodeType.DATA_INSERT,
+                        "{\"formKey\":\"wf_material_stock\",\"data\":[{\"column\":\"product_code\",\"value\":\"P009\"},{\"column\":\"stock_qty\",\"value\":\"3\"}]}"),
+                node("e", NodeType.END)),
+                List.of(edge("s", "di2"), edge("di2", "e")));
+
+        LogicFlowEngine.RunOutcome outcome = engine.run(dsl, vars());
+        assertThat(outcome.status()).isEqualTo(LogicFlowEngine.STATUS_SUCCESS);
+        assertThat(outcome.outputVars().get("di2")).isInstanceOfSatisfying(Map.class, m -> {
+            assertThat(m.get("table")).isEqualTo("wf_material_stock");
+            assertThat(m.get("inserted")).isEqualTo(1);
+        });
+    }
+
+    @Test
+    void dataInsertRawTableRejectsTenantIdColumn() {
+        when(tableManager.tableExists("wf_material_stock")).thenReturn(true);
+        when(tableManager.findTableColumns("wf_material_stock")).thenReturn(List.of(
+                new ColumnInfo("id", "BIGINT", false, true),
+                new ColumnInfo("tenant_id", "VARCHAR", false, false)));
+
+        LogicFlowDsl dsl = dsl(List.of(
+                node("s", NodeType.START),
+                node("di3", NodeType.DATA_INSERT,
+                        "{\"formKey\":\"wf_material_stock\",\"data\":[{\"column\":\"tenant_id\",\"value\":\"other\"}]}"),
+                node("e", NodeType.END)),
+                List.of(edge("s", "di3"), edge("di3", "e")));
+
+        LogicFlowEngine.RunOutcome outcome = engine.run(dsl, vars());
+        assertThat(outcome.status()).isEqualTo(LogicFlowEngine.STATUS_FAILED);
+        assertThat(outcome.errorMessage()).contains("tenant_id");
+    }
+
+    @Test
+    void dataDeleteRawTableAppendsTenantGuard() {
+        when(tableManager.tableExists("wf_material_stock")).thenReturn(true);
+        when(tableManager.findTableColumns("wf_material_stock")).thenReturn(List.of(
+                new ColumnInfo("id", "BIGINT", false, true),
+                new ColumnInfo("product_code", "VARCHAR", true, false),
+                new ColumnInfo("tenant_id", "VARCHAR", false, false)));
+        when(jdbcTemplate.update(anyString(), any(Object[].class))).thenReturn(2);
+
+        LogicFlowDsl dsl = dsl(List.of(
+                node("s", NodeType.START),
+                node("dd4", NodeType.DATA_DELETE,
+                        "{\"formKey\":\"wf_material_stock\",\"filter\":[{\"column\":\"product_code\",\"op\":\"EQ\",\"value\":\"P001\"}]}"),
+                node("e", NodeType.END)),
+                List.of(edge("s", "dd4"), edge("dd4", "e")));
+
+        LogicFlowEngine.RunOutcome outcome = engine.run(dsl, vars());
+        assertThat(outcome.status()).isEqualTo(LogicFlowEngine.STATUS_SUCCESS);
+        org.mockito.ArgumentCaptor<String> sql = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.ArgumentCaptor<Object[]> params = org.mockito.ArgumentCaptor.forClass(Object[].class);
+        verify(jdbcTemplate).update(sql.capture(), params.capture());
+        assertThat(sql.getValue()).contains("DELETE FROM wf_material_stock").contains("product_code = ?").contains("tenant_id = ?");
+        assertThat(params.getValue()).containsExactly("P001", "t1");
+        assertThat(outcome.outputVars().get("dd4")).isInstanceOfSatisfying(Map.class, m -> {
+            assertThat(m.get("deleted")).isEqualTo(2);
             assertThat(m.get("mode")).isEqualTo("filter");
         });
     }

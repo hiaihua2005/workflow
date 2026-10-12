@@ -31,10 +31,12 @@
 
           <template v-if="ui.approval.type === 'expression'">
             <div class="section-title">流程表达式</div>
-            <el-input
+            <ExpressionEditor
               v-model="ui.approval.expression"
-              type="textarea"
+              syntax="uel"
+              multiline
               :rows="2"
+              :variables="uelVars"
               placeholder="如：${initiator.deptManager}"
               :disabled="readOnly"
               @change="saveConfig"
@@ -202,9 +204,13 @@ import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useDesignerStore, type NodeConfigData } from '@/stores/designerStore'
 import { getModeler } from '../utils/bpmnModeler'
 import { ApproverPicker } from '@/components/business'
+import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
+import { UEL_FLOW_VARS } from '@/components/expression/uelVars'
 import FormPropertyTab from './FormPropertyTab.vue'
 import AssigneeSelector from './shared/AssigneeSelector.vue'
 import FormLabelTip from './shared/FormLabelTip.vue'
+
+const uelVars = UEL_FLOW_VARS
 
 defineProps<{ readOnly?: boolean }>()
 

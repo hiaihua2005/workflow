@@ -20,12 +20,14 @@ export interface FlowVarItem {
   group: 'input' | 'loop' | 'upstream' | 'form'
   /** 展示用类型标注（string/number/json…；下拉只显示变量名 + 类型） */
   detail?: string
-  /** 字段树：子字段条目（form 组 / 结构化 input·upstream 组；点击插完整路径） */
+  /** 子字段树：子字段条目（form 组 / 结构化 input·upstream 组；点击插完整路径） */
   children?: FlowVarItem[]
   /** form 组根条目：点击仅插前缀（formData. / {{formData.），字段由子条目供选 */
   prefixOnly?: boolean
   /** 子字段展示名（相对路径，如 data.items），缺省回退 shortName() 剥前缀 */
   short?: string
+  /** 补全浮层分组展示名（空串隐藏分组；缺省用组内建名：入参/循环/上游产出/表单） */
+  groupLabel?: string
 }
 
 /** 绑定表单字段组（设计期表单字段发现，后端 FormFieldSchemaService 同构最小结构；null 与缺省等价） */
@@ -177,6 +179,11 @@ export const EXEC_NODE_TYPES = new Set<string>([
   'SUBFLOW',
   'DATA_UPDATE',
   'SQL_SCRIPT',
+  // 数据族三节点：引擎 dispatch 同样产出整体返回值写回上下文（query={total,rows} / insert=含 id 新行 / delete={deleted,mode}），
+  // 下游值表达式需从选择器取 {{dq_x.rows[0].字段}} / {{ins_x.id}}，缺列则数据族值表达式「数据表字段」展开无源
+  'DATA_QUERY',
+  'DATA_INSERT',
+  'DATA_DELETE',
 ])
 
 /** 循环变量名缺省值（与 dsl.ts defaultConfig / 引擎约定一致） */

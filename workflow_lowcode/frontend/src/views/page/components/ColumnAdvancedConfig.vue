@@ -12,21 +12,25 @@
             </el-radio-group>
           </el-form-item>
           <el-form-item v-if="contentMode === 'expression'" label="表达式">
-            <el-input
+            <ExpressionEditor
               :model-value="col?.contentValue"
-              type="textarea"
+              lang="groovy"
+              multiline
               :rows="2"
+              :max-rows="6"
               placeholder="$row.name + '(' + $row.dept + ')'"
-              @input="(v: string) => patch({ contentValue: v || undefined })"
+              @update:model-value="(v: string) => patch({ contentValue: v || undefined })"
             />
           </el-form-item>
           <el-form-item v-else-if="contentMode === 'template'" label="模板">
-            <el-input
+            <ExpressionEditor
               :model-value="col?.contentValue"
-              type="textarea"
+              syntax="uel"
+              multiline
               :rows="2"
+              :max-rows="6"
               placeholder="${name}(${dept})；支持多级字段 ${user.name}"
-              @input="(v: string) => patch({ contentValue: v || undefined })"
+              @update:model-value="(v: string) => patch({ contentValue: v || undefined })"
             />
           </el-form-item>
 
@@ -176,6 +180,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { QuestionFilled } from '@element-plus/icons-vue'
+import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
 import type { ColumnViewConfig } from '../ViewDesigner.vue'
 import type { FieldStyle, StyleRule } from '@/utils/fieldStyle'
 import { normalizeColumnStyle } from '@/utils/fieldStyle'

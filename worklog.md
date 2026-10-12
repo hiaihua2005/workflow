@@ -7059,3 +7059,182 @@ Stage Summary:
 - 当前状态=权威版本（b88b6e05）+ 演示数据全量还原，可正常演示逻辑流双场景
 - 阻塞项：推送需用户提供新 fine-grained PAT（git remote set-url origin https://x-access-token:<PAT>@github.com/liaoweimin74/workflow.git && git push origin main，本地领先 1 提交 ad081bdc）
 - 遗留观察：重供给约每小时一次且同时破坏（a）运行时数据（b）本地未推送提交（c）PAT 凭据（d）JDK/Maven/mariadb-user 工具链；恢复链路已验证可靠但推送依赖人工 PAT
+
+---
+Task ID: user-pat-push-20261012
+Agent: ops-push
+Task: 用户提供新 PAT，完成推送收口
+
+Work Log:
+- 用户提供新 fine-grained PAT（worklog 中脱敏记录：github_pat_11ARR…WFds）
+- git remote set-url origin（x-access-token 方式写入 .git/config，随重供给销毁属预期行为）
+- git push origin main 成功：b88b6e05..1439fc1a（DB 快照 ad081bdc + 恢复记录 1439fc1a 两个提交上推）
+- 推送后 origin/main == 本地 main，远端已含权威版本 + 恢复快照
+
+Stage Summary:
+- 推送链路恢复；本地/远端完全同步
+- 后续每次重供给后需用户重新提供 PAT（已知既定模式）
+
+---
+Task ID: lf-designer-cn-dropdowns
+Agent: frontend-dev
+Task: 逻辑流设计器数据族组件的表单/字段属性改为中文名下拉选择（降低使用门槛）
+
+Work Log:
+- 需求：数据查询/数据新增/数据更新组件的「业务表单」「业务表单字段」属性全部改为下拉选择，下拉展示中文名称（或中英文）
+- 数据源：表单详情 API /v1/form-definitions/by-key/{key} 的 columnConfig（key/label/columnType/unique），沿用数据源筛选列标杆口径 columnOptionLabel（中文名(列名)）
+- PropertyPanel.vue 改造：
+  · DATA_QUERY 等值筛选列/关键字列：el-input → el-select（filterable+allow-create，字段选项=该表单 columnConfig）
+  · DATA_INSERT 新增字段：el-input → el-select（排除引擎托管列）
+  · DATA_DELETE 删除条件列：el-input → el-select
+  · DATA_UPDATE 目标表：全表平铺下拉 → 分组下拉（「业务表单」组 label=中文名（wf_biz_key），「其他数据表」组保留全表清单；value 仍为物理表名，DSL 兼容）；SET/WHERE 列选项附中文名
+  · DATA_UPSERT 冲突键/写入字段/更新覆盖：选项附中文名
+  · 新增共享业务表单清单 loadBizFormOptions（content/rows 双形状兼容）+ 列元数据缓存 ensureFormColumns + formKey 联动预取 watcher
+- 顺带修复既有 bug：loadBizForms 误读 res.data?.rows（后端实为 Spring content 形状）→ 数据查询/新增/删除的表单下拉一直为空；共享清单仅收 PUBLISHED（DRAFT 无动态表，运行期会失败）
+- 验证：vue-tsc PropertyPanel 0 错误（全库存量错误不涉及本文件）；vitest logicflow 86/86 通过；agent-browser E2E——pickup_stock_sync 数据新增字段下拉显示「物料编码(productCode) VARCHAR」等、leave_ledger_sync 数据查询等值筛选显示「员工姓名(employeeName) VARCHAR」等、数据更新目标表分组下拉（业务表单 8 项/其他数据表）与 SET 列「库存数量(stockQty) INT」全部符合预期；DSL 存量值不受影响（label 仅展示层）
+
+Stage Summary:
+- 逻辑流数据族五类节点（查询/新增/删除/更新/写入）的表单与字段配置全面中文化下拉，使用门槛显著降低
+- 修复数据查询/新增/删除表单下拉为空的既有 bug
+- 未修改引擎/DSL：value 语义不变（列 key/物理表名），纯展示层增强
+
+---
+Task ID: lf-designer-mod21
+Agent: main
+Task: 修改21——逻辑流设计器数据族组件属性交互四项优化（筛选比较符/表单下拉一致化/SET固定/删除条件两行）
+
+Work Log:
+- ①数据查询「等值筛选」→「筛选」：filter 项新增比较符下拉（等于/不等于/大于/大于等于/小于/小于等于/为空/不为空，与删除组件同款 DATA_UPDATE_OPS），字段+比较符一行、比较值另起一行；后端配套——BackendDataQueryConfig.DataFilter 增 op 字段（缺省 EQ 兼容存量），LogicFlowEngine.executeDataQuery 改产结构化筛选 {logic:AND, conditions:[{column,op,value}]}（IS_NULL→isempty/NOT_NULL→isnotempty），BizDataQueryBuilder.appendStructuredFilters 补 gt/gte/lt/lte 四运算符（值参数绑定），DslValidator.validateDataQuery 校验 op ∈ DML_OPS
+- ②数据查询/新增/删除的业务表单下拉与数据更新组件一致：el-option-group「业务表单」分组 + 选项 label=中文名（wf_biz_key）（value 仍为 formKey，DSL 兼容；新增/删除/查询仅业务表单故无「其他数据表」组）
+- ③数据更新 SET 行移除 SET/ADD+/SUB− 模式下拉：字段下拉与字段值各占一行；新配置一律 SET；存量非 SET 行显示只读标记 tag（如「SUB −」，title 说明引擎仍兼容）——pickup_stock_sync 的扣库存 SUB 模式不破坏、引擎 SET/ADD/SUB 支持保留
+- ④数据删除条件：字段+比较符一行、值单独一行（为空/不为空自动隐藏值行，与查询筛选同款 du-cond 两行布局）
+- 附带：dataQueryCfg computed 对存量无 op 筛选归一 op=EQ（编辑态显示「等于」，序列化后行为不变）；nodeMeta DATA_QUERY 描述改「筛选」、DATA_UPDATE 描述去 ADD/SUB 宣传；FieldLabel tips 同步
+- 验证：vue-tsc 全库存量 54 处基线不变（本文件零新增）；vitest logicflow 86/86；后端 E2E 四用例（GTE→P001 一行 / LT+NOT_NULL→两行 / 无op缺省EQ→一行 / IS_NULL→0行不报错）全过；存量流回归 leave_ledger_sync（建档+累加）/pickup_stock_sync（SUB 扣库存 80→78+写流水）SUCCESS，回归副作用数据已还原（P003=80、流水回2条、测试台账删除）；agent-browser UI E2E——更新面板（SET 无模式下拉+SUB− 标记+两行）、查询面板（筛选标签+比较符8选项+为空联动隐藏值行+存量归一等于）、删除面板（两行+中文字段/比较符）、新增/查询/删除表单分组下拉均符合预期；临时验证流已删除
+- 收口：dump-db 快照（20261012-022946）后提交
+
+Stage Summary:
+- 四项 UI 优化全部落地且引擎级验证通过；DSL 向后完全兼容（无 op 旧 DSL 走 EQ 等值，存量 ADD/SUB 引擎保留、UI 只读展示）
+- 修改文件：后端 4（BackendDataQueryConfig/LogicFlowEngine/BizDataQueryBuilder/LogicFlowDslValidator）+ 前端 3（PropertyPanel.vue/dsl.ts/nodeMeta.ts）+ E2E 脚本 2（test-lf-op-e2e.sh/test-demo-flow-regression.sh）
+
+---
+Task ID: lf-cond-ui-r21
+Agent: Z.ai Code (main session, trace d2c3fe2d)
+Task: 用户需求 21——逻辑流设计器条件类交互细化：①数据查询「等值筛选」→「筛选」（字段+比较符一行、值下一行）②查询/新增/删除的表单及字段下拉与数据更新组件一致 ③更新组件去 ADD+/SUB− 下拉（字段/值各占一行）④删除组件删除条件（字段+比较符一行、值单独一行）
+
+Work Log:
+- 【协作发现】开工即探测到 webDevReview cron agent 正在做同一需求（后端 4 文件 + dsl.ts/nodeMeta.ts + PropertyPanel 部分区块已改、jar 02:17 重启、PropertyPanel mtime 实时变化）——立即转 monitor-only 冻结写入，轮询监控至其停止（约 6.5 分钟无编辑），随后接管缺口复核
+- 【引擎侧（并行 agent 产出，本会话复核通过）】BackendDataQueryConfig.DataFilter 加 op（EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL，缺省 EQ 兼容存量）；executeDataQuery 全量转结构化 {logic:AND, conditions:[{column,op,value}]}（IS_NULL→isempty、NOT_NULL→isnotempty；缺省 EQ 与旧等值行为逐分支等价：null 跳过/JSON 列 JSON_CONTAINS/普通列 =?）；BizDataQueryBuilder.appendStructuredFilters 补 gt/gte/lt/lte（参数绑定）；DslValidator DATA_QUERY filter op ∈ DML_OPS 校验
+- 【缺口接管（本会话补齐）】需求②只完成表单下拉分组化，字段下拉仍为 columnConfig 口径——新增 bizEntryColumns（真实表列优先/columnConfig 回退 + 中文名(列名)+类型 + 已填兜底；统一排除 tenant_id/version，INSERT 额外排除托管列）与 bizColLoading；QUERY 筛选/关键字列、INSERT 新增字段、DELETE 删除条件 4 处下拉全部切换；预取 watcher 同步 ensureDuColumns('wf_biz_'+k)（微任务包装规避 immediate TDZ）；删除 formColOptions/formColLoading 死代码
+- 【验证】vue-tsc PropertyPanel 0 错误；vitest logicflow 86/86；引擎 API 级 E2E：临时流 tmpop1 manual run——GTE 100→P001(185)、LT 100→P002/P003、无 op 等值兼容→P001 精确命中，验证后删除；浏览器 E2E（agent-browser）：数据查询「筛选」两行式（字段+比较符 8 项下拉=等于/不等于/大于/大于等于/小于/小于等于/为空/不为空）+ 字段下拉真实列（年假总额(annualDays)INT/id/created_at/created_by/updated_at，无 tenant_id/version）；数据更新「更新字段 SET」无 mode 下拉、字段行+值行、存量 ADD 显示只读 warning tag（引擎兼容不新增入口）；数据新增字段下拉 5 业务列中文名+类型无托管列；数据删除条件两行式结构同查询；截图×3（/tmp/e2e_query_filter.png、e2e_update_setops.png、e2e_delete_cond.png）
+- 【DSL 兼容】存量 filter 无 op → 编辑态归一 op:'EQ'（引擎缺省同义）；存量 setOps mode ADD/SUB → DSL 原样保留 + UI 只读标记（演示场景 1 累加年假/场景 2 扣减库存运行行为不受影响，du_add ADD+ 实测展示正确）
+
+Stage Summary:
+- 逻辑流数据族条件类交互全面细化完成：查询筛选支持 8 种比较符（值独立行）、三组件表单/字段下拉与更新组件完全同口径（分组业务表单+真实列+中英文）、更新字段固定 SET（存量 ADD/SUB 只读兼容展示）、删除条件两行式
+- 引擎 DATA_QUERY 从纯等值升级为全比较符（结构化条件复用 BizDataQueryBuilder 安全模型：白名单+参数绑定），存量 DSL 零破坏
+- 协作范式再次生效：cron agent 交付主体（后端+utils+部分 UI），本会话监控+复核+补齐字段下拉口径缺口+全链路验证
+---
+Task ID: lf-rawtable-fieldpick-r22
+Agent: Z.ai Code (main session)
+Task: 用户需求 22——①数据查询/新增/删除的业务表单属性改为「业务表单 / 数据表」（参考数据更新组件，支持库内任意数据表）②数据新增/更新/查询的值表达式输入框除变量外支持选择数据表字段
+
+Work Log:
+- 【需求①引擎侧】新增 resolveDataTable 目标解析（查询/新增/删除共用）：已发布业务表单（wf_biz_<k> 存在 + hasPublishedBusinessColumns）→ 表单路径（原逻辑零改动）；k 本身为合法标识符且表存在 → 任意数据表新路径；wf_biz_<k> 孤儿/未发布存量形态兜底走表单路径；均不可达报错。BizDataSupport 新增 hasPublishedBusinessColumns（异常一律 false）
+- 【任意表路径】DATA_QUERY raw：information_schema 列校验 + 结构化条件（compileDataCondition 共享编译：EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL 值参数绑定）+ keyword/keywordColumn LIKE + 表含 tenant_id 列自动租户过滤，ORDER BY id LIMIT size，输出 {total,page,size,rows} 与表单路径同构；DATA_INSERT raw：列校验+参数绑定+禁配 tenant_id（表含则自动按当前租户填充）+GeneratedKeyHolder 尽力回读自增 id，输出 {table,inserted,id?}；DATA_DELETE raw：按 ID（id 列校验+租户列守卫）/按条件（≥1 有效条件+租户列守卫），输出 {deleted,mode}
+- 【需求②引擎侧】resolveDataUpdateValue/resolvePath 升级：占位符段支持 [n] 列表索引（DATA_VALUE_PATH 正则 + DATA_PATH_SEGMENT + listIndexAt），{{dq1.rows[0].field}} 与首段索引 {{list[0].x}} 全数据族值表达式可解析（纯占位符保留原始类型/混合模板插值/越界 null/非列表抛错）
+- 【DslValidator】DATA_QUERY/INSERT/DELETE formKey 模式放宽为 [a-zA-Z_][a-zA-Z0-9_]{0,63}（兼容表名形态），报错文案改「formKey/表名非法」
+- 【需求①前端 PropertyPanel】三节点目标属性 label→「业务表单 / 数据表」+ el-option-group 双组（业务表单=中文名（wf_biz_key）value=formKey；其他数据表=物理表名 value=表名，dataOtherTableOptions 全表剔除表单映射表）；新增 dataTargetTable（与引擎同规则：已发布表单 key→wf_biz_ 前缀，其余视为物理表名）；bizEntryColumns/bizColLoading 改按解析后表名取真实列（excludeManaged 仅表单生效）；预取 watcher 按解析表名拉列；数据族节点懒加载时同时拉全表清单（loadDuTables 复用，微任务包装防 TDZ）；4 处 title「先选择业务表单/数据表」+ tips/placeholders/删除租户提示文案同步
+- 【需求②前端】PropertyPanel 增 props.nodes（designer 传 panelNodes=store 真值）；ancestorQueryTables（variables upstream 组 ∩ DATA_QUERY 节点 → dataTargetTable）+ loopRowTables（BATCH collection={{<qid>.rows}} → itemVar 字段结构）；valueVars computed：数据族值表达式变量增强——上游查询节点展开 total(总行数)/rows(行列表)/rows[0].<字段>（detail=中文名·类型，bizEntryColumns 真实列优先），BATCH 循环 item.<字段>；QUERY 筛选值/INSERT 新增值/UPDATE SET+WHERE 值/DELETE 行 ID+条件值全部切换 :variables="valueVars"；祖先查询目标表列元数据签名 watcher 预取；tips 提示「点 { } 选数据表字段（上游查询行 rows[0].字段）」
+- 【验证】mvn package 通过；vue-tsc 54 处=既有基线（本改动 0 新增）；vitest logicflow 86/86；API E2E 8/8（scripts/test-lf-rawtable-e2e.sh）：任意表 GTE 查询 total=2/关键字 LIKE total=1/rows[0] 索引取值写入任意表（log 行 code=C001,name=甲，{table,inserted:1,id:1} 自增键回读+租户自动填充）/条件删除 deleted=2/按 ID 删除 deleted=1/业务表物理名直连 raw 路径 total=1/表单路径查询回归/表单路径新增+条件删除自恢复；演示流回归 leave_ledger_sync+pickup_stock_sync 双 SUCCESS 零回归，副作用已还原（P003=80、流水回 2 条、测试台账删除、临时表/临时流全清理）
+- 【UI E2E（agent-browser）】设计器实测：三节点 label「业务表单 / 数据表」；目标下拉两组（业务表单 8 项中文名+其他数据表全表）；选 wf_logic_flow 后字段下拉联动真实列（created_at DATETIME/dsl_json LONGTEXT/flow_key VARCHAR…）；更新组件 SET 值 { } 选择器出现「dq1 查询结果」可展开树（total/rows/rows[0].productCode 物料编码(productCode)·VARCHAR/rows[0].stockQty 库存数量(stockQty)·INT，tenant_id/version 排除），目标切到 raw 表时字段树即时切换为该表列；清空后点选 stockQty 插入 {{dq1.rows[0].stockQty}} 成功；console 无错误；截图 /tmp/e2e_r22_update_picker.png；临时流已删
+- 【修复过程】E2E 首轮发现 orNullToTrimmed(null)→null 与 !keyword.isEmpty() NPE（A/C/F 用例）→ 改 null-safe 判断后 8/8；脚本两处迭代（多行字面量括号、argv 传参替代三引号嵌套）
+
+Stage Summary:
+- 数据族三节点（查询/新增/删除）目标从「仅业务表单」开放为「业务表单 / 数据表」：业务表单保持表单语义（租户隔离/必填/JSON 列/日期归一/托管列），任意数据表走直连路径（元数据校验+参数绑定+条件租户守卫），value 语义向后完全兼容（formKey 优先判定）
+- 值表达式全面支持数据表字段：上游查询行 rows[0].<字段> 与循环行 item.<字段> 可在设计器点选插入（中文名标注），引擎点路径新增 [n] 列表索引解析，插入即可运行
+- 修改文件：后端 3（LogicFlowEngine/BizDataSupport/LogicFlowDslValidator）+ 前端 3（PropertyPanel.vue/LogicFlowDesigner.vue/nodeMeta.ts）+ E2E 脚本 1（test-lf-rawtable-e2e.sh）
+
+---
+Task ID: lf-expr-editor-feasibility
+Agent: Z.ai Code (main session)
+Task: 用户咨询——表达式输入能否换成带代码提示/自动补全的代码编辑器，体积增量评估
+
+Work Log:
+- 探查现状：表达式输入 = el-input/textarea + VariablePicker（{ } 浮层树）+ VarMentionInput（# 呼出）+ chips，PropertyPanel 共 24 处 VarInput/VarMentionInput；无语法高亮、无即时补全
+- 确认 LogicFlowDesigner/ListPage 均为路由懒加载（src/router/index.ts:34/185），新增依赖只进设计器 chunk，不影响主包
+- /tmp/cm-bench 实测（bun build --minify --target=browser + gzip -9）：
+  · CM6 完整形态（JS 语言/折叠/lint/补全/行号，适配 Groovy 条件）：481KB min / 160KB gzip
+  · CM6 精简形态（{{var}} 占位符高亮 + 变量补全 + 基础编辑，适配值表达式）：324KB min / 106KB gzip
+- Monaco/Ace 未实测（引用社区公认量级）：Monaco ≈ 2.5-4MB min / ≈1MB gzip + worker 文件；Ace ≈ 450-700KB min / ≈150-200KB gzip
+
+Stage Summary:
+- 结论：可行，推荐 CodeMirror 6（补全源直接复用 flowVars.ts 的 FlowVarItem 变量树，{{...}} 占位符用 StreamLanguage 高亮；不推荐 Monaco，体积超其 6-8 倍且移动端差）
+- 设计器 chunk 预估增重 15-25%（min），gzip 传输 +106~160KB，仅设计器路由受影响
+- 实施建议：新建 ExpressionEditor.vue（VarInput 加 editor 开关渐进替换），值表达式字段先行、Groovy 条件次之；保留 { } 选择钮与 chips；预计 1 个工作日；待用户确认后实施
+
+---
+Task ID: lf-cm6-editor-replace
+Agent: Z.ai Code (main session, trace 0fae76cf)
+Task: 用户确认——用 CodeMirror 6 替换项目中所有脚本和表达式输入
+
+Work Log:
+- 盘点：PropertyPanel 24 处 VarInput（mode placeholder×18/bare×6、textarea×5、chips×5、size small×12、clearable×1）；BPMN 4 处 UEL textarea（UserTask/HandlerTask/ServiceTask/SequenceFlow 表达式）；VarMentionInput 为无引用死代码（未动）；描述类/测试参数/XML 粘贴框不属表达式（未动）
+- 新增 src/components/expression/：cm6.ts（扩展工厂：mustache/uel 模板分词、SQL+{{var}} 混合分词、变量补全源复用 FlowVarItem 树拍平、SQL 关键字补全、Compartment 热替换、补全浮层挂 body 防裁剪）+ ExpressionEditor.vue（CM6 包装：占位符高亮/补全/清空钮/锚位插槽/失焦 change 提交/insertAtCursor 暴露）+ uelVars.ts（initiator.deptManager 等真实支持的 UEL 变量）
+- VarInput 内部 el-input→CM6，外部 API 全兼容（24 处零改动）；PropertyPanel 仅 SCRIPT 加 lang=groovy、SQL_SCRIPT 加 lang=sql 两处传参
+- FlowVarItem 增可选 groupLabel（UEL 分组展示名）；vitest.setup.ts 补 jsdom ResizeObserver stub
+- UX 增强（实施中发现）：占位符内补全自动闭合 }}（{{qt+Enter→{{formData.qty}}，插入即可用）；光标后方已有闭合标记时只插路径
+- 验证：vue-tsc 54=基线（新文件零错误）；logicflow+designer vitest 150/150（member-group 5 失败经 stash 对照确认为既有问题）；agent-browser E2E：更新面板 {{formData.qty}} 紫色 #8250df 高亮+补全树（formData.qty 表单·number）+选择器浮层插入+{{qt 自动闭合、Groovy 关键字蓝+bare 即输即补+chips、SQL 三色混合高亮+SELE→SELECT 关键字补全、UEL ${initiator.deptManager} 自动闭合+「流程·」分组；演示流 DSL 零变化（未保存丢弃临时节点）；console 无错误；截图×3（/tmp/e2e_cm6_update_panel.png、e2e_cm6_groovy.png、e2e_cm6_sql.png、e2e_cm6_uel.png）
+- 体积实测口径（/tmp/cm-bench）：精简形态 324KB min/106KB gzip、完整 481KB min/160KB gzip，仅进两个设计器懒加载 chunk
+- 提交 7e97970e（--no-gpg-sign；推送仍需用户提供 PAT）
+
+Stage Summary:
+- 项目内所有脚本/表达式输入已全面升级为 CM6 代码编辑器：即时自动补全（输入 {{ 即列变量树、Groovy/SQL 即输即补）、语法高亮（占位符紫/关键字蓝/注释灰）、自动闭合、保持 { } 选择器与 chips 双通道
+- 存量 DSL/行为零破坏：外部 API 不变、值语义不变、编辑态所见即存量值
+- 新文件：expression/{cm6.ts,ExpressionEditor.vue,uelVars.ts}；改 8 文件；提交 7e97970e
+
+---
+Task ID: patrol-446961-r18
+Agent: cron-patrol
+Task: D+ 终态轻量运维巡检（Job 446961）
+
+Work Log:
+- dump-db.sh OK（20261012-051233，workflow=256K v6=128K）
+- 四链路探活 200×4；8080 真登录含 accessToken=真绿
+- 内存核对：usage 2.68GB（<3.5GB）；vite 单实例（30964）、Java 正当常驻、无 postcss worker
+
+Stage Summary:
+- 【事故小节】oom_kill 0→1（基线上涨）：自上一轮巡检 2026-10-11 17:05 后 cgroup 发生过一次 OOM kill，当前系统已自愈（四链路 200×4、真绿、内存 2.68GB 正常、vite/Java/mariadbd 均在位），无需干预；持续观察
+- r18 全绿 200×4 真绿，内存 2.68GB，oom 1（已自愈），dump OK
+---
+Task ID: lf-du-hash-fields
+Agent: Z.ai Code (main session, trace 82fa5836)
+Task: 用户需求——数据更新组件的表达式中输入 # 下拉出所选业务表单的所有字段
+
+Work Log:
+- 【协作发现】开工时工作区有一批 cron webDevReview agent 的在途改动（FormulaExpressionEditor/SqlEditor/ColumnAdvancedConfig 统一 CM6 + ExpressionEditor customSource/extraSources 扩展点 + makeSnippetCompletionSource 片段源工厂 + insertAtCursor cursorBack 增强 + 删除死代码 VarMentionInput）：监控确认停止编辑（4 分钟无 mtime 变化）后复核 vue-tsc 54=基线/目标文件 0 错误，先独立提交收口 704b5e51，再在其扩展点之上实现本需求
+- 【CM6 过滤机制源码调研】@codemirror/autocomplete 6.20.3 渲染层用 sliceDoc(result.from, 光标) 对 label 做 FuzzyMatcher 过滤（# 非词字符单字符模式仅匹配 label 开头→变量 label 在 {{# 场景被自然滤除）；CompletionResult.filter=false 可关闭渲染层过滤（源自过滤接管）→ 据此定稿补全源设计
+- 【cm6.ts】新增 HashFieldOption + makeHashFieldCompletionSource(fields|getter, syntax='mustache')：输入 # 呼出字段下拉；占位符外插 {{formData.字段}}（uel 为 ${...}）插入即可运行；占位符内（{{…# ）从占位符内容起点整体替换（# 前残缺路径一并清掉）+ 后方无 }} 自动补闭合（与变量补全同语义）；filter:false + 源内自过滤（key/中文名大小写不敏感子串，中文过滤不被 label 模糊匹配限制）；fields 支持 getter 闭包（元数据异步就绪实时生效，恒定身份免编辑器扩展重建）；detail=中文名 · 类型（剥掉 中文名(key) 格式的括号尾）
+- 【VarInput.vue】新增 hashFields 属性；hashSource=getter 闭包工厂实例（常驻 customSource 通道，未配置时每查询空返回零开销）
+- 【PropertyPanel.vue】entryHashFields(u)：条目目标为业务表单（wf_biz_*）→ bizEntryColumns(table)（真实列优先/columnConfig 回退 + 中文名·类型，排除 tenant_id/version，与 SET 字段下拉同源）；其他数据表不启用；SET 值 + WHERE 值两处 VarInput 接 :hash-fields="entryHashFields(u)"；SET/WHERE FieldLabel tips 与 placeholder（「值或 {{formData.xxx}}，# 选表单字段」）同步提示
+- 【验证】vue-tsc 54=既有基线（本改动 0 新增）；vitest logicflow 86/86；agent-browser E2E（pickup_stock_sync 数据更新节点，临时修改未保存即离开）：①SET 值输 # → 浮层列 wf_biz_material_stock_demo 全部 7 字段（productCode 物料编码·VARCHAR/stockQty 库存数量·INT…，无 tenant_id/version）②点选 stockQty → {{formData.qty}}# → {{formData.qty}}{{formData.stockQty}}（# 被替换为可运行引用）③中文过滤「#库」→ 仅剩 stockQty ④占位符内 {{# → 7 项齐全 → 键盘 ↓×4+Enter → {{formData.productName}}（内容起点替换+自动闭合，无残留 #）⑤WHERE 值「#prod」→ 过滤 productCode/productName → Enter 插入成功 ⑥{{ 变量补全回归正常（formData 组完整）⑦console 无错误；截图 /tmp/e2e_hash_fields.png
+- 【未动】DSL/引擎零改动：插入物 {{formData.字段}} 即引擎既有 formData 点路径语义（面板 tips 本就文档化该写法）；演示流未保存零污染
+
+Stage Summary:
+- 数据更新组件 SET/WHERE 值表达式新增 # 手势：输入 # 即下拉所选业务表单全部字段（中文名·类型标注、支持中英文过滤、键盘可选），选中插入引擎可直接解析的 {{formData.字段}}，与 {{ 变量补全、{ } 选择器三通道并存
+- 机制全项目可复用：VarInput hashFields 属性 + cm6 makeHashFieldCompletionSource 工厂（getter 动态源/filter:false 自过滤/uel 兼容），后续数据查询/新增/删除等值表达式接入仅需一行 prop
+- 提交 704b5e51（cron agent CM6 统一收口）+ 本需求提交
+
+---
+Task ID: lf-du-expr-1
+Agent: Z.ai Code (main session, trace 4e0a96e5→开工)
+Task: 数据更新 SET 值升级为表达式（=前缀 + 裸列名引用 + 表字段补全）——方案定稿并开工
+
+Work Log:
+- 与用户三轮讨论定稿：①DSL 用 =前缀标记表达式（value 以 = 开头走 SQL 侧翻译，否则走既有字面量/插值路径，零迁移）②裸列名引用目标表当前行值（白名单=目标表列元数据）③{{}} 沿用现有 resolvePath 语义（含 formData 点路径/rows[0].字段/[n] 索引）④MVP 函数白名单 ROUND/ABS/FLOOR/CEIL/IFNULL/COALESCE/GREATEST/LEAST ⑤WHERE 不动（# 仍插 {{formData.字段}}）⑥legacy SET/ADD/SUB 完全兼容 ⑦手势分工：#→表字段(裸列名)/{}→变量(不变)/打字→混排补全
+- 【重要现状】CM6 基座已在库（提交 7e97970e：src/components/expression/{cm6.ts,ExpressionEditor.vue}，VarInput 已全面 CM6 化，24 处零改动）；# 呼出表单字段已落地（f397ba52：makeHashFieldCompletionSource 插 {{formData.字段}}）→ 本任务为在其上扩展
+- 引擎现状核对：buildDataUpdate 单/多表共用（col=? / col=col+?）；resolveDataUpdateValue 纯{{path}}保类型/混合插值/其余字面量；columnsOf→LinkedHashMap(lowercase,ColumnInfo)；requireColumn 白名单；tenant_id 禁改
+- 前端扩展点核对：ExpressionEditor.customSource(单源)→需扩 customSources(多源)；makeHashFieldCompletionSource 需加 insert:'placeholder'|'bare' 模式（bare 插裸列名+自动 = 前缀）；新增 makeColumnCompletionSource（打字即补列名）；新增 exprSet 高亮（列名绿/函数 teal/{{}}紫）
+- 【资源约束】cgroup 2.68GB、oom_kill=1 → mvn 与 vue-tsc 严禁并行，子代理串行派发（2-a 后端→2-b 前端）
+
+Stage Summary:
+- 方案已定稿并经用户确认开工；契约：value 以 = 开头 → 引擎剥 = 后走 UpdateExprTranslator（词法:{{path}}/数字/单引号串/标识符/+-*/%(), 语法:递归下降；语义:标识符→列白名单输出真实列名、{{}}→resolver→参数、字面量→参数；SQL 文本仅含白名单列名/函数名/运算符，其余全 ? 参数绑定，防注入不破坏）；== 前缀=转义字面量=；ADD/SUB 不支持 = 前缀（requireNumeric 自然拒绝）；refScan/renameRef 零改动（value 字段不变）
+- 串行任务：2-a 后端 UpdateExprTranslator+引擎分支+发布校验+JUnit → 2-b 前端 bare #/列补全/高亮/面板接入 → 3 集成 E2E

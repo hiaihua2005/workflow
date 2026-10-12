@@ -129,6 +129,18 @@ public class BizDataSupport {
     }
 
     /**
+     * 是否存在已发布业务表单且含业务列（逻辑流数据族节点目标二义性判定用：formKey vs 库内物理表名）。
+     * 表单缺失/未发布/非业务表单/异常一律 false，调用方回退物理表名路径。
+     */
+    public boolean hasPublishedBusinessColumns(String formKey) {
+        try {
+            return !formDefService.getBusinessColumnsByKey(formKey).isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * 遍历 data-picker 引用列：校验 id 存在并生成 {@code <key>_text} 展示缓存文本。
      * 不修改原 data，返回附加字段（{@code <key>_text} → 文本）；引用值为空时返回空文本。
      */

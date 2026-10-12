@@ -6,7 +6,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick, h } from 'vue'
 import ElementPlus from 'element-plus'
+import type { EditorView } from '@codemirror/view'
 import SqlEditor from '../SqlEditor.vue'
+import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
 import type { ColumnConfigItem } from '@/api/bizData'
 
 vi.mock('@element-plus/icons-vue', () => ({
@@ -51,17 +53,23 @@ function lastColumns(wrapper: ReturnType<typeof mountEditor>): ColumnConfigItem[
 }
 
 describe('SqlEditor', () => {
-  it('渲染 SQL 文本编辑区（textarea）', () => {
+  it('渲染 SQL 文本编辑区（CM6）', async () => {
     const wrapper = mountEditor()
-    const textarea = wrapper.find('textarea[data-testid="sqleditor-sql"]')
-    expect(textarea.exists()).toBe(true)
-    expect((textarea.element as HTMLTextAreaElement).value).toContain('SELECT * FROM wf_biz_order')
+    await nextTick()
+    const content = wrapper.find('[data-testid="sqleditor-sql"] .cm-content')
+    expect(content.exists()).toBe(true)
+    expect(content.text()).toContain('SELECT * FROM wf_biz_order')
   })
 
   it('编辑 SQL 文本时触发 update:modelValue', async () => {
     const wrapper = mountEditor()
-    const textarea = wrapper.find('textarea[data-testid="sqleditor-sql"]')
-    await textarea.setValue('SELECT order_no FROM wf_biz_order')
+    await nextTick()
+    const ed = wrapper.findComponent(ExpressionEditor)
+    // script setup 的 defineExpose 成员经内部实例 exposed 访问
+    const exposed = (ed.vm.$ as unknown as { exposed: { getView: () => EditorView } }).exposed
+    const view = exposed.getView()
+    view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: 'SELECT order_no FROM wf_biz_order' } })
+    await nextTick()
     const emitted = wrapper.emitted('update:modelValue')
     expect(emitted).toBeTruthy()
     expect(emitted!.at(-1)![0]).toBe('SELECT order_no FROM wf_biz_order')

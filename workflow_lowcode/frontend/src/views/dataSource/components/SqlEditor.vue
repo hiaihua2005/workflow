@@ -68,6 +68,7 @@ export function parseSelectColumns(sql: string): string[] {
 <script setup lang="ts">
 import { ref, toRaw, watch } from 'vue'
 import { Delete, Plus } from '@element-plus/icons-vue'
+import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -153,15 +154,15 @@ function parseFromSql() {
   <div class="sql-editor">
     <el-form label-width="70px" label-position="left">
       <el-form-item label="SQL 模板">
-        <el-input
+        <ExpressionEditor
           data-testid="sqleditor-sql"
           :model-value="modelValue"
-          type="textarea"
+          lang="sql"
+          multiline
           :rows="10"
-          placeholder="SELECT ... FROM wf_biz_&lt;formKey&gt; WHERE tenant_id = :tenantId"
-          style="font-family: monospace"
+          placeholder="SELECT ... FROM wf_biz_<formKey> WHERE tenant_id = :tenantId"
           :disabled="disabled"
-          @input="emit('update:modelValue', $event as string)"
+          @update:model-value="emit('update:modelValue', $event)"
         />
         <div style="margin-top: 8px">
           <el-button
