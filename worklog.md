@@ -7115,3 +7115,20 @@ Work Log:
 Stage Summary:
 - 四项 UI 优化全部落地且引擎级验证通过；DSL 向后完全兼容（无 op 旧 DSL 走 EQ 等值，存量 ADD/SUB 引擎保留、UI 只读展示）
 - 修改文件：后端 4（BackendDataQueryConfig/LogicFlowEngine/BizDataQueryBuilder/LogicFlowDslValidator）+ 前端 3（PropertyPanel.vue/dsl.ts/nodeMeta.ts）+ E2E 脚本 2（test-lf-op-e2e.sh/test-demo-flow-regression.sh）
+
+---
+Task ID: lf-cond-ui-r21
+Agent: Z.ai Code (main session, trace d2c3fe2d)
+Task: 用户需求 21——逻辑流设计器条件类交互细化：①数据查询「等值筛选」→「筛选」（字段+比较符一行、值下一行）②查询/新增/删除的表单及字段下拉与数据更新组件一致 ③更新组件去 ADD+/SUB− 下拉（字段/值各占一行）④删除组件删除条件（字段+比较符一行、值单独一行）
+
+Work Log:
+- 【协作发现】开工即探测到 webDevReview cron agent 正在做同一需求（后端 4 文件 + dsl.ts/nodeMeta.ts + PropertyPanel 部分区块已改、jar 02:17 重启、PropertyPanel mtime 实时变化）——立即转 monitor-only 冻结写入，轮询监控至其停止（约 6.5 分钟无编辑），随后接管缺口复核
+- 【引擎侧（并行 agent 产出，本会话复核通过）】BackendDataQueryConfig.DataFilter 加 op（EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL，缺省 EQ 兼容存量）；executeDataQuery 全量转结构化 {logic:AND, conditions:[{column,op,value}]}（IS_NULL→isempty、NOT_NULL→isnotempty；缺省 EQ 与旧等值行为逐分支等价：null 跳过/JSON 列 JSON_CONTAINS/普通列 =?）；BizDataQueryBuilder.appendStructuredFilters 补 gt/gte/lt/lte（参数绑定）；DslValidator DATA_QUERY filter op ∈ DML_OPS 校验
+- 【缺口接管（本会话补齐）】需求②只完成表单下拉分组化，字段下拉仍为 columnConfig 口径——新增 bizEntryColumns（真实表列优先/columnConfig 回退 + 中文名(列名)+类型 + 已填兜底；统一排除 tenant_id/version，INSERT 额外排除托管列）与 bizColLoading；QUERY 筛选/关键字列、INSERT 新增字段、DELETE 删除条件 4 处下拉全部切换；预取 watcher 同步 ensureDuColumns('wf_biz_'+k)（微任务包装规避 immediate TDZ）；删除 formColOptions/formColLoading 死代码
+- 【验证】vue-tsc PropertyPanel 0 错误；vitest logicflow 86/86；引擎 API 级 E2E：临时流 tmpop1 manual run——GTE 100→P001(185)、LT 100→P002/P003、无 op 等值兼容→P001 精确命中，验证后删除；浏览器 E2E（agent-browser）：数据查询「筛选」两行式（字段+比较符 8 项下拉=等于/不等于/大于/大于等于/小于/小于等于/为空/不为空）+ 字段下拉真实列（年假总额(annualDays)INT/id/created_at/created_by/updated_at，无 tenant_id/version）；数据更新「更新字段 SET」无 mode 下拉、字段行+值行、存量 ADD 显示只读 warning tag（引擎兼容不新增入口）；数据新增字段下拉 5 业务列中文名+类型无托管列；数据删除条件两行式结构同查询；截图×3（/tmp/e2e_query_filter.png、e2e_update_setops.png、e2e_delete_cond.png）
+- 【DSL 兼容】存量 filter 无 op → 编辑态归一 op:'EQ'（引擎缺省同义）；存量 setOps mode ADD/SUB → DSL 原样保留 + UI 只读标记（演示场景 1 累加年假/场景 2 扣减库存运行行为不受影响，du_add ADD+ 实测展示正确）
+
+Stage Summary:
+- 逻辑流数据族条件类交互全面细化完成：查询筛选支持 8 种比较符（值独立行）、三组件表单/字段下拉与更新组件完全同口径（分组业务表单+真实列+中英文）、更新字段固定 SET（存量 ADD/SUB 只读兼容展示）、删除条件两行式
+- 引擎 DATA_QUERY 从纯等值升级为全比较符（结构化条件复用 BizDataQueryBuilder 安全模型：白名单+参数绑定），存量 DSL 零破坏
+- 协作范式再次生效：cron agent 交付主体（后端+utils+部分 UI），本会话监控+复核+补齐字段下拉口径缺口+全链路验证
