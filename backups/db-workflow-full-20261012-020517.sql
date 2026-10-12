@@ -3278,7 +3278,8 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `wf_biz_material_pickup_demo` WRITE;
 /*!40000 ALTER TABLE `wf_biz_material_pickup_demo` DISABLE KEYS */;
 INSERT INTO `wf_biz_material_pickup_demo` VALUES
-('a714dfd5dd1c43a6912bf787164617e0','default','P001','深沟球轴承 6204',5,'李四','装配线补料-浏览器演示（场景2）',1,NULL,NULL,NULL);
+('a714dfd5dd1c43a6912bf787164617e0','default','P001','深沟球轴承 6204',5,'李四','装配线补料-浏览器演示（场景2）',1,NULL,NULL,NULL),
+('ce941a897dd8413e8eb1a686eb4f2c9e','default','P001','深沟球轴承 6204',10,'张三',NULL,1,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `wf_biz_material_pickup_demo` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -3316,7 +3317,7 @@ LOCK TABLES `wf_biz_material_stock_demo` WRITE;
 INSERT INTO `wf_biz_material_stock_demo` VALUES
 ('22eb5c24ff164b5fb70995632ac218d2','default','P003','温度传感器 DS18B20',80,1,NULL,NULL,NULL),
 ('b144f3ddd89d41d2948267a3e97b704a','default','P002','直流减速电机 24V',50,1,NULL,NULL,NULL),
-('dfcb4ecfb51d45a584632288f4f614cf','default','P001','深沟球轴承 6204',195,11,NULL,NULL,'2026-10-11 16:21:56');
+('dfcb4ecfb51d45a584632288f4f614cf','default','P001','深沟球轴承 6204',185,11,NULL,NULL,'2026-10-11 16:21:56');
 /*!40000 ALTER TABLE `wf_biz_material_stock_demo` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -3473,7 +3474,8 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `wf_biz_pickup_log_demo` WRITE;
 /*!40000 ALTER TABLE `wf_biz_pickup_log_demo` DISABLE KEYS */;
 INSERT INTO `wf_biz_pickup_log_demo` VALUES
-('455988fd0e714ab29eda178f3ef834ab','default','P001','深沟球轴承 6204',5,'李四','来源领用单 a714dfd5dd1c43a6912bf787164617e0',1,NULL,NULL,NULL);
+('455988fd0e714ab29eda178f3ef834ab','default','P001','深沟球轴承 6204',5,'李四','来源领用单 a714dfd5dd1c43a6912bf787164617e0',1,NULL,NULL,NULL),
+('9710184373c148a083f518de244922ac','default','P001','深沟球轴承 6204',10,'张三','来源领用单 ce941a897dd8413e8eb1a686eb4f2c9e',1,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `wf_biz_pickup_log_demo` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -3780,7 +3782,7 @@ LOCK TABLES `wf_logic_flow` WRITE;
 INSERT INTO `wf_logic_flow` VALUES
 ('31466d6915d44c5dab2e00821233a24f','2026-10-11 16:06:31.518530','演示：审批通过(流程结束)后自动建档并累加年假台账（DATA_UPSERT + DATA_UPDATE）','{\"nodes\": [{\"id\": \"start1\", \"type\": \"START\", \"name\": \"开始\", \"x\": 80, \"y\": 60}, {\"id\": \"dq_ledger\", \"type\": \"DATA_QUERY\", \"name\": \"查询台账是否已建档\", \"x\": 80, \"y\": 176, \"config\": {\"formKey\": \"leave_ledger_demo\", \"filter\": [{\"column\": \"employeeName\", \"value\": \"{{formData.applicant}}\"}], \"size\": 1}, \"results\": [{\"name\": \"total\", \"mode\": \"KEY\", \"type\": \"number\", \"desc\": \"命中行数\"}], \"errorAction\": \"FAIL_FLOW\"}, {\"id\": \"cond_empty\", \"type\": \"CONDITION\", \"name\": \"台账不存在?\", \"x\": 80, \"y\": 310, \"config\": {\"variable\": \"total\", \"operator\": \"EQ\", \"value\": \"0\"}}, {\"id\": \"di_create\", \"type\": \"DATA_INSERT\", \"name\": \"首次自动建档(总额10天)\", \"x\": 80, \"y\": 426, \"config\": {\"formKey\": \"leave_ledger_demo\", \"data\": [{\"column\": \"employeeName\", \"value\": \"{{formData.applicant}}\"}, {\"column\": \"department\", \"value\": \"{{formData.department}}\"}, {\"column\": \"annualDays\", \"value\": \"10\"}, {\"column\": \"usedDays\", \"value\": \"0\"}]}, \"errorAction\": \"FAIL_FLOW\"}, {\"id\": \"du_add\", \"type\": \"DATA_UPDATE\", \"name\": \"累加已用天数\", \"x\": 80, \"y\": 542, \"config\": {\"table\": \"\", \"setOps\": [], \"where\": [], \"updates\": [{\"table\": \"wf_biz_leave_ledger_demo\", \"setOps\": [{\"column\": \"usedDays\", \"mode\": \"ADD\", \"value\": \"{{formData.days}}\"}], \"where\": [{\"column\": \"employeeName\", \"op\": \"EQ\", \"value\": \"{{formData.applicant}}\"}]}]}, \"errorAction\": \"FAIL_FLOW\"}, {\"id\": \"end1\", \"type\": \"END\", \"name\": \"结束\", \"x\": 80, \"y\": 658}], \"edges\": [{\"source\": \"start1\", \"target\": \"dq_ledger\", \"id\": \"e1\"}, {\"source\": \"du_add\", \"target\": \"end1\", \"id\": \"e6\"}, {\"source\": \"cond_empty\", \"target\": \"di_create\", \"id\": \"e_true_create\", \"branch\": \"true\"}, {\"source\": \"cond_empty\", \"target\": \"du_add\", \"id\": \"e_false_add\", \"branch\": \"false\"}, {\"source\": \"di_create\", \"target\": \"du_add\", \"id\": \"e_create_add\"}, {\"id\": \"e2\", \"source\": \"dq_ledger\", \"target\": \"cond_empty\"}]}','leave_ledger_sync','请假批准同步年假台账','PUBLISHED','default','2026-10-11 17:29:52.651177',10),
 ('88bcfe0b7a1742a7b09a3286012a78b9','2026-10-08 01:04:24.119650',NULL,'{\"nodes\":[{\"id\":\"start\",\"type\":\"START\",\"name\":\"开始\",\"x\":360.0,\"y\":80.0,\"config\":null,\"resultVar\":null,\"errorAction\":null},{\"id\":\"end\",\"type\":\"END\",\"name\":\"结束\",\"x\":360.0,\"y\":320.0,\"config\":null,\"resultVar\":null,\"errorAction\":null}],\"edges\":[{\"id\":\"e1\",\"source\":\"start\",\"target\":\"end\",\"branch\":null}],\"inputVars\":null}','var_picker_test','变量选择器测试流','DRAFT','default','2026-10-08 01:04:24.119670',0),
-('fbefdda018464d64ad24fbda9ecc349e','2026-10-11 16:06:32.813624','演示：登记领用单(新增)后自动扣减物料库存(DATA_UPDATE SUB)并写入领用流水(DATA_INSERT)','{\"nodes\": [{\"id\": \"start1\", \"type\": \"START\", \"name\": \"开始\", \"x\": 120, \"y\": 160}, {\"id\": \"du_stock\", \"type\": \"DATA_UPDATE\", \"name\": \"扣减物料库存\", \"x\": 350, \"y\": 160, \"config\": {\"table\": \"wf_biz_material_stock_demo\", \"setOps\": [{\"column\": \"stockQty\", \"mode\": \"SUB\", \"value\": \"{{formData.qty}}\"}], \"where\": [{\"column\": \"productCode\", \"op\": \"EQ\", \"value\": \"{{formData.productCode}}\"}]}}, {\"id\": \"di_log\", \"type\": \"DATA_INSERT\", \"name\": \"写入领用流水\", \"x\": 590, \"y\": 160, \"config\": {\"formKey\": \"pickup_log_demo\", \"data\": [{\"column\": \"productCode\", \"value\": \"{{formData.productCode}}\"}, {\"column\": \"productName\", \"value\": \"{{formData.productName}}\"}, {\"column\": \"qty\", \"value\": \"{{formData.qty}}\"}, {\"column\": \"pickupBy\", \"value\": \"{{formData.pickupBy}}\"}, {\"column\": \"sourceNote\", \"value\": \"来源领用单 {{dataId}}\"}]}}, {\"id\": \"end1\", \"type\": \"END\", \"name\": \"结束\", \"x\": 820, \"y\": 160}], \"edges\": [{\"id\": \"e1\", \"source\": \"start1\", \"target\": \"du_stock\"}, {\"id\": \"e2\", \"source\": \"du_stock\", \"target\": \"di_log\"}, {\"id\": \"e3\", \"source\": \"di_log\", \"target\": \"end1\"}]}','pickup_stock_sync','领用登记联动库存与流水','PUBLISHED','default','2026-10-11 16:21:55.655742',9);
+('fbefdda018464d64ad24fbda9ecc349e','2026-10-11 16:06:32.813624','演示：登记领用单(新增)后自动扣减物料库存(DATA_UPDATE SUB)并写入领用流水(DATA_INSERT)','{\"nodes\":[{\"id\":\"start1\",\"type\":\"START\",\"name\":\"开始\",\"x\":80,\"y\":60},{\"id\":\"du_stock\",\"type\":\"DATA_UPDATE\",\"name\":\"扣减物料库存\",\"x\":80,\"y\":176,\"config\":{\"table\":\"wf_biz_material_stock_demo\",\"setOps\":[{\"column\":\"stockQty\",\"mode\":\"SUB\",\"value\":\"{{formData.qty}}\"}],\"where\":[{\"column\":\"productCode\",\"op\":\"EQ\",\"value\":\"{{formData.productCode}}\"}]},\"errorAction\":\"FAIL_FLOW\"},{\"id\":\"di_log\",\"type\":\"DATA_INSERT\",\"name\":\"写入领用流水\",\"x\":80,\"y\":292,\"config\":{\"formKey\":\"pickup_log_demo\",\"data\":[{\"column\":\"productCode\",\"value\":\"{{formData.productCode}}\"},{\"column\":\"productName\",\"value\":\"{{formData.productName}}\"},{\"column\":\"qty\",\"value\":\"{{formData.qty}}\"},{\"column\":\"pickupBy\",\"value\":\"{{formData.pickupBy}}\"},{\"column\":\"sourceNote\",\"value\":\"来源领用单 {{dataId}}\"}]},\"errorAction\":\"FAIL_FLOW\"},{\"id\":\"end1\",\"type\":\"END\",\"name\":\"结束\",\"x\":80,\"y\":408}],\"edges\":[{\"source\":\"start1\",\"target\":\"du_stock\",\"id\":\"e1\"},{\"source\":\"du_stock\",\"target\":\"di_log\",\"id\":\"e2\"},{\"source\":\"di_log\",\"target\":\"end1\",\"id\":\"e3\"}]}','pickup_stock_sync','领用登记联动库存与流水','PUBLISHED','default','2026-10-12 02:02:38.564827',9);
 /*!40000 ALTER TABLE `wf_logic_flow` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -3820,6 +3822,8 @@ CREATE TABLE `wf_logic_flow_run` (
 SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `wf_logic_flow_run` WRITE;
 /*!40000 ALTER TABLE `wf_logic_flow_run` DISABLE KEYS */;
+INSERT INTO `wf_logic_flow_run` VALUES
+('1c8e98b467924526a28de6d41d813611','2026-10-12 00:33:02.915193',20,NULL,'fbefdda018464d64ad24fbda9ecc349e','pickup_stock_sync','领用登记联动库存与流水','{\"formData\":{\"productCode\":\"P001\",\"productName\":\"深沟球轴承 6204\",\"qty\":10,\"pickupBy\":\"张三\"},\"formDataExisting\":null,\"formKey\":\"material_pickup_demo\",\"formType\":\"BUSINESS\",\"dataId\":\"ce941a897dd8413e8eb1a686eb4f2c9e\",\"opType\":\"CREATE\",\"operator\":\"admin\",\"__trigger\":{\"source\":\"form-submit\",\"formType\":\"BUSINESS\",\"formKey\":\"material_pickup_demo\",\"trigger\":\"AFTER_CREATE\",\"opType\":\"CREATE\"}}','{\"formData\":{\"productCode\":\"P001\",\"productName\":\"深沟球轴承 6204\",\"qty\":10,\"pickupBy\":\"张三\"},\"formDataExisting\":null,\"formKey\":\"material_pickup_demo\",\"formType\":\"BUSINESS\",\"dataId\":\"ce941a897dd8413e8eb1a686eb4f2c9e\",\"opType\":\"CREATE\",\"operator\":\"admin\",\"__trigger\":{\"source\":\"form-submit\",\"formType\":\"BUSINESS\",\"formKey\":\"material_pickup_demo\",\"trigger\":\"AFTER_CREATE\",\"opType\":\"CREATE\"},\"du_stock\":1,\"di_log\":{\"id\":\"9710184373c148a083f518de244922ac\",\"version\":1,\"data\":{\"productCode\":\"P001\",\"productName\":\"深沟球轴承 6204\",\"qty\":10,\"pickupBy\":\"张三\",\"sourceNote\":\"来源领用单 ce941a897dd8413e8eb1a686eb4f2c9e\"}}}','2026-10-12 00:33:02.876930','SUCCESS','[{\"nodeId\":\"start1\",\"nodeName\":\"开始\",\"type\":\"START\",\"status\":\"SUCCESS\",\"result\":null,\"error\":null,\"durationMs\":\"0\"},{\"nodeId\":\"du_stock\",\"nodeName\":\"扣减物料库存\",\"type\":\"DATA_UPDATE\",\"status\":\"SUCCESS\",\"result\":1,\"error\":null,\"durationMs\":\"10\"},{\"nodeId\":\"di_log\",\"nodeName\":\"写入领用流水\",\"type\":\"DATA_INSERT\",\"status\":\"SUCCESS\",\"result\":{\"id\":\"9710184373c148a083f518de244922ac\",\"version\":1,\"data\":{\"productCode\":\"P001\",\"productName\":\"深沟球轴承 6204\",\"qty\":10,\"pickupBy\":\"张三\",\"sourceNote\":\"来源领用单 ce941a897dd8413e8eb1a686eb4f2c9e\"}},\"error\":null,\"durationMs\":\"8\"},{\"nodeId\":\"end1\",\"nodeName\":\"结束\",\"type\":\"END\",\"status\":\"SUCCESS\",\"result\":null,\"error\":null,\"durationMs\":\"0\"}]');
 /*!40000 ALTER TABLE `wf_logic_flow_run` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -4106,4 +4110,4 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-10-11 23:05:15
+-- Dump completed on 2026-10-12  2:05:17
