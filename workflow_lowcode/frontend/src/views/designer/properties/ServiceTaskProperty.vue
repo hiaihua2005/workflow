@@ -29,10 +29,12 @@
     </el-form-item>
 
     <el-form-item v-if="config.serviceType === 'expression'" label="表达式">
-      <el-input
+      <ExpressionEditor
         v-model="config.expression"
-        type="textarea"
+        syntax="uel"
+        multiline
         :rows="2"
+        :variables="uelVars"
         placeholder="如：${notifyService.sendNotification(execution)}"
       />
     </el-form-item>
@@ -56,6 +58,10 @@
 import { reactive, onMounted, watch } from 'vue'
 import { useDesignerStore } from '@/stores/designerStore'
 import { getModeler } from '../utils/bpmnModeler'
+import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
+import { UEL_FLOW_VARS } from '@/components/expression/uelVars'
+
+const uelVars = UEL_FLOW_VARS
 
 defineProps<{ readOnly?: boolean }>()
 

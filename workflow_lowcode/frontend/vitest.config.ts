@@ -12,6 +12,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    setupFiles: ['./vitest.setup.ts'],
     // 排除 e2e 测试（Playwright），避免 vitest 误收集
     exclude: [...defaultExclude, 'e2e/**'],
   },

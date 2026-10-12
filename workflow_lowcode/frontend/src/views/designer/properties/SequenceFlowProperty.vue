@@ -23,10 +23,12 @@
       <template #label>
         <FormLabelTip tip="Flowable UEL 表达式，支持变量比较、方法调用等">条件表达式</FormLabelTip>
       </template>
-      <el-input
+      <ExpressionEditor
         v-model="condition.expression"
-        type="textarea"
+        syntax="uel"
+        multiline
         :rows="3"
+        :variables="uelVars"
         placeholder="如：${amount > 10000}"
         @change="updateCondition"
       />
@@ -54,6 +56,10 @@ import { reactive, onMounted, watch } from 'vue'
 import { useDesignerStore } from '@/stores/designerStore'
 import { getModeler } from '../utils/bpmnModeler'
 import FormLabelTip from './shared/FormLabelTip.vue'
+import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
+import { UEL_FLOW_VARS } from '@/components/expression/uelVars'
+
+const uelVars = UEL_FLOW_VARS
 
 defineProps<{ readOnly?: boolean }>()
 

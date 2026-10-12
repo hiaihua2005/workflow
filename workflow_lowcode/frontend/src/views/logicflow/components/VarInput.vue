@@ -1,22 +1,21 @@
 <template>
   <div class="var-field" v-bind="wrapperAttrs">
-    <el-input
-      ref="inputInst"
-      v-bind="inputAttrs"
+    <ExpressionEditor
+      ref="editorInst"
       :model-value="modelValue"
-      :type="textarea ? 'textarea' : 'text'"
+      :variables="variables"
+      :mode="mode"
+      :lang="lang"
+      :multiline="textarea"
       :rows="rows"
+      :small="isSmall"
+      :clearable="clearable"
+      :placeholder="placeholder"
+      :disabled="disabled"
       @update:model-value="onValue"
     >
-      <template v-if="!textarea" #suffix>
-        <VariablePicker :variables="variables" :mode="mode" @pick="onPick" />
-      </template>
-    </el-input>
-
-    <!-- textarea 无 suffix 槽：浮动触发钮 -->
-    <div v-if="textarea" class="var-anchor">
       <VariablePicker :variables="variables" :mode="mode" @pick="onPick" />
-    </div>
+    </ExpressionEditor>
 
     <!-- 就近变量列表（Groovy 编辑器等长文本场景） -->
     <div v-if="chips" class="var-chips">
@@ -41,8 +40,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, useAttrs } from 'vue'
-import type { InputInstance } from 'element-plus'
+import { computed, ref, useAttrs } from 'vue'
+import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
 import VariablePicker from './VariablePicker.vue'
 import type { FlowVarItem } from '../utils/flowVars'
 import { varInsertText } from '../utils/flowVars'
@@ -57,29 +56,44 @@ const props = withDefaults(
     mode?: 'placeholder' | 'bare'
     /** 点击后整字段替换（变量名单值字段：condition.variable / 参数 source 等） */
     replace?: boolean
-    /** textarea 形态（Groovy 编辑器） */
+    /** 多行形态（Groovy/SQL/LLM 提示词等长文本编辑器） */
     textarea?: boolean
     rows?: number
     /** 显示就近变量 chips 行 */
     chips?: boolean
+    /** 脚本语言高亮：groovy（JS 近似）/ sql（关键字 + {{var}} 模板） */
+    lang?: 'none' | 'groovy' | 'sql'
+    /** el-input 兼容尺寸（small → 24px 行高） */
+    size?: string
+    /** 可清空（http url 等字段） */
+    clearable?: boolean
+    placeholder?: string
+    disabled?: boolean
   }>(),
-  { variables: () => [], mode: 'placeholder', replace: false, textarea: false, rows: 3, chips: false }
+  {
+    variables: () => [],
+    mode: 'placeholder',
+    replace: false,
+    textarea: false,
+    rows: 3,
+    chips: false,
+    lang: 'none',
+    size: '',
+    clearable: false,
+    placeholder: '',
+    disabled: false,
+  }
 )
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const attrs = useAttrs()
-/** class/style 落在外层包装（flex 布局/deep 选择器沿用原类名位置），其余透传 el-input */
+/** class/style 落在外层包装（flex 布局/deep 选择器沿用原类名位置） */
 const wrapperAttrs = computed(() => ({ class: attrs.class, style: attrs.style }))
-const inputAttrs = computed(() => {
-  const { class: _c, style: _s, ...rest } = attrs
-  return rest
-})
 
-const inputInst = ref<InputInstance>()
+const isSmall = computed(() => props.size === 'small')
 
-/** 空值统一按空串处理（可选字段 value?: string 直绑不报错） */
-const curValue = computed(() => props.modelValue ?? '')
+const editorInst = ref<InstanceType<typeof ExpressionEditor> | null>(null)
 
 /** bare 模式 chips 同步隐藏 formData 组 */
 const chipVars = computed(() =>
@@ -90,42 +104,15 @@ function onValue(value: string) {
   emit('update:modelValue', value)
 }
 
-/** 光标处插入并恢复焦点/光标（无原生元素时退化为尾部追加） */
-async function insertAtCursor(text: string) {
-  const el = (inputInst.value?.textarea ?? inputInst.value?.input) as
-    | HTMLInputElement
-    | HTMLTextAreaElement
-    | undefined
-  const cur = curValue.value
-
-  if (!el) {
-    emit('update:modelValue', cur + text)
-    return
-  }
-
-  const start = el.selectionStart ?? cur.length
-  const end = el.selectionEnd ?? cur.length
-  emit('update:modelValue', cur.slice(0, start) + text + cur.slice(end))
-
-  await nextTick()
-  el.focus()
-  const pos = start + text.length
-  try {
-    el.setSelectionRange(pos, pos)
-  } catch {
-    /* 部分浏览器对只读态设置选区会抛错，忽略 */
-  }
-}
-
 function onPick(text: string) {
   if (props.replace && !props.textarea) {
     emit('update:modelValue', text)
     return
   }
-  insertAtCursor(text)
+  editorInst.value?.insertAtCursor(text)
 }
 
-/** chips 点击：与弹出列表同一插入语义 */
+/** chips 点击：与补全列表同一插入语义 */
 function onChipPick(v: FlowVarItem) {
   onPick(varInsertText(v, props.mode))
 }
@@ -142,22 +129,9 @@ function onChipPick(v: FlowVarItem) {
   gap: 6px;
 }
 
-.var-field :deep(.el-input),
-.var-field :deep(.el-textarea) {
+.var-field :deep(.expr-editor),
+.var-field :deep(.cm-editor) {
   width: 100%;
-}
-
-/* textarea：右侧留出浮动触发钮空间 */
-.var-field :deep(.el-textarea textarea) {
-  padding-right: 36px;
-}
-
-.var-anchor {
-  position: absolute;
-  top: 7px;
-  right: 9px;
-  z-index: 5;
-  line-height: 1;
 }
 
 /* ===== 就近变量 chips ===== */

@@ -229,6 +229,7 @@
                 textarea
                 :rows="10"
                 chips
+                lang="groovy"
                 class="script-source"
                 placeholder="return 'hello ' + vars.name"
               />
@@ -1208,6 +1209,7 @@
                 textarea
                 :rows="10"
                 chips
+                lang="sql"
                 class="sql-source"
                 placeholder="-- name: upsert_user&#10;UPDATE wf_biz_order SET status = {{newStatus}} WHERE id = {{orderId}};&#10;&#10;SELECT id, amount FROM wf_biz_order WHERE id = {{orderId}};"
               />
