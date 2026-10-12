@@ -7396,3 +7396,40 @@ Work Log:
 Stage Summary:
 - main 重建后推送，远端同步；jar 留磁盘备份（backups/）不入库，.gitignore 双保险（仓库根 backups/ + 子目录 *.jar）
 - item 22 答复备查：大模型组件配置在逻辑流画布节点属性面板（PropertyPanel.vue llmCfg：prompt/system/temperature），内联存于节点 DSL
+
+---
+Task ID: cron-r21
+Agent: main
+Task: Job 446961 r21 轻量运维巡检
+
+Work Log:
+- dump-db.sh OK（workflow=260K v6=128K）
+- 初探：3000 链路 000×3（vite 假死，进程在但无响应）、8080 直连 200
+- 干预：kill 假死 vite（PID 8635）→ start-services.sh 拉起（前台 120s 超时但实际生效）→ 复探 200×3 + 8080 accessToken 真绿
+- 【事故备案】oom_kill=9（r20 基线 0，上涨 9）——vite 假死根因疑为 cgroup OOM 压力；mem 2.12GB 正常、当前无 2+ vite 实例
+- Java RSS≈465MB 正常驻留勿动；vite 单实例
+
+Stage Summary:
+- r21 恢复全绿；OOM 事件登记（9 次 kill），后续巡检关注 vite RSS（此前≈532MB）与 oom_kill 是否继续上涨
+
+---
+Task ID: groovy-canvas-fix-20261012
+Agent: 主会话（Z.ai Code）
+Task: 用户报障「Groovy 组件拖入画布整个画布卡死无法返回」——P0 修复
+
+Work Log:
+- agent-browser 全链复现：拖 Groovy → PropertyPanel SCRIPT 分支 ExpressionEditor mounted hook 抛错 → 渲染链断裂 → 后续拖放全部失效（画布瘫痪复现成功）
+- 抓取完整栈：Unrecognized extension value in extension set → EditorState.create 校验失败
+- 临时诊断（createState 加 catch 递归扫描 extensions，防环后）：扩展结构全部合法（CYCLE 均为 Facet 自引用正常形态）→ 锁定 instanceof 类校验失败 → 双实例假设
+- 实锤：node_modules/.vite/deps/@codemirror_lang-javascript.js 零 import、内嵌完整 @codemirror/state 副本（grep "class Facet"=1，主 state chunk 类已 minify）→ esbuild 预优化分块非确定，本次 re-optimize 把 lang-javascript 打成自包含 chunk → 第二个 CM 实例 → 仅 lang='groovy'（SCRIPT 独有 javascript()）挂载即崩，其他节点全部正常
+- 修复①：vite.config.ts optimizeDeps.exclude @codemirror/lang-javascript（走源码 ESM 复用统一 state chunk，单实例根治）
+- 顺带发现 items 24 接线遗漏：scriptBeanSources（2299 行）定义后从未被模板消费 → SCRIPT VarInput 补 :priority-sources="scriptBeanSources"
+- 修复②：PropertyPanel.vue SCRIPT 分支接线 Bean/方法补全源
+- E2E 验证（agent-browser）：拖 Groovy 零错误（nodes=3 errs=0，修复前必崩）→ 再拖 HTTP 画布可操作（4 节点）→ SCRIPT 面板 CM6 挂载 ✓ → 输入 beans. 弹 Bean 补全（scriptToolkit，后端 ScriptBeanFacade 白名单）→ 选中后 beans.scriptToolkit. 弹方法补全（dictLabel/dictMap/now/uuid）——items 24 全链贯通
+- 清理：诊断代码已移除（git diff 干净）；测试节点为内存态未保存
+- 插曲：并行 cron 会话把 115MB jar 再次提交（62fdd3a2）→ reset 丢弃（未推送，零损失）；曾误判「文件系统读分裂/语法损坏」——实为 Bash 输出渲染吞 [m 序列的显示假象 + s.length(UTF-16 units) 与字节数口径混淆，已澄清
+
+Stage Summary:
+- P0 修复完成：Groovy 节点拖入即崩问题根治（vite.config optimizeDeps.exclude，2 文件改动）
+- items 24 功能补全贯通：SCRIPT 输入框 Bean 名/方法名补全真实可用（后端 scriptToolkit Bean 4 方法）
+- 经验入库：①CM6 项目升级 import 图谱后必查 .vite/deps chunk 内嵌副本（grep "class Facet"）②Bash 管道显示会吞 [m 等序列，源码真伪以 Read 工具为准 ③诊断递归必须防环（CM6 扩展自引用是常态）

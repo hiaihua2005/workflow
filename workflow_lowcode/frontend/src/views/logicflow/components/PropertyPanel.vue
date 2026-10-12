@@ -231,6 +231,7 @@
                 chips
                 lang="groovy"
                 class="script-source"
+                :priority-sources="scriptBeanSources"
                 placeholder="return 'hello ' + vars.name"
               />
             </el-form-item>

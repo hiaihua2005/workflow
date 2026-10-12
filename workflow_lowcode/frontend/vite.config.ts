@@ -14,6 +14,15 @@ import path from 'path'
 export default defineConfig({
   base: '/',
   plugins: [vue(), tailwindcss()],
+  optimizeDeps: {
+    // @codemirror/lang-javascript 的 npm dist 预打包了 @codemirror/state/language 的完整副本；
+    // esbuild 依赖预优化在特定分块形态下会把它内联成零 import 的自包含 chunk，
+    // 产生第二个 CodeMirror 实例 → lang='groovy'（SCRIPT 节点）的 javascript() 扩展对象
+    // 无法通过 EditorState.create 的 instanceof 校验（Unrecognized extension value）
+    // → SCRIPT 面板挂载崩溃 → 整个画布瘫痪。
+    // exclude 后该包走源码 ESM，其 import '@codemirror/state' 复用统一的优化 chunk（单实例）。
+    exclude: ['@codemirror/lang-javascript']
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
