@@ -441,7 +441,7 @@
 
                 <div class="rows-block">
                   <div class="rows-head">
-                    <FieldLabel label="更新字段 SET" tip="SET 直接赋值；字段一行、值另起一行；值支持字面量、{{ formData.xxx }} 点路径取表单字段，点 { } 选数据表字段（上游查询行 rows[0].字段），或输入 # 呼出目标表单字段下拉（选中插 {{formData.字段}}）" />
+                    <FieldLabel label="更新字段 SET" tip="SET 直接赋值：值支持 = 表达式（裸列名引用该行当前值 + {{ formData.xxx }} 变量 + 四则运算与 ROUND/ABS/IFNULL 等函数，如 = qty * {{formData.rate}}），输入 # 呼出目标表字段（选中插裸列名并自动补 = 前缀）；字面量、{{ formData.xxx }} 点路径或 { } 选上游产出仍可用，以 == 开头则 = 为字面量" />
                     <el-button size="small" text type="primary" @click="u.setOps.push({ column: '', mode: 'SET', value: '' })">添加</el-button>
                   </div>
                   <div v-if="!u.setOps.length" class="rows-empty">暂无更新字段</div>
@@ -483,11 +483,12 @@
                     <VarInput
                       v-model="op.value"
                       :variables="valueVars"
-                      :hash-fields="entryHashFields(u)"
+                      :hash-fields="legacySetOp(op) ? entryHashFields(u) : setEntryHashFields(u)"
+                      :hash-insert="legacySetOp(op) ? 'placeholder' : 'bare'"
                       mode="placeholder"
                       size="small"
                       class="du-value-line"
-                      placeholder="值或 {{formData.xxx}}，# 选表单字段"
+                      placeholder="如 = qty * {{formData.rate}}，# 插目标表字段"
                     />
                   </div>
                 </div>
@@ -1893,13 +1894,29 @@ function addDataUpdateEntry(): void {
 const duColumnsByTable = reactive(new Map<string, { key: string; columnType: string }[]>())
 const duTableLoading = reactive(new Set<string>())
 
-/** 数据更新条目 # 呼出字段（需求：值表达式输入 # 下拉所选业务表单全部字段）：
- *  业务表单 → 真实列优先 + 中文名·类型（与 SET 字段下拉同源，排除 tenant_id/version）；其他数据表不启用 */
+/** 数据更新条目 # 呼出字段（WHERE 值用，保持旧语义）：业务表单 → 真实列优先 + 中文名·类型
+ *  （与 SET 字段下拉同源，排除 tenant_id/version）；其他数据表不启用（无 formData 映射） */
 function entryHashFields(u: DataUpdateTableUpdate): HashFieldOption[] {
   const table = String(u?.table ?? '').trim()
   return table.startsWith('wf_biz_')
     ? bizEntryColumns(table, undefined).map((c) => ({ key: c.key, label: c.label, type: c.type }))
     : []
+}
+
+/** 存量 legacy SET 模式（ADD/SUB）：值不支持 = 表达式，# 保持旧语义（插 {{formData.字段}}） */
+function legacySetOp(op: { mode?: string }): boolean {
+  return Boolean(op.mode && op.mode !== 'SET')
+}
+
+/** SET 值 # 呼出（bare 插入：裸列名 + 自动补 = 前缀）：扩展到所有目标表——
+ *  业务表单复用中文名列表，其他数据表用真实列（排 tenant_id，与引擎白名单一致） */
+function setEntryHashFields(u: DataUpdateTableUpdate): HashFieldOption[] {
+  const table = String(u?.table ?? '').trim()
+  if (!table) return []
+  if (table.startsWith('wf_biz_')) return entryHashFields(u)
+  return (duColumnsByTable.get(table) ?? [])
+    .filter((c) => c.key.toLowerCase() !== 'tenant_id')
+    .map((c) => ({ key: c.key, label: c.key, type: c.columnType }))
 }
 
 function duEntryLoading(table: string): boolean {

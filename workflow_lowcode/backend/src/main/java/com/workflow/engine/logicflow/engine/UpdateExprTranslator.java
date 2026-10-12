@@ -293,7 +293,7 @@ public final class UpdateExprTranslator {
             expectSymbol(")", "函数 '" + fn.text() + "(...)' 括号未闭合");
             if (args.size() < arity[0] || (arity[1] >= 0 && args.size() > arity[1])) {
                 String want = arity[1] < 0 ? "至少 " + arity[0] + " 个"
-                        : arity[0] == arity[1] ? String.valueOf(arity[0])
+                        : arity[0] == arity[1] ? arity[0] + " 个"
                         : arity[0] + "-" + arity[1] + " 个";
                 throw err(expr, fn.pos(), "函数 '" + name + "' 需要 " + want + "参数，实际 " + args.size() + " 个");
             }

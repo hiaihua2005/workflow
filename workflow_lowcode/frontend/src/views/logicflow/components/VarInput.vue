@@ -44,7 +44,7 @@
 import { computed, ref, useAttrs } from 'vue'
 import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
 import VariablePicker from './VariablePicker.vue'
-import { makeHashFieldCompletionSource, type HashFieldOption } from '@/components/expression/cm6'
+import { makeHashFieldCompletionSource, type HashFieldOption, type HashInsertMode } from '@/components/expression/cm6'
 import type { FlowVarItem } from '../utils/flowVars'
 import { varInsertText } from '../utils/flowVars'
 
@@ -71,8 +71,10 @@ const props = withDefaults(
     clearable?: boolean
     placeholder?: string
     disabled?: boolean
-    /** # 呼出字段补全（如数据更新值表达式：所选业务表单全部字段，选中插 {{formData.字段}}） */
+    /** # 呼出字段补全（如数据更新值/WHERE 值：目标表字段列表） */
     hashFields?: HashFieldOption[]
+    /** # 选中插入形态：placeholder = {{formData.字段}}（默认）；bare = 裸列名 + 自动补 = 前缀（SET 值表达式） */
+    hashInsert?: HashInsertMode
   }>(),
   {
     variables: () => [],
@@ -87,6 +89,7 @@ const props = withDefaults(
     placeholder: '',
     disabled: false,
     hashFields: undefined,
+    hashInsert: 'placeholder',
   }
 )
 
@@ -98,9 +101,12 @@ const wrapperAttrs = computed(() => ({ class: attrs.class, style: attrs.style })
 
 const isSmall = computed(() => props.size === 'small')
 
-/** # 呼出字段补全源（getter 闭包随 hashFields 实时生效，恒定身份免编辑器扩展重建；未配置时每查询空返回） */
+/** # 呼出字段补全源（getter 闭包随 hashFields 实时生效免重建；hashInsert 变化经 computed 换源，
+ *  ExpressionEditor 对 customSource 引用变化做 Compartment 热替换） */
 const hashFieldsRef = computed<HashFieldOption[]>(() => props.hashFields ?? [])
-const hashSource = makeHashFieldCompletionSource(() => hashFieldsRef.value)
+const hashSource = computed(() =>
+  makeHashFieldCompletionSource(() => hashFieldsRef.value, 'mustache', props.hashInsert)
+)
 
 const editorInst = ref<InstanceType<typeof ExpressionEditor> | null>(null)
 

@@ -114,18 +114,25 @@ export interface HashFieldOption {
   type?: string
 }
 
+/** # 选中插入形态：placeholder = {{formData.字段}}（WHERE 值等）；bare = 裸列名 + 自动补 = 前缀（SET 值表达式） */
+export type HashInsertMode = 'placeholder' | 'bare'
+
 /**
- * 「# 呼出字段补全」源：值表达式中键入 # 列出所选业务表单全部字段，选中插入可运行引用。
- * - 占位符外：插 {{formData.字段}}（uel 为 ${formData.字段}），插入即可运行（引擎点路径解析）
- * - 占位符内（{{…# 至光标）：从占位符内容起点整体替换（# 前残缺路径一并清掉），
+ * 「# 呼出字段补全」源：值表达式中键入 # 列出所选目标表全部字段，选中插入可运行引用。
+ * - placeholder（默认）：插 {{formData.字段}}（uel 为 ${formData.字段}），插入即可运行（引擎点路径解析）；
+ *   占位符内（{{…# 至光标）从占位符内容起点整体替换（# 前残缺路径一并清掉），
  *   闭合标记自动补齐语义与变量补全一致（后方已有 }} 只补路径）
+ * - bare（DATA_UPDATE SET 值表达式）：插裸列名（与 = 表达式列引用语法一致，不包 {{}}）；
+ *   值已有 = 前缀 → 直接插列名；值为空 → 自动补 "= " 前缀；存量旧值（非空且无 = 前缀，
+ *   与表达式不兼容）→ 整体重写为 "= 列名"（插入即可运行）；== 转义（字面量 = 开头）上下文不弹
  * - filter:false + 源内自过滤（key/中文名大小写不敏感子串）：中文过滤不被 label 模糊匹配限制，
  *   同时避免 CM 渲染层以「#…」模式串误滤无 # 前缀的 label
  * - fields 支持 getter 闭包：字段元数据（information_schema/列中文名）异步就绪后无需重建编辑器扩展
  */
 export function makeHashFieldCompletionSource(
   fields: HashFieldOption[] | (() => HashFieldOption[]),
-  syntax: ExpressionSyntax = 'mustache'
+  syntax: ExpressionSyntax = 'mustache',
+  insert: HashInsertMode = 'placeholder'
 ): CompletionSource {
   const list = (): HashFieldOption[] => (Array.isArray(fields) ? fields : fields())
   return (ctx: CompletionContext): CompletionResult | null => {
@@ -133,6 +140,28 @@ export function makeHashFieldCompletionSource(
     if (!all.length) return null
     const hash = ctx.matchBefore(/#[\w\u4e00-\u9fa5]*$/)
     if (!hash) return null
+    if (insert === 'bare') {
+      const doc = ctx.state.doc.toString()
+      const trimmed = doc.trim()
+      if (trimmed.startsWith('==')) return null // == 字面量转义上下文：# 呼出无意义
+      const hasEq = trimmed.startsWith('=')
+      const rewriteAll = trimmed.length > 0 && !hasEq
+      const buildOption = (f: HashFieldOption): Completion => {
+        const suffix = `(${f.key})`
+        const cn =
+          f.label && f.label !== f.key && f.label.endsWith(suffix)
+            ? f.label.slice(0, f.label.length - suffix.length)
+            : ''
+        return {
+          label: f.key,
+          detail: [cn, f.type].filter(Boolean).join(' · ') || undefined,
+          type: 'property',
+          apply: hasEq ? f.key : `= ${f.key}`,
+        }
+      }
+      const options = all.map(buildOption)
+      return { from: rewriteAll ? 0 : hash.from, to: rewriteAll ? doc.length : ctx.pos, options, filter: false }
+    }
     const open = ctx.matchBefore(syntax === 'uel' ? /\$\{[^}]*$/ : /\{\{[^{}]*$/)
     const inOpen = Boolean(open)
     const CLOSE = syntax === 'uel' ? '}' : '}}'
