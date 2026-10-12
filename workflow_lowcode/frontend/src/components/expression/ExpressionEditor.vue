@@ -134,7 +134,6 @@ const blurHandler = EditorView.domEventHandlers({
 })
 
 function createState(cfg: ExpressionExtensionConfig): EditorState {
-  console.log('[ExprEditor-debug] createState | extraSources =', cfg.extraSources?.length ?? 0, '| mode =', cfg.mode, '| placeholder =', cfg.placeholder)
   return EditorState.create({
     doc: String(props.modelValue ?? ''),
     extensions: [
@@ -192,6 +191,9 @@ watch(
     const cfg = currentConfig()
     const acSources = [makeVarCompletionSource(cfg)]
     if (cfg.lang === 'sql') acSources.push(makeKeywordCompletionSource(SQL_KEYWORDS))
+    // extraSources 与 createState 初值保持一致：reconfigure 重建 override 时若漏掉，
+    // 自定义补全源（# 呼出字段等）会在任意 props 变化后静默失效
+    if (cfg.extraSources?.length) acSources.push(...cfg.extraSources)
     view.dispatch({
       effects: [
         compartments.lang.reconfigure(buildLang(cfg)),

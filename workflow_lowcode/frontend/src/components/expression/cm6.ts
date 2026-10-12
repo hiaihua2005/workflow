@@ -137,14 +137,12 @@ export function makeHashFieldCompletionSource(
   const list = (): HashFieldOption[] => (Array.isArray(fields) ? fields : fields())
   return (ctx: CompletionContext): CompletionResult | null => {
     const all = list()
-    console.log('[hashSource-debug] source called | n =', all.length, '| insert =', insert)
     if (!all.length) return null
     const hash = ctx.matchBefore(/#[\w\u4e00-\u9fa5]*$/)
     if (!hash) return null
     if (insert === 'bare') {
       const doc = ctx.state.doc.toString()
       const trimmed = doc.trim()
-      console.log('[hashSource-debug] BARE branch hit | doc =', JSON.stringify(doc.slice(0, 40)))
       if (trimmed.startsWith('==')) return null // == 字面量转义上下文：# 呼出无意义
       const hasEq = trimmed.startsWith('=')
       const rewriteAll = trimmed.length > 0 && !hasEq
