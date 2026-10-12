@@ -7493,3 +7493,23 @@ Stage Summary:
 - 全量方案六层能力全部落地：L1 结构化动作（VIEW/PAGE 双轨）+ L2 页面注册层（含示范页）+ L3 DOM 兜底 + get_state 回读 + 多步循环（≤6 轮防死循环）+ 危险动作确认 + 目标高亮 + 执行时浮窗自动收起 + 侧边栏停靠 + 测试用例录制/回放/AI 生成（[TESTGEN] 协议）
 - 设计者产出的新页面自动获得 AI 可操作性（动作层在运行时）；关键教训：GLM 网关对工具 schema 严格校验（属性值必须是 schema 对象）；本项目 record 内 JsonNode 字段反序列化异常，跨端结构化数据走 String
 - 遗留观察：L1 高亮目前 best-effort（VIEW 轨闪烁查询卡，组件级高亮需组件 expose $el）；L3 el-select 填值仅基础实现；L2 注册层其余管理页可按 AiConfigPage 模式增量铺开
+
+---
+Task ID: ai-l2-userrole-impl
+Agent: main
+Task: 用户确认「全量落地」后主会话收尾：L2 注册层铺开用户/角色管理页 + 竞态修复 + E2E 复验
+
+Work Log:
+- 现状盘点：webDevReview 巡检（454626）已在 5124072d 完成主体六层实现（后端 PageControlTool/pageManifest/SSE page_action 帧 + 前端三层执行器/多步循环/停靠/测试录制回放），jar 已含新功能且运行中；本轮补其遗留缺口
+- SearchTable.vue：defineExpose 扩展 resetQuery/getQuery/dialogState/setFormField/getFormValues/validateForm/submitDialog（弹窗 FormRenderer 驱动能力，惠及全部 SearchTable 系页面）；setQuery/handleReset 改为返回 fetchList() 的 Promise
+- UserPage/RolePage：registerPageActions 注册 L2 执行器（manifest=searchFields/columns/formFields/buttons；handlers=set-query/search/reset/open-create/open-edit/set-value/submit/get-state/read-table/expect；RolePage 额外 assign-menu/check-menu/submit-menu 菜单树勾选）
+- 【竞态缺陷修复】L2 set-query/search 未 await 异步 fetchList，read-table 读到过滤前旧列表（E2E 实际踩中：过滤后应 1 条却报 2 条）→ setQuery/handleReset 返回 Promise + 处理器全部 await；L1 轨道本有 waitForRows() 无此问题
+- 【笔误回滚】RolePage 编辑误删分配菜单弹窗模板，当即恢复
+- 【类型核对】FormRenderer.validate() 返回 true=通过（初版判断写反已修）；vue-tsc 本次改动文件 0 新增错误（SearchTable 2 错误为预存基线）
+- E2E（agent-browser）：用户页 set-query✓/search✓/read-table✗(未注册时错误反馈引导 LLM 自纠正改 get-state✓)→正确答出第一行昵称；角色页修复后 set-query✓/search✓/read-table✓ 全绿，答案 1 条 ROLE_ADMIN 与后端直连 API 一致；三页循环 console 零错误（仅预存 ElOption 警告）；截图 backups/ai-l2-userrole-e2e.png
+- 提交 d16d5593 已推送（0 jar 核验）
+
+Stage Summary:
+- L2 注册层三页落地（模型配置示范 + 用户 + 角色），「代替人工操作系统页」高频场景打通：查询/筛选/开弹窗/填表/提交/读表/断言全链可用
+- 关键教训：ref 转发的异步方法必须返回 Promise 供编排方 await，否则多步动作链存在读旧态竞态
+- cron 收尾：删除暂停标记 + webDevReview 重建（继续 L2 余下管理页铺开：菜单/组织/字典/岗位）
