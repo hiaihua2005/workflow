@@ -7273,3 +7273,23 @@ Work Log:
 Stage Summary:
 - r20 全绿 200×4 真绿，内存 3.37G，oom 0
 - 遗留阻塞：GitHub 推送需用户供给新 PAT（git remote set-url origin https://x-access-token:<PAT>@github.com/liaoweimin74/workflow.git），本地领先多个 dump 提交待推
+
+---
+Task ID: lf-du-expr-2b
+Agent: 主会话（Z.ai Code）
+Task: 数据更新 SET 值 # 呼出字段 bare 插入（用户报障：# 选字段带回 {{formData.字段名}} 不符需求）
+
+Work Log:
+- 核对 2-a 后端已完整落盘：UpdateExprTranslator.java + 引擎三分支接入（LogicFlowEngine 777-794）+ 校验器接入（LogicFlowDslValidator 286）+ 23 例 JUnit；mvn compile/test 全绿（修复一处测试断言：参数个数错误消息「需要 2参数」→「需要 2 个参数」，Translator 295-298）
+- cm6.ts：makeHashFieldCompletionSource 增加第三参 insert（'placeholder'|'bare'）；bare 分支：已有 = 前缀插裸列名 / 空值自动补 "= " / 存量旧值整体重写为 "= 列名" / == 转义上下文不弹
+- VarInput.vue：新增 hashInsert prop（默认 placeholder），hashSource 改 computed 随模式换源（ExpressionEditor 对 customSource 引用变化做 Compartment 热替换）
+- PropertyPanel.vue：SET 值框 hash-insert="bare"（legacySetOp 保护存量 ADD/SUB）+ setEntryHashFields 扩到所有目标表（非 wf_biz_ 用 duColumnsByTable 真实列，排 tenant_id）+ SET 区 tip/placeholder 更新为表达式语义
+- 【排障】用户反馈未生效：逐层定位——Vite watcher 漏事件致模块缓存滞旧（touch/append + 重启 vite 解决）；【根因】ExpressionEditor props watch 的 reconfigure 重建 autocomplete override 时漏拼 extraSources（createState 有、watch 没有）→ 任意 props 变化（含 legacy SUB 迁移触发的 hashInsert 变更）后自定义补全源静默失效；补一行 if (cfg.extraSources?.length) acSources.push(...cfg.extraSources)
+- 【增强】dataUpdateCfg computed 增加存量 ADD/SUB → SET + 等价表达式自动迁移（ADD v → `= col + v`；SUB v → `= col - v`；列/值为空不迁移保留 tag 提示），面板打开即迁移内存、保存才落库，引擎 SET 表达式路径与 ADD/SUB 逐参等价
+- agent-browser 全链路 UI 验证（流程「领用登记联动库存与流水」/ du_stock 节点）：① legacy SUB 行打开面板自动迁移为 `= stockQty - {{formData.qty}}` 且 bare 生效；② SET 空值 # 选 stockQty → `= stockQty`；③ 已有 = 前缀 # 选 productName → `= stockQty * productName`（裸列名）；④ WHERE 值 # 保持 {{formData.字段}} 旧语义；⑤ {{ 变量补全混排回归正常；⑥ 调试日志清理后复验通过；未点保存，演示数据 DSL 未动
+- vue-tsc：改动文件零错误（存量无关错误不属本任务）
+
+Stage Summary:
+- 产物：commit 3f537032（cm6.ts/VarInput.vue/ExpressionEditor.vue；PropertyPanel 迁移逻辑经 cron 56c027e5 入库）；后端 2-a 产物已入库且测试全绿
+- 关键决策：legacy ADD/SUB 面板打开即迁移为 SET 表达式（对齐「去掉 SET/ADD/SUB」产品方向）；WHERE 值 # 语义不变
+- 遗留：ExpressionEditor override 修复惠及所有 customSource 使用方；git 推送远端未配置（沙箱仓库本地提交）；巡检 r20 照常
