@@ -7313,3 +7313,24 @@ Stage Summary:
 - 语义定稿：值表达式类输入框显示层永无 =（= 是存储层表达式标记，用户不可见）；# 恒插裸列名；文本字面量用单引号（Translator 原生支持）；== 仍为字面量转义
 - 引擎能力扩展：INSERT 值与 DELETE/QUERY 条件值支持 = 表达式（预求值单值，无行上下文拒列引用），UPDATE WHERE 保持模板语义（用户仅要求布局）
 - 产物：backend 3 文件（Translator/Engine/Validator）+ 测试 +27 例全绿；frontend 3 文件（cm6/VarInput/PropertyPanel）；未提交待推送（沙箱无远端凭据，与 r20 遗留一致）
+
+---
+Task ID: lf-du-expr-4
+Agent: 主会话（Z.ai Code）
+Task: 数据族表达式 UX 回归 QA（R1-R5 + 补验场景 E）与三项增强：QUERY 筛选值接 # 呼出、bare 分支中文过滤、ƒx 表达式徽标
+
+Work Log:
+- 状态恢复：确认 lf-du-expr-3 已提交 cd7536ae、HEAD=54570c6b（工作树干净、领先 origin/main 13 提交，沙箱无远端凭据仅本地）；3000/8080 探活全绿
+- agent-browser QA 回归（流程 fbefdda0 领用登记联动库存与流水）：R1 SET 值显示 stockQty - {{formData.qty}} 无 = + # 插裸列名 ✓；R2 WHERE 字段+比较符一行/值一行（截图确认）✓；R3 INSERT 每字段两行（截图确认）✓；R4 INSERT 值 # 弹 pickup_log_demo 字段选 productCode 插裸列名 ✓；R5 同 bare 代码路径（lf-du-expr-3 已验）
+- 场景 E 收口：WHERE 值编辑器 # 选中 stockQty → 插入 {{formData.stockQty}}（placeholder 旧语义保持，非裸列名）✓——上一会话未读结果的验证点确认无 bug
+- 增强一（一致性缺口）：DATA_QUERY 筛选值 VarInput 未接 # 呼出（后端 compileDataCondition 已支持 = 表达式）→ 补 :hash-fields=exprHashFields(formKey) + hash-insert=bare + placeholder/tip 文案同步
+- 增强二：cm6.ts bare 分支补源内自过滤（# 后续输入对 key/中文名大小写不敏感子串过滤，与 placeholder 分支同款）——此前 bare 下拉恒列全量
+- 增强三：VarInput 新增 ƒx 表达式角标（isExprMode 且存储值单 = 开头非 == 时，编辑器右上角主色斜体徽标，pointer-events none）——弥补显示层无 = 后表达式/字面量不可辨识
+- E2E 验证：QUERY 临时节点（拖拽入画布）选表单 → 筛选值 # 弹字段（中文名 detail）选 stockQty 插裸列名 + ƒx 徽标显示 ✓；SET 值 #库存 中文过滤只剩 stockQty ✓；刷新丢弃全部内存态，服务端 DSL 复查无污染
+- 质量门：vue-tsc 改动 3 文件零错误；ESLint 改动文件零错误（仓库 168 存量噪音与基线一致）
+
+Stage Summary:
+- R1-R5 全量回归通过 + 场景 E 收口：数据族值表达式体验（显示层无 = / # 裸列名 / 两行布局）稳定
+- QUERY 筛选值补齐 # bare 呼出——数据族四类节点（UPDATE SET/INSERT 值/DELETE 条件/QUERY 条件）值表达式 UX 全对齐
+- bare 分支中文过滤 + ƒx 徽标落地（cm6.ts/VarInput.vue/PropertyPanel.vue 三文件）
+- 观察项（未修）：数据族表单下拉 allow-create 手输中文名会造出假表单值（如「物料库存」非真实 key → 列元数据为空、运行期表不存在），属文档化行为（支持手填物理表）但对中文用户是 foot-gun，建议后续对非 wf_biz_ 前缀手填值做存在性提示

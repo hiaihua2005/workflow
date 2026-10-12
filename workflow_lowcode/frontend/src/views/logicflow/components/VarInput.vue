@@ -18,6 +18,9 @@
       <VariablePicker :variables="variables" :mode="mode" @pick="onPick" />
     </ExpressionEditor>
 
+    <!-- 表达式徽标：显示层已剥离 = 前缀，用角标区分“值表达式”与字面量/模板 -->
+    <span v-if="showFxBadge" class="fx-badge" aria-hidden="true">ƒx</span>
+
     <!-- 就近变量列表（Groovy 编辑器等长文本场景） -->
     <div v-if="chips" class="var-chips">
       <span class="chips-label">变量</span>
@@ -131,6 +134,13 @@ function toStored(v: string): string {
 
 const displayValue = computed(() => (isExprMode.value ? toDisplay(props.modelValue) : String(props.modelValue ?? '')))
 
+/** 存储值以单 = 开头（非 == 转义）→ 当前为表达式语义，角标提示 */
+const showFxBadge = computed(() => {
+  if (!isExprMode.value) return false
+  const s = String(props.modelValue ?? '').trimStart()
+  return s.startsWith('=') && !s.startsWith('==')
+})
+
 const editorInst = ref<InstanceType<typeof ExpressionEditor> | null>(null)
 
 /** bare 模式 chips 同步隐藏 formData 组 */
@@ -170,6 +180,26 @@ function onChipPick(v: FlowVarItem) {
 .var-field :deep(.expr-editor),
 .var-field :deep(.cm-editor) {
   width: 100%;
+}
+
+/* ===== 表达式角标（ƒx）===== */
+.fx-badge {
+  position: absolute;
+  top: -7px;
+  right: 5px;
+  z-index: 2;
+  padding: 0 4px;
+  border: 1px solid color-mix(in srgb, var(--el-color-primary) 32%, transparent);
+  border-radius: 4px;
+  background: var(--el-bg-color-overlay);
+  color: var(--el-color-primary);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 10px;
+  font-style: italic;
+  line-height: 13px;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  box-shadow: 0 1px 2px rgba(31, 36, 55, 0.08);
 }
 
 /* ===== 就近变量 chips ===== */

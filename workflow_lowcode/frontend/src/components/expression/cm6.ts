@@ -149,6 +149,12 @@ export function makeHashFieldCompletionSource(
       // 存量旧值（非空“单词”：无空白/占位符/运算符/括号，如 0、待审核、旧列名）与表达式不兼容，
       // 选中字段时整体重写为列名；正常表达式（含运算符/占位符）则在 # 处追加
       const rewriteAll = trimmed.length > 0 && !/[\s{{(=+\-*/%',]/.test(trimmed)
+      // 源内自过滤（key/中文名大小写不敏感子串）：# 后续输入即滤（与 placeholder 分支同款）
+      const q = ctx.state.sliceDoc(hash.from + 1, ctx.pos).trim().toLowerCase()
+      const hit = q
+        ? all.filter((f) => f.key.toLowerCase().includes(q) || (f.label ?? '').toLowerCase().includes(q))
+        : all
+      if (!hit.length) return null
       const buildOption = (f: HashFieldOption): Completion => {
         const suffix = `(${f.key})`
         const cn =
@@ -162,7 +168,7 @@ export function makeHashFieldCompletionSource(
           apply: f.key,
         }
       }
-      const options = all.map(buildOption)
+      const options = hit.map(buildOption)
       return { from: rewriteAll ? 0 : hash.from, to: rewriteAll ? doc.length : ctx.pos, options, filter: false }
     }
     const open = ctx.matchBefore(syntax === 'uel' ? /\$\{[^}]*$/ : /\{\{[^{}]*$/)

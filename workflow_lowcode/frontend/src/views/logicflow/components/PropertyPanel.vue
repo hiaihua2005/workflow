@@ -738,7 +738,7 @@
 
             <div class="rows-block">
               <div class="rows-head">
-                <FieldLabel label="筛选" tip="多条件 AND 连接；字段 + 比较符一行、比较值另起一行（为空/不为空无需值）；值支持 {{var}} 取上下文，或点 { } 选数据表字段（上游查询行 rows[0].字段）" />
+                <FieldLabel label="筛选" tip="多条件 AND 连接；字段 + 比较符一行、比较值另起一行（为空/不为空无需值）；值支持 {{var}} 取上下文（点 { } 插入，含上游查询行 rows[0].字段）、表达式（四则运算与 ROUND/ABS/IFNULL 等函数，无行上下文不支持列引用）或输入 # 呼出目标表字段（选中插裸列名）；纯文本字面量用单引号包裹" />
                 <el-button size="small" text type="primary" @click="dataQueryCfg.filter.push({ column: '', op: 'EQ', value: '' })">添加</el-button>
               </div>
               <div v-if="!dataQueryCfg.filter.length" class="rows-empty">无条件：返回该表单全部数据</div>
@@ -774,10 +774,12 @@
                   v-if="!isNullOp(f.op ?? 'EQ')"
                   v-model="f.value"
                   :variables="valueVars"
+                  :hash-fields="exprHashFields(dataQueryCfg.formKey)"
+                  hash-insert="bare"
                   mode="placeholder"
                   size="small"
                   class="du-value-line"
-                  placeholder="比较值或 {{var}}"
+                  placeholder="值或 {{var}}，# 插目标表字段"
                 />
               </div>
             </div>
