@@ -107,6 +107,60 @@ export function makeSnippetCompletionSource(options: SnippetOption[], match: Reg
 
 const PATH_WORD = /^[\w.[\]]*$/
 
+/** # 呼出字段条目：key 为物理列名（插入引用用），label/type 为展示标注（中文名/列类型） */
+export interface HashFieldOption {
+  key: string
+  label?: string
+  type?: string
+}
+
+/**
+ * 「# 呼出字段补全」源：值表达式中键入 # 列出所选业务表单全部字段，选中插入可运行引用。
+ * - 占位符外：插 {{formData.字段}}（uel 为 ${formData.字段}），插入即可运行（引擎点路径解析）
+ * - 占位符内（{{…# 至光标）：从占位符内容起点整体替换（# 前残缺路径一并清掉），
+ *   闭合标记自动补齐语义与变量补全一致（后方已有 }} 只补路径）
+ * - filter:false + 源内自过滤（key/中文名大小写不敏感子串）：中文过滤不被 label 模糊匹配限制，
+ *   同时避免 CM 渲染层以「#…」模式串误滤无 # 前缀的 label
+ * - fields 支持 getter 闭包：字段元数据（information_schema/列中文名）异步就绪后无需重建编辑器扩展
+ */
+export function makeHashFieldCompletionSource(
+  fields: HashFieldOption[] | (() => HashFieldOption[]),
+  syntax: ExpressionSyntax = 'mustache'
+): CompletionSource {
+  const list = (): HashFieldOption[] => (Array.isArray(fields) ? fields : fields())
+  return (ctx: CompletionContext): CompletionResult | null => {
+    const all = list()
+    if (!all.length) return null
+    const hash = ctx.matchBefore(/#[\w\u4e00-\u9fa5]*$/)
+    if (!hash) return null
+    const open = ctx.matchBefore(syntax === 'uel' ? /\$\{[^}]*$/ : /\{\{[^{}]*$/)
+    const inOpen = Boolean(open)
+    const CLOSE = syntax === 'uel' ? '}' : '}}'
+    const from = inOpen ? open!.from + 2 : hash.from
+    // 过滤串取 # 之后的输入（占位符内 # 前残缺内容将被整体替换，不参与过滤）；空串列全部
+    const q = ctx.state.sliceDoc(hash.from + 1, ctx.pos).trim().toLowerCase()
+    const hit = q
+      ? all.filter((f) => f.key.toLowerCase().includes(q) || (f.label ?? '').toLowerCase().includes(q))
+      : all
+    if (!hit.length) return null
+    const after = ctx.state.sliceDoc(ctx.pos)
+    const closedAhead = syntax === 'uel' ? /^\s*}/.test(after) : /^\s*}}/.test(after)
+    const options: Completion[] = hit.map((f) => {
+      const path = `formData.${f.key}`
+      const suffix = `(${f.key})`
+      const cn = f.label && f.label !== f.key && f.label.endsWith(suffix) ? f.label.slice(0, f.label.length - suffix.length) : ''
+      const apply = inOpen ? (closedAhead ? path : path + CLOSE) : syntax === 'uel' ? `\${${path}}` : `{{${path}}}`
+      return {
+        label: f.key,
+        detail: [cn, f.type].filter(Boolean).join(' · ') || undefined,
+        type: 'property',
+        apply,
+      }
+    })
+    return { from, options, filter: false }
+  }
+}
+
 /** 占位符包裹插入（占位符外 Ctrl+Space 场景） */
 function wrapToken(syntax: ExpressionSyntax, path: string): string {
   return syntax === 'uel' ? `\${${path}}` : `{{${path}}}`

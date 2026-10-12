@@ -7190,3 +7190,17 @@ Stage Summary:
 - 项目内所有脚本/表达式输入已全面升级为 CM6 代码编辑器：即时自动补全（输入 {{ 即列变量树、Groovy/SQL 即输即补）、语法高亮（占位符紫/关键字蓝/注释灰）、自动闭合、保持 { } 选择器与 chips 双通道
 - 存量 DSL/行为零破坏：外部 API 不变、值语义不变、编辑态所见即存量值
 - 新文件：expression/{cm6.ts,ExpressionEditor.vue,uelVars.ts}；改 8 文件；提交 7e97970e
+
+---
+Task ID: patrol-446961-r18
+Agent: cron-patrol
+Task: D+ 终态轻量运维巡检（Job 446961）
+
+Work Log:
+- dump-db.sh OK（20261012-051233，workflow=256K v6=128K）
+- 四链路探活 200×4；8080 真登录含 accessToken=真绿
+- 内存核对：usage 2.68GB（<3.5GB）；vite 单实例（30964）、Java 正当常驻、无 postcss worker
+
+Stage Summary:
+- 【事故小节】oom_kill 0→1（基线上涨）：自上一轮巡检 2026-10-11 17:05 后 cgroup 发生过一次 OOM kill，当前系统已自愈（四链路 200×4、真绿、内存 2.68GB 正常、vite/Java/mariadbd 均在位），无需干预；持续观察
+- r18 全绿 200×4 真绿，内存 2.68GB，oom 1（已自愈），dump OK

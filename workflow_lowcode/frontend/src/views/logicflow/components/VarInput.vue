@@ -12,6 +12,7 @@
       :clearable="clearable"
       :placeholder="placeholder"
       :disabled="disabled"
+      :custom-source="hashSource"
       @update:model-value="onValue"
     >
       <VariablePicker :variables="variables" :mode="mode" @pick="onPick" />
@@ -43,6 +44,7 @@
 import { computed, ref, useAttrs } from 'vue'
 import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
 import VariablePicker from './VariablePicker.vue'
+import { makeHashFieldCompletionSource, type HashFieldOption } from '@/components/expression/cm6'
 import type { FlowVarItem } from '../utils/flowVars'
 import { varInsertText } from '../utils/flowVars'
 
@@ -69,6 +71,8 @@ const props = withDefaults(
     clearable?: boolean
     placeholder?: string
     disabled?: boolean
+    /** # 呼出字段补全（如数据更新值表达式：所选业务表单全部字段，选中插 {{formData.字段}}） */
+    hashFields?: HashFieldOption[]
   }>(),
   {
     variables: () => [],
@@ -82,6 +86,7 @@ const props = withDefaults(
     clearable: false,
     placeholder: '',
     disabled: false,
+    hashFields: undefined,
   }
 )
 
@@ -92,6 +97,10 @@ const attrs = useAttrs()
 const wrapperAttrs = computed(() => ({ class: attrs.class, style: attrs.style }))
 
 const isSmall = computed(() => props.size === 'small')
+
+/** # 呼出字段补全源（getter 闭包随 hashFields 实时生效，恒定身份免编辑器扩展重建；未配置时每查询空返回） */
+const hashFieldsRef = computed<HashFieldOption[]>(() => props.hashFields ?? [])
+const hashSource = makeHashFieldCompletionSource(() => hashFieldsRef.value)
 
 const editorInst = ref<InstanceType<typeof ExpressionEditor> | null>(null)
 

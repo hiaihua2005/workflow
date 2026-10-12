@@ -441,7 +441,7 @@
 
                 <div class="rows-block">
                   <div class="rows-head">
-                    <FieldLabel label="更新字段 SET" tip="SET 直接赋值；字段一行、值另起一行；值支持字面量、{{ formData.xxx }} 点路径取表单字段，或点 { } 选数据表字段（上游查询行 rows[0].字段）" />
+                    <FieldLabel label="更新字段 SET" tip="SET 直接赋值；字段一行、值另起一行；值支持字面量、{{ formData.xxx }} 点路径取表单字段，点 { } 选数据表字段（上游查询行 rows[0].字段），或输入 # 呼出目标表单字段下拉（选中插 {{formData.字段}}）" />
                     <el-button size="small" text type="primary" @click="u.setOps.push({ column: '', mode: 'SET', value: '' })">添加</el-button>
                   </div>
                   <div v-if="!u.setOps.length" class="rows-empty">暂无更新字段</div>
@@ -483,17 +483,18 @@
                     <VarInput
                       v-model="op.value"
                       :variables="valueVars"
+                      :hash-fields="entryHashFields(u)"
                       mode="placeholder"
                       size="small"
                       class="du-value-line"
-                      placeholder="值或 {{formData.xxx}}"
+                      placeholder="值或 {{formData.xxx}}，# 选表单字段"
                     />
                   </div>
                 </div>
 
                 <div class="rows-block">
                   <div class="rows-head">
-                    <FieldLabel label="更新条件 WHERE" tip="多条件 AND 连接；该表条件为空时将影响全表，请谨慎配置" />
+                    <FieldLabel label="更新条件 WHERE" tip="多条件 AND 连接；该表条件为空时将影响全表，请谨慎配置；条件值支持 {{formData.xxx}} 点路径取表单字段，或输入 # 呼出目标表单字段下拉（选中插 {{formData.字段}}）" />
                     <el-button size="small" text type="primary" @click="u.where.push({ column: '', op: 'EQ', value: '' })">添加</el-button>
                   </div>
                   <div v-if="!u.where.length" class="rows-empty du-warn">未配置条件，执行将更新该表全表</div>
@@ -524,10 +525,11 @@
                       v-if="!isNullOp(cond.op)"
                       v-model="cond.value"
                       :variables="valueVars"
+                      :hash-fields="entryHashFields(u)"
                       mode="placeholder"
                       size="small"
                       class="du-value"
-                      placeholder="值或 {{formData.xxx}}"
+                      placeholder="值或 {{formData.xxx}}，# 选表单字段"
                     />
                     <el-button size="small" text type="danger" @click="u.where.splice(i, 1)">
                       <el-icon><Delete /></el-icon>
@@ -1337,6 +1339,7 @@ import { columnOptionLabel } from '@/utils/columnOption'
 import type { ColumnConfigItem } from '@/api/bizData'
 import { nodeTypeLabel as typeLabel } from '../utils/nodeMeta'
 import { defaultConfig, type DataUpdateNodeConfig, type DataUpdateTableUpdate, type DataUpdateWhereOp, type DataUpsertNodeConfig, type DataUpsertUpsertItem, type DataQueryNodeConfig, type DataInsertNodeConfig, type DataDeleteNodeConfig, type NotifyNodeConfig, type DelayNodeConfig, type TransformNodeConfig, type AggregateNodeConfig, type LlmNodeConfig, type FlowNode, type FlowEdge, type HttpNodeConfig, type SqlScriptNodeConfig, OUTPUT_VAR_TYPES, type ResultVarDef } from '../utils/dsl'
+import type { HashFieldOption } from '@/components/expression/cm6'
 import { parseSqlScriptPreview } from '../utils/sqlScript'
 import type { FlowVarItem } from '../utils/flowVars'
 
@@ -1889,6 +1892,15 @@ function addDataUpdateEntry(): void {
 /** 每表列结构缓存（多表模式按表拉取；键为表名） */
 const duColumnsByTable = reactive(new Map<string, { key: string; columnType: string }[]>())
 const duTableLoading = reactive(new Set<string>())
+
+/** 数据更新条目 # 呼出字段（需求：值表达式输入 # 下拉所选业务表单全部字段）：
+ *  业务表单 → 真实列优先 + 中文名·类型（与 SET 字段下拉同源，排除 tenant_id/version）；其他数据表不启用 */
+function entryHashFields(u: DataUpdateTableUpdate): HashFieldOption[] {
+  const table = String(u?.table ?? '').trim()
+  return table.startsWith('wf_biz_')
+    ? bizEntryColumns(table, undefined).map((c) => ({ key: c.key, label: c.label, type: c.type }))
+    : []
+}
 
 function duEntryLoading(table: string): boolean {
   return duTableLoading.has(String(table ?? '').trim())
