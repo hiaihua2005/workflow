@@ -2608,20 +2608,7 @@ async function copyNodeId() {
   border-color: var(--el-border-color-lighter);
 }
 
-/* 脚本编辑：等宽字体 */
-.script-source :deep(textarea) {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
 /* ===== SQL_SCRIPT：编辑器 + 语句解析预览 ===== */
-.sql-source :deep(textarea) {
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 12px;
-  line-height: 1.7;
-}
-
 .sql-preview-error {
   display: flex;
   align-items: center;

@@ -76,6 +76,35 @@ export interface ExpressionSourceConfig {
   syntax: ExpressionSyntax
 }
 
+/** 片段补全条目：label 为展示/匹配文本，apply 为插入文本或自定义插入函数（可定位光标） */
+export interface SnippetOption {
+  label: string
+  detail?: string
+  type?: string
+  apply: Completion['apply']
+}
+
+/**
+ * 通用片段/函数补全源（label ≠ 插入文本的场景，如公式编辑器：
+ * 键入 pri → 选 price → 插 ${price}；键入 SU → 选 SUM → 插 SUM() 且光标落括号内）。
+ * match 定义触发前缀；与变量补全源共存（互不干扰，各自命中各自区间）。
+ */
+export function makeSnippetCompletionSource(options: SnippetOption[], match: RegExp = /[\w$]*$/): CompletionSource {
+  if (!options.length) return () => null
+  const opts: Completion[] = options.map((o) => ({
+    label: o.label,
+    detail: o.detail,
+    type: o.type,
+    apply: o.apply,
+    boost: 1,
+  }))
+  return (ctx: CompletionContext): CompletionResult | null => {
+    const w = ctx.matchBefore(match)
+    if (!w || (w.from === w.to && !ctx.explicit)) return null
+    return { from: w.from, options: opts, validFor: /^[\w$]*$/ }
+  }
+}
+
 const PATH_WORD = /^[\w.[\]]*$/
 
 /** 占位符包裹插入（占位符外 Ctrl+Space 场景） */
@@ -223,6 +252,8 @@ export interface ExpressionExtensionConfig {
   maxRows?: number
   /** 右侧留白（选择器/清空锚位） */
   reserveRight?: number
+  /** 追加补全源（公式函数等自定义场景，与变量补全源共存） */
+  extraSources?: CompletionSource[]
 }
 
 /** 行高与容器主题（尺寸随 props 重建，经 Compartment 热替换） */
@@ -351,6 +382,7 @@ export function buildStaticExtensions(cfg: ExpressionExtensionConfig): Extension
 export function buildDynamicExtensions(compartments: ExpressionCompartments, cfg: ExpressionExtensionConfig): Extension[] {
   const acSources: CompletionSource[] = [makeVarCompletionSource(cfg)]
   if (cfg.lang === 'sql') acSources.push(makeKeywordCompletionSource(SQL_KEYWORDS))
+  if (cfg.extraSources?.length) acSources.push(...cfg.extraSources)
   return [
     compartments.lang.of(buildLang(cfg)),
     compartments.autoComplete.of(

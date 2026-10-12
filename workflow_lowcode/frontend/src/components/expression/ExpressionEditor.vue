@@ -26,7 +26,7 @@ export default { name: 'ExpressionEditor' }
 
 <script setup lang="ts">
 import { Close } from '@element-plus/icons-vue'
-import { autocompletion } from '@codemirror/autocomplete'
+import { autocompletion, type CompletionSource } from '@codemirror/autocomplete'
 import { EditorState } from '@codemirror/state'
 import { EditorView, placeholder as cmPlaceholder } from '@codemirror/view'
 import { computed, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue'
@@ -65,6 +65,8 @@ const props = withDefaults(
     disabled?: boolean
     small?: boolean
     clearable?: boolean
+    /** 追加自定义补全源（公式函数等；与变量补全源共存） */
+    customSource?: CompletionSource
   }>(),
   {
     variables: () => [],
@@ -113,6 +115,7 @@ function currentConfig(): ExpressionExtensionConfig {
     rows: props.rows,
     maxRows: props.maxRows,
     reserveRight: hasAnchor.value ? (props.clearable ? 58 : 34) : props.clearable ? 24 : 0,
+    extraSources: props.customSource ? [props.customSource] : undefined,
   }
 }
 
@@ -180,6 +183,7 @@ watch(
       props.rows,
       props.maxRows,
       props.clearable,
+      props.customSource,
     ] as const,
   () => {
     const view = editorRef.value
@@ -226,15 +230,19 @@ function blur() {
   editorRef.value?.contentDOM.blur()
 }
 
-/** 光标处插入文本（变量选择器/chips 共用），保持焦点与光标位置 */
-function insertAtCursor(text: string) {
+/** 光标处插入文本（变量选择器/chips 共用），保持焦点与光标位置；cursorBack 相对插入尾部回退（函数括号内定位等）。
+ *  未聚焦时退化为尾部追加（对齐旧 textarea selectionStart 兜底语义）。 */
+function insertAtCursor(text: string, cursorBack = 0) {
   const view = editorRef.value
   if (!view) return
-  const sel = view.state.selection.main
   const insert = props.multiline ? text : text.replace(/[\r\n]+/g, ' ')
+  const focused = view.hasFocus
+  const sel = view.state.selection.main
+  const from = focused ? sel.from : view.state.doc.length
+  const to = focused ? sel.to : view.state.doc.length
   view.dispatch({
-    changes: { from: sel.from, to: sel.to, insert },
-    selection: { anchor: sel.from + insert.length },
+    changes: { from, to, insert },
+    selection: { anchor: from + insert.length - cursorBack },
     scrollIntoView: true,
   })
   view.focus()

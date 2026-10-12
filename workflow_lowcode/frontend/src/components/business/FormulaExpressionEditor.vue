@@ -1,12 +1,16 @@
 <template>
   <div class="fxe">
-    <!-- 属性面板内嵌态：小 textarea 直接编辑 + 弹窗入口 -->
-    <el-input
+    <!-- 属性面板内嵌态：CM6 表达式编辑器（${字段} 高亮+字段/函数即输即补）+ 弹窗入口 -->
+    <ExpressionEditor
       class="fxe__input"
-      :model-value="modelValue"
-      type="textarea"
+      :model-value="modelValue ?? ''"
+      syntax="uel"
+      multiline
       :rows="2"
+      :max-rows="6"
       placeholder="${price} * ${count} * (1 - ${discount})"
+      :variables="fieldVars"
+      :custom-source="fnSource"
       @update:model-value="onPanelInput"
     />
     <el-button class="fxe__open" size="small" @click="open">
@@ -23,14 +27,19 @@
       class="fxd"
     >
       <div class="fxd__body">
-        <!-- 表达式编辑区 -->
-        <textarea
-          ref="taRef"
+        <!-- 表达式编辑区（CM6：字段/函数补全 + ${} 占位符高亮） -->
+        <ExpressionEditor
+          ref="edRef"
           v-model="draft"
-          class="fxd__ta"
-          spellcheck="false"
+          class="fxd__ed"
+          syntax="uel"
+          multiline
+          :rows="4"
+          :max-rows="14"
           placeholder="点击下方字段 / 函数 / 运算符拼接表达式，或直接输入"
-        ></textarea>
+          :variables="fieldVars"
+          :custom-source="fnSource"
+        />
         <div class="fxd__status" :class="statusClass">
           <template v-if="!draft.trim()">空表达式：运行时将显示占位符，不参与提交值计算</template>
           <template v-else-if="draftError">✗ {{ draftError }}</template>
@@ -135,15 +144,18 @@
  * main.ts 经 FcDesigner.component 全局注册，设计器面板 form-create 实例可解析）。
  *
  * 结构：
- * - 内嵌态：小 textarea（保留手写通道，v-model 双向绑定 expression）+「可视化配置」按钮
- * - 弹窗：大号 monospace 编辑区 + 字段/函数/运算符点选插入（光标处插入，
+ * - 内嵌态：CM6 表达式编辑器（${字段} 占位符高亮 + 字段/函数即输即补）+「可视化配置」按钮
+ * - 弹窗：CM6 编辑区 + 字段/函数/运算符点选插入（光标处插入，
  *   函数自动补右括号并定位参数位）+ 实时校验（formulaEval 解析器）+
  *   依赖试算预览 + 未知字段警示
  * - 字段候选来自 formulaFieldRegistry provider（设计器侧注册，实时读 rule 树）
  */
 import { computed, nextTick, ref, reactive } from 'vue'
+import type { EditorView } from '@codemirror/view'
+import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
+import { makeSnippetCompletionSource } from '@/components/expression/cm6'
 import { parseFormula } from './formulaEval'
-import { FORMULA_DIGITS, FORMULA_FUNCTIONS, FORMULA_OPERATORS, formatPreview, insertAtCursor, parseDraft } from './formulaEditorKit'
+import { FORMULA_DIGITS, FORMULA_FUNCTIONS, FORMULA_OPERATORS, formatPreview, parseDraft } from './formulaEditorKit'
 import { getFormulaFieldOptions, type FormulaFieldOption } from './formulaFieldRegistry'
 
 const props = withDefaults(defineProps<{
@@ -159,9 +171,32 @@ const emit = defineEmits<{
 
 const visible = ref(false)
 const draft = ref('')
-const taRef = ref<HTMLTextAreaElement | null>(null)
+const edRef = ref<InstanceType<typeof ExpressionEditor> | null>(null)
 const fieldOptions = ref<FormulaFieldOption[]>([])
 const tryValues = reactive<Record<string, string>>({})
+
+/** 字段补全树：${字段} 占位符内即输即补（detail=中文名） */
+const fieldVars = computed(() =>
+  fieldOptions.value.map((o) => ({ name: o.field, group: 'form' as const, groupLabel: '字段', detail: o.title || undefined }))
+)
+
+/** 函数补全源：键入函数名 → 插 FN() 且光标落括号内（与字段补全共存） */
+const fnSource = makeSnippetCompletionSource(
+  FORMULA_FUNCTIONS.map((fn) => ({
+    label: fn.name,
+    detail: `${fn.name}(${fn.args}) — ${fn.desc}`,
+    type: 'function',
+    apply: (view: EditorView, _completion: unknown, from: number, to: number) => {
+      const insert = `${fn.name}()`
+      view.dispatch({
+        changes: { from, to, insert },
+        selection: { anchor: from + fn.name.length + 1 },
+        scrollIntoView: true,
+      })
+      view.focus()
+    },
+  }))
+)
 
 function onPanelInput(v: string): void {
   emit('update:modelValue', v)
@@ -177,7 +212,7 @@ function open(): void {
 function clearAll(): void {
   draft.value = ''
   Object.keys(tryValues).forEach(k => delete tryValues[k])
-  nextTick(() => taRef.value?.focus())
+  nextTick(() => edRef.value?.focus())
 }
 
 function confirm(): void {
@@ -185,19 +220,9 @@ function confirm(): void {
   visible.value = false
 }
 
-/** 光标处插入；插入后恢复焦点与光标位（函数尾括号回退由 cursorBack 控制） */
+/** 光标处插入（CM6 编辑器）：cursorBack 相对插入尾部回退（函数补右括号后定位参数位） */
 function insert(text: string, cursorBack = 0): void {
-  const el = taRef.value
-  const start = el?.selectionStart ?? draft.value.length
-  const end = el?.selectionEnd ?? start
-  const r = insertAtCursor(draft.value, start, end, text, cursorBack)
-  draft.value = r.text
-  nextTick(() => {
-    const node = taRef.value
-    if (!node) return
-    node.focus()
-    node.setSelectionRange(r.cursor, r.cursor)
-  })
+  edRef.value?.insertAtCursor(text, cursorBack)
 }
 
 const draftParsed = computed(() => parseDraft(draft.value))
@@ -260,23 +285,8 @@ const preview = computed(() => {
   flex-direction: column;
   gap: 12px;
 }
-.fxd__ta {
+.fxd__ed {
   width: 100%;
-  box-sizing: border-box;
-  min-height: 84px;
-  padding: 8px 10px;
-  border: 1px solid var(--el-border-color);
-  border-radius: 6px;
-  background: var(--el-fill-color-blank);
-  color: var(--el-text-color-primary);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
-  line-height: 1.6;
-  resize: vertical;
-  outline: none;
-}
-.fxd__ta:focus {
-  border-color: var(--el-color-primary);
 }
 .fxd__status {
   font-size: 12px;
