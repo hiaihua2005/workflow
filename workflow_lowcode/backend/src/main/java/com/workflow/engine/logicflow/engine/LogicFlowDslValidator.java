@@ -798,6 +798,9 @@ public class LogicFlowDslValidator {
                 if (op != null && !DML_OPS.contains(op.trim().toUpperCase())) {
                     errors.add("DATA_QUERY 节点 " + node.getId() + " filter 第 " + (i + 1)
                             + " 项 op 非法(须 EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL): " + op);
+                } else if (op == null || Set.of("EQ", "NE", "GT", "GTE", "LT", "LTE")
+                        .contains(op.trim().toUpperCase())) {
+                    validateDataExprValue(item, "DATA_QUERY 节点 " + node.getId() + " filter 第 " + (i + 1) + " 项 值", errors);
                 }
             }
         }
@@ -837,6 +840,27 @@ public class LogicFlowDslValidator {
             if (isBlankText(item, "column")) {
                 errors.add("DATA_INSERT 节点 " + node.getId() + " data 第 " + (i + 1) + " 项缺少 column");
             }
+            validateDataExprValue(item, "DATA_INSERT 节点 " + node.getId() + " data 第 " + (i + 1) + " 项 值", errors);
+        }
+    }
+
+    /**
+     * 数据族表达式值发布期校验（INSERT 值 / DELETE·QUERY 条件值共用）：
+     * {@code =} 前缀（非 {@code ==} 转义）时做语法/函数白名单/占位符格式校验；
+     * 列引用无行上下文不可用，但发布期无列元数据，存在性留给运行期（空白名单拒绝）。
+     */
+    private void validateDataExprValue(JsonNode item, String label, List<String> errors) {
+        String v = textOrNull(item, "value");
+        if (v == null || v.isBlank()) {
+            return;
+        }
+        String t = v.trim();
+        if (t.startsWith("=") && !t.startsWith("==")) {
+            try {
+                UpdateExprTranslator.translate(t.substring(1), null, null, label);
+            } catch (IllegalArgumentException e) {
+                errors.add(e.getMessage());
+            }
         }
     }
 
@@ -875,6 +899,7 @@ public class LogicFlowDslValidator {
                 if (op == null || Set.of("EQ", "NE", "GT", "GTE", "LT", "LTE")
                         .contains(op.trim().toUpperCase())) {
                     hasValidFilter = true;
+                    validateDataExprValue(item, "DATA_DELETE 节点 " + node.getId() + " filter 第 " + (i + 1) + " 项 值", errors);
                 }
             }
         }

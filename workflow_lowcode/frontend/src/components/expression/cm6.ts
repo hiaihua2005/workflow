@@ -122,9 +122,10 @@ export type HashInsertMode = 'placeholder' | 'bare'
  * - placeholder（默认）：插 {{formData.字段}}（uel 为 ${formData.字段}），插入即可运行（引擎点路径解析）；
  *   占位符内（{{…# 至光标）从占位符内容起点整体替换（# 前残缺路径一并清掉），
  *   闭合标记自动补齐语义与变量补全一致（后方已有 }} 只补路径）
- * - bare（DATA_UPDATE SET 值表达式）：插裸列名（与 = 表达式列引用语法一致，不包 {{}}）；
- *   值已有 = 前缀 → 直接插列名；值为空 → 自动补 "= " 前缀；存量旧值（非空且无 = 前缀，
- *   与表达式不兼容）→ 整体重写为 "= 列名"（插入即可运行）；== 转义（字面量 = 开头）上下文不弹
+ * - bare（值表达式场景：UPDATE SET / INSERT 值 / DELETE·QUERY 条件值）：插裸列名（与 = 表达式列引用
+ *   语法一致，不包 {{}}，也不插 "=" 前缀——编辑器显示层永不出现 =，存储层由 VarInput 统一补 "= "）；
+ *   值为空 → 直接插列名；存量旧值（非空且无运算符/占位符的“单词”字面量，与表达式不兼容）→
+ *   整体重写为列名（插入即可运行）；显示层以 = 开头（存量 == 转义字面量）上下文不弹
  * - filter:false + 源内自过滤（key/中文名大小写不敏感子串）：中文过滤不被 label 模糊匹配限制，
  *   同时避免 CM 渲染层以「#…」模式串误滤无 # 前缀的 label
  * - fields 支持 getter 闭包：字段元数据（information_schema/列中文名）异步就绪后无需重建编辑器扩展
@@ -143,9 +144,11 @@ export function makeHashFieldCompletionSource(
     if (insert === 'bare') {
       const doc = ctx.state.doc.toString()
       const trimmed = doc.trim()
-      if (trimmed.startsWith('==')) return null // == 字面量转义上下文：# 呼出无意义
-      const hasEq = trimmed.startsWith('=')
-      const rewriteAll = trimmed.length > 0 && !hasEq
+      // 显示层以 = 开头（存量 == 转义字面量 / 手输 =）：字面量上下文，# 呼出无意义
+      if (trimmed.startsWith('=')) return null
+      // 存量旧值（非空“单词”：无空白/占位符/运算符/括号，如 0、待审核、旧列名）与表达式不兼容，
+      // 选中字段时整体重写为列名；正常表达式（含运算符/占位符）则在 # 处追加
+      const rewriteAll = trimmed.length > 0 && !/[\s{{(=+\-*/%',]/.test(trimmed)
       const buildOption = (f: HashFieldOption): Completion => {
         const suffix = `(${f.key})`
         const cn =
@@ -156,7 +159,7 @@ export function makeHashFieldCompletionSource(
           label: f.key,
           detail: [cn, f.type].filter(Boolean).join(' · ') || undefined,
           type: 'property',
-          apply: hasEq ? f.key : `= ${f.key}`,
+          apply: f.key,
         }
       }
       const options = all.map(buildOption)

@@ -7293,3 +7293,23 @@ Stage Summary:
 - 产物：commit 3f537032（cm6.ts/VarInput.vue/ExpressionEditor.vue；PropertyPanel 迁移逻辑经 cron 56c027e5 入库）；后端 2-a 产物已入库且测试全绿
 - 关键决策：legacy ADD/SUB 面板打开即迁移为 SET 表达式（对齐「去掉 SET/ADD/SUB」产品方向）；WHERE 值 # 语义不变
 - 遗留：ExpressionEditor override 修复惠及所有 customSource 使用方；git 推送远端未配置（沙箱仓库本地提交）；巡检 r20 照常
+
+---
+Task ID: lf-du-expr-3
+Agent: 主会话（Z.ai Code）
+Task: 数据族表达式体验五条需求（用户反馈）：①SET 值不显示 = ②UPDATE WHERE 两行布局 ③INSERT 字段两行布局 ④INSERT 值 # 呼出裸列名 ⑤DELETE 条件值 # 呼出裸列名
+
+Work Log:
+- 后端 Translator：UpdateExprTranslator 增 4 参 translate（scene 场景前缀，3 参委托默认 "DATA_UPDATE SET "）；parseColumn 空白名单（Map.of()）拒绝列引用（无行上下文场景专属消息「此处不支持列引用…请用 {{变量}}」）
+- 后端引擎：LogicFlowEngine 新增 resolveExprOrTemplate（== 转义/ = 表达式/模板三路由）+ evalExprValue（空白名单翻译 → SELECT 求值为单值，函数下沉 DB，对业务表单/任意表两路径透明）；接入 DATA_INSERT data 值、DATA_DELETE 业务表单路径条件值、compileDataCondition（任意表 DELETE/QUERY 条件值共用）；UPDATE WHERE 保持旧语义（模板/字面量）
+- 后端校验器：validateDataExprValue 共用（发布期语法/函数白名单/占位符校验），接入 DATA_INSERT data 值、DATA_DELETE filter 值、DATA_QUERY filter 值
+- 后端测试：UpdateExprTranslatorTest +4 例（场景前缀替换/空白名单拒列引用/空白名单允许占位符字面量函数/语法检查保留），27/27 全绿 BUILD SUCCESS
+- 前端 cm6.ts：bare 分支改为「显示层无 =」语义——任何 = 开头显示值不弹（== 转义/手输 =）；apply 恒插裸列名（不再自动补 "= "）；存量旧值（无空白/占位符/运算符的单词字面量）整体重写
+- 前端 VarInput.vue：hashInsert='bare' 即表达式展示模式——toDisplay 剥 "= "（== 原样）/ toStored 非空补 "= "（= 开头原样透传，空串归空）；displayValue computed 接 ExpressionEditor
+- 前端 PropertyPanel.vue：①SET tip/placeholder 去 = 化（提示文本字面量用单引号）②UPDATE WHERE 拆 du-cond 两行（列+比较符+删除一行、值一行，保持 entryHashFields+placeholder 旧语义）③INSERT 拆 du-cond 两行 + 值接 exprHashFields+bare ④DELETE 条件值接 exprHashFields+bare；新增 exprHashFields(formKey)（复用 bizEntryColumns，业务表单中文名/其他表真实列，排 tenant_id/version）
+- agent-browser E2E（流程 fbefdda0…「领用登记联动库存与流水」）：SET 值显示 stockQty - {{formData.qty}} 无 =、# 选字段插裸列名全程无 =；WHERE 字段+比较符一行/值一行；INSERT 每字段两行、值 # 弹 pickup_log_demo 字段（中文名 detail）选 pickupBy 插裸列名；临时加 DATA_DELETE 节点配置条件值 # 弹字段选 stockQty 插裸列名；全部通过后刷新丢弃内存态未保存；vue-tsc 改动文件零错误
+
+Stage Summary:
+- 语义定稿：值表达式类输入框显示层永无 =（= 是存储层表达式标记，用户不可见）；# 恒插裸列名；文本字面量用单引号（Translator 原生支持）；== 仍为字面量转义
+- 引擎能力扩展：INSERT 值与 DELETE/QUERY 条件值支持 = 表达式（预求值单值，无行上下文拒列引用），UPDATE WHERE 保持模板语义（用户仅要求布局）
+- 产物：backend 3 文件（Translator/Engine/Validator）+ 测试 +27 例全绿；frontend 3 文件（cm6/VarInput/PropertyPanel）；未提交待推送（沙箱无远端凭据，与 r20 遗留一致）

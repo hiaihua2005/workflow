@@ -441,7 +441,7 @@
 
                 <div class="rows-block">
                   <div class="rows-head">
-                    <FieldLabel label="更新字段 SET" tip="SET 直接赋值：值支持 = 表达式（裸列名引用该行当前值 + {{ formData.xxx }} 变量 + 四则运算与 ROUND/ABS/IFNULL 等函数，如 = qty * {{formData.rate}}），输入 # 呼出目标表字段（选中插裸列名并自动补 = 前缀）；字面量、{{ formData.xxx }} 点路径或 { } 选上游产出仍可用，以 == 开头则 = 为字面量" />
+                    <FieldLabel label="更新字段 SET" tip="SET 直接赋值：值即表达式（裸列名引用该行当前值 + {{ formData.xxx }} 变量 + 四则运算与 ROUND/ABS/IFNULL 等函数，如 stockQty - {{formData.qty}}），输入 # 呼出目标表字段（选中插裸列名）；纯文本字面量用单引号包裹（如 '已入库'），数字直接写，以 = 开头的值按字面量原样存储" />
                     <el-button size="small" text type="primary" @click="u.setOps.push({ column: '', mode: 'SET', value: '' })">添加</el-button>
                   </div>
                   <div v-if="!u.setOps.length" class="rows-empty">暂无更新字段</div>
@@ -488,7 +488,7 @@
                       mode="placeholder"
                       size="small"
                       class="du-value-line"
-                      placeholder="如 = qty * {{formData.rate}}，# 插目标表字段"
+                      placeholder="如 stockQty - {{formData.qty}}，# 插目标表字段"
                     />
                   </div>
                 </div>
@@ -499,29 +499,34 @@
                     <el-button size="small" text type="primary" @click="u.where.push({ column: '', op: 'EQ', value: '' })">添加</el-button>
                   </div>
                   <div v-if="!u.where.length" class="rows-empty du-warn">未配置条件，执行将更新该表全表</div>
-                  <div v-for="(cond, i) in u.where" :key="i" class="du-row">
-                    <el-select
-                      v-model="cond.column"
-                      size="small"
-                      filterable
-                      allow-create
-                      default-first-option
-                      :loading="duEntryLoading(u.table)"
-                      :disabled="!u.table"
-                      :title="u.table ? undefined : '先选择目标表'"
-                      placeholder="列名"
-                      class="du-col"
-                    >
-                      <el-option v-for="c in duEntryColumns(u)" :key="c.key" :label="c.label || c.key" :value="c.key">
-                        <span class="du-col-opt">
-                          <span>{{ c.label || c.key }}</span>
-                          <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
-                        </span>
-                      </el-option>
-                    </el-select>
-                    <el-select v-model="cond.op" size="small" class="du-mode">
-                      <el-option v-for="wop in DATA_UPDATE_OPS" :key="wop.value" :label="wop.label" :value="wop.value" />
-                    </el-select>
+                  <div v-for="(cond, i) in u.where" :key="i" class="du-cond">
+                    <div class="du-row">
+                      <el-select
+                        v-model="cond.column"
+                        size="small"
+                        filterable
+                        allow-create
+                        default-first-option
+                        :loading="duEntryLoading(u.table)"
+                        :disabled="!u.table"
+                        :title="u.table ? undefined : '先选择目标表'"
+                        placeholder="列名"
+                        class="du-col"
+                      >
+                        <el-option v-for="c in duEntryColumns(u)" :key="c.key" :label="c.label || c.key" :value="c.key">
+                          <span class="du-col-opt">
+                            <span>{{ c.label || c.key }}</span>
+                            <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
+                          </span>
+                        </el-option>
+                      </el-select>
+                      <el-select v-model="cond.op" size="small" class="du-mode">
+                        <el-option v-for="wop in DATA_UPDATE_OPS" :key="wop.value" :label="wop.label" :value="wop.value" />
+                      </el-select>
+                      <el-button size="small" text type="danger" @click="u.where.splice(i, 1)">
+                        <el-icon><Delete /></el-icon>
+                      </el-button>
+                    </div>
                     <VarInput
                       v-if="!isNullOp(cond.op)"
                       v-model="cond.value"
@@ -529,12 +534,9 @@
                       :hash-fields="entryHashFields(u)"
                       mode="placeholder"
                       size="small"
-                      class="du-value"
+                      class="du-value-line"
                       placeholder="值或 {{formData.xxx}}，# 选表单字段"
                     />
-                    <el-button size="small" text type="danger" @click="u.where.splice(i, 1)">
-                      <el-icon><Delete /></el-icon>
-                    </el-button>
                   </div>
                 </div>
               </div>
@@ -849,41 +851,45 @@
 
             <div class="rows-block">
               <div class="rows-head">
-                <FieldLabel label="新增字段" tip="列值对；值支持 {{var}} 取上下文（保留原始类型）、字面量，或点 { } 选数据表字段（上游查询行 rows[0].字段）；业务表单托管列（主键/租户/版本/审计）由平台自动生成，其他数据表按表结构直写" />
+                <FieldLabel label="新增字段" tip="列值对；值支持 {{var}} 取上下文（保留原始类型）、表达式（{{formData.xxx}} 变量 + 四则运算与 ROUND/ABS/IFNULL 等函数，无行上下文不支持列引用）或输入 # 呼出目标表字段（选中插裸列名）；纯文本字面量用单引号包裹（如 '待审核'）；业务表单托管列（主键/租户/版本/审计）由平台自动生成，其他数据表按表结构直写" />
                 <el-button size="small" text type="primary" @click="dataInsertCfg.data.push({ column: '', value: '' })">添加</el-button>
               </div>
               <div v-if="!dataInsertCfg.data.length" class="rows-empty">暂无字段</div>
-              <div v-for="(f, i) in dataInsertCfg.data" :key="i" class="du-row">
-                <el-select
-                  v-model="f.column"
-                  size="small"
-                  class="du-col"
-                  filterable
-                  allow-create
-                  default-first-option
-                  :loading="bizColLoading(dataInsertCfg.formKey)"
-                  :disabled="!dataInsertCfg.formKey"
-                  :title="dataInsertCfg.formKey ? undefined : '先选择业务表单/数据表'"
-                  placeholder="选择字段"
-                >
-                  <el-option v-for="c in bizEntryColumns(dataInsertCfg.formKey, f.column, { excludeManaged: true })" :key="c.key" :label="c.label" :value="c.key">
-                    <span class="du-col-opt">
-                      <span>{{ c.label }}</span>
-                      <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
-                    </span>
-                  </el-option>
-                </el-select>
+              <div v-for="(f, i) in dataInsertCfg.data" :key="i" class="du-cond">
+                <div class="du-row">
+                  <el-select
+                    v-model="f.column"
+                    size="small"
+                    class="du-col"
+                    filterable
+                    allow-create
+                    default-first-option
+                    :loading="bizColLoading(dataInsertCfg.formKey)"
+                    :disabled="!dataInsertCfg.formKey"
+                    :title="dataInsertCfg.formKey ? undefined : '先选择业务表单/数据表'"
+                    placeholder="选择字段"
+                  >
+                    <el-option v-for="c in bizEntryColumns(dataInsertCfg.formKey, f.column, { excludeManaged: true })" :key="c.key" :label="c.label" :value="c.key">
+                      <span class="du-col-opt">
+                        <span>{{ c.label }}</span>
+                        <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
+                      </span>
+                    </el-option>
+                  </el-select>
+                  <el-button size="small" text type="danger" @click="dataInsertCfg.data.splice(i, 1)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
                 <VarInput
                   v-model="f.value"
                   :variables="valueVars"
+                  :hash-fields="exprHashFields(dataInsertCfg.formKey)"
+                  hash-insert="bare"
                   mode="placeholder"
                   size="small"
-                  class="du-value"
-                  placeholder="值或 {{var}}"
+                  class="du-value-line"
+                  placeholder="值或 {{var}}，# 插目标表字段"
                 />
-                <el-button size="small" text type="danger" @click="dataInsertCfg.data.splice(i, 1)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
               </div>
             </div>
             <div v-if="nodeId" class="sql-preview-hint du-output-hint">
@@ -940,7 +946,7 @@
             <template v-else>
               <div class="rows-block">
                 <div class="rows-head">
-                  <FieldLabel label="删除条件" tip="多条件 AND 连接；至少一个带值条件（防全表删除）；值支持 {{var}} 或点 { } 选数据表字段" />
+                  <FieldLabel label="删除条件" tip="多条件 AND 连接；至少一个带值条件（防全表删除）；值支持 {{var}}、表达式（{{formData.xxx}} 变量 + 四则运算与函数，无行上下文不支持列引用）或输入 # 呼出目标表字段（选中插裸列名）；纯文本字面量用单引号包裹" />
                   <el-button size="small" text type="primary" @click="dataDeleteCfg.filter?.push({ column: '', op: 'EQ', value: '' })">添加</el-button>
                 </div>
                 <div v-if="!dataDeleteCfg.filter?.length" class="rows-empty du-warn">未配置条件（按 ID 删除请切换删除方式）</div>
@@ -976,10 +982,12 @@
                     v-if="!isNullOp(c.op)"
                     v-model="c.value"
                     :variables="valueVars"
+                    :hash-fields="exprHashFields(dataDeleteCfg.formKey)"
+                    hash-insert="bare"
                     mode="placeholder"
                     size="small"
                     class="du-value-line"
-                    placeholder="值或 {{var}}"
+                    placeholder="值或 {{var}}，# 插目标表字段"
                   />
                 </div>
               </div>
@@ -1922,6 +1930,14 @@ function entryHashFields(u: DataUpdateTableUpdate): HashFieldOption[] {
 /** 存量 legacy SET 模式（ADD/SUB）：值不支持 = 表达式，# 保持旧语义（插 {{formData.字段}}） */
 function legacySetOp(op: { mode?: string }): boolean {
   return Boolean(op.mode && op.mode !== 'SET')
+}
+
+/** INSERT 值 / DELETE 条件值 = 表达式的 # 呼出字段：与列下拉同口径（业务表单中文名列表 /
+ *  其他数据表真实列；排 tenant_id/version，与引擎禁写列一致） */
+function exprHashFields(formKey: string | undefined | null): HashFieldOption[] {
+  const k = String(formKey ?? '').trim()
+  if (!k) return []
+  return bizEntryColumns(k, undefined).map((c) => ({ key: c.key, label: c.label, type: c.type }))
 }
 
 /** SET 值 # 呼出（bare 插入：裸列名 + 自动补 = 前缀）：扩展到所有目标表——

@@ -2,7 +2,7 @@
   <div class="var-field" v-bind="wrapperAttrs">
     <ExpressionEditor
       ref="editorInst"
-      :model-value="modelValue"
+      :model-value="displayValue"
       :variables="variables"
       :mode="mode"
       :lang="lang"
@@ -73,7 +73,8 @@ const props = withDefaults(
     disabled?: boolean
     /** # 呼出字段补全（如数据更新值/WHERE 值：目标表字段列表） */
     hashFields?: HashFieldOption[]
-    /** # 选中插入形态：placeholder = {{formData.字段}}（默认）；bare = 裸列名 + 自动补 = 前缀（SET 值表达式） */
+    /** # 选中插入形态：placeholder = {{formData.字段}}（默认）；bare = 裸列名（值表达式场景，
+     *  显示层剥离存储的 = 前缀，写回时统一补回，编辑器内永不见 =） */
     hashInsert?: HashInsertMode
   }>(),
   {
@@ -108,6 +109,28 @@ const hashSource = computed(() =>
   makeHashFieldCompletionSource(() => hashFieldsRef.value, 'mustache', props.hashInsert)
 )
 
+/** 值表达式展示模式（bare = 呼出裸列名场景）：编辑器显示层剥离存储层的 = 前缀，
+ *  用户只看到表达式本体；== 转义字面量原样展示。 */
+const isExprMode = computed(() => props.hashInsert === 'bare')
+
+/** 存储 → 显示：剥 "=" + 后随空白；== 转义（及手输 = 开头）原样保留。 */
+function toDisplay(v: string | null | undefined): string {
+  const s = String(v ?? '')
+  if (s.startsWith('==')) return s
+  if (s.startsWith('=')) return s.replace(/^=\s*/, '')
+  return s
+}
+
+/** 显示 → 存储：非空且非 = 开头统一补 "= " 前缀（表达式语义）；= 开头原样（转义/手输）；空串归空。 */
+function toStored(v: string): string {
+  const t = v.trim()
+  if (!t) return ''
+  if (t.startsWith('=')) return v
+  return '= ' + v
+}
+
+const displayValue = computed(() => (isExprMode.value ? toDisplay(props.modelValue) : String(props.modelValue ?? '')))
+
 const editorInst = ref<InstanceType<typeof ExpressionEditor> | null>(null)
 
 /** bare 模式 chips 同步隐藏 formData 组 */
@@ -116,7 +139,7 @@ const chipVars = computed(() =>
 )
 
 function onValue(value: string) {
-  emit('update:modelValue', value)
+  emit('update:modelValue', isExprMode.value ? toStored(value) : value)
 }
 
 function onPick(text: string) {

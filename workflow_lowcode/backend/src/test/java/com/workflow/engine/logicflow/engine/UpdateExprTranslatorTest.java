@@ -262,4 +262,45 @@ class UpdateExprTranslatorTest {
         assertThat(r.params()).isEmpty(); // qty 是列引用，无字面量参数
         assertThat(r.sql()).isEqualTo("ROUND(qty)");
     }
+
+    // ------------------------------------------------------------------
+    // 多场景（INSERT 值 / DELETE·QUERY 条件值）：场景前缀 + 空白名单拒绝列引用
+    // ------------------------------------------------------------------
+
+    @Test
+    void scenePrefixReplacesDefaultInError() {
+        assertThatThrownBy(() -> UpdateExprTranslator.translate("qty *", Map.of(), null, "DATA_INSERT 值"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("DATA_INSERT 值表达式非法")
+                .hasMessageNotContaining("DATA_UPDATE");
+    }
+
+    @Test
+    void emptyColumnsRejectColumnRefs() {
+        // 无行上下文场景（INSERT 值/条件值）：列引用无意义，空白名单须拒绝并给出指引
+        assertThatThrownBy(() -> UpdateExprTranslator.translate("stockQty - 1", Map.of(), null, "DATA_INSERT 值"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("不支持列引用")
+                .hasMessageContaining("{{变量}}")
+                .hasMessageStartingWith("DATA_INSERT 值");
+    }
+
+    @Test
+    void emptyColumnsAllowsPlaceholdersLiteralsAndFunctions() {
+        // 无行上下文但 {{变量}}/字面量/白名单函数可用（引擎 evalExprValue 的 SELECT 求值输入）
+        Function<String, Object> resolver = path -> "formData.qty".equals(path) ? 3 : null;
+        UpdateExprTranslator.Result r = UpdateExprTranslator.translate(
+                "ROUND({{formData.qty}} * 2.5, 1) + 'ab'", Map.of(), resolver, "DATA_INSERT 值");
+        assertThat(r.sql()).isEqualTo("ROUND(? * ?, ?) + ?");
+        assertThat(r.params()).containsExactly(3, new BigDecimal("2.5"), new BigDecimal("1"), "ab");
+    }
+
+    @Test
+    void sceneKeepsSyntaxChecksForEmptyColumns() {
+        // 空白名单场景语法错误同样拦截（未闭合字符串）
+        assertThatThrownBy(() -> UpdateExprTranslator.translate("'abc", Map.of(), null, "DATA_DELETE 条件值"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("DATA_DELETE 条件值表达式非法")
+                .hasMessageContaining("未闭合");
+    }
 }

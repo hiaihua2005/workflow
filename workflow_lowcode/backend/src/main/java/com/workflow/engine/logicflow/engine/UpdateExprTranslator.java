@@ -48,6 +48,9 @@ public final class UpdateExprTranslator {
     public record Result(String sql, List<Object> params) {
     }
 
+    /** 默认错误前缀（DATA_UPDATE SET 场景；多场景包装时剥掉重拼）。 */
+    private static final String SCENE_PREFIX = "DATA_UPDATE SET 表达式";
+
     private UpdateExprTranslator() {
     }
 
@@ -152,6 +155,29 @@ public final class UpdateExprTranslator {
      * @param resolver 占位符取值 {@code path -> value}；null = 校验模式（不取值）
      */
     public static Result translate(String expr, Map<String, ColumnInfo> columns, Function<String, Object> resolver) {
+        return translate(expr, columns, resolver, "DATA_UPDATE SET ");
+    }
+
+    /**
+     * 多场景翻译：错误消息前缀可换（如 "DATA_INSERT 值 "），规则与 3 参形态完全一致。
+     * {@code columns} 传<b>空 Map</b>（非 null）时拒绝列引用——适用于无行上下文场景
+     * （INSERT 值 / DELETE、QUERY 条件值：没有“当前行”，列引用无意义）。
+     *
+     * @param scene 错误消息场景前缀（如 "DATA_UPDATE SET "、"DATA_INSERT 值 "）
+     */
+    public static Result translate(String expr, Map<String, ColumnInfo> columns, Function<String, Object> resolver,
+                                   String scene) {
+        try {
+            return doTranslate(expr, columns, resolver);
+        } catch (IllegalArgumentException e) {
+            String m = e.getMessage() == null ? "" : e.getMessage();
+            String body = m.startsWith(SCENE_PREFIX) ? m.substring(SCENE_PREFIX.length())
+                    : (m.isEmpty() ? "非法" : "非法: " + m);
+            throw new IllegalArgumentException(scene + "表达式" + body);
+        }
+    }
+
+    private static Result doTranslate(String expr, Map<String, ColumnInfo> columns, Function<String, Object> resolver) {
         if (expr == null || expr.isBlank()) {
             throw new IllegalArgumentException("DATA_UPDATE SET 表达式为空");
         }
@@ -300,11 +326,14 @@ public final class UpdateExprTranslator {
             return name + "(" + String.join(", ", args) + ")";
         }
 
-        /** 列引用：columns 非 null 时白名单校验，SQL 输出真实列名。 */
+        /** 列引用：columns 非 null 时白名单校验，SQL 输出真实列名；空 Map = 无行上下文场景，拒绝列引用。 */
         private String parseColumn() {
             Token t = toks.get(idx++);
             if (columns == null) {
                 return t.text(); // 发布校验模式：仅语法
+            }
+            if (columns.isEmpty()) {
+                throw err(expr, t.pos(), "此处不支持列引用（当前场景无行上下文，请用 {{变量}} 取上下文值）");
             }
             ColumnInfo info = columns.get(t.text().toLowerCase(Locale.ROOT));
             if (info == null) {

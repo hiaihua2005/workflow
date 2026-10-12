@@ -1605,8 +1605,9 @@ public class LogicFlowEngine {
     }
 
     /**
-     * 数据族任意表路径共享条件片段编译：EQ/NE/GT/GTE/LT/LTE 值经 {@link #resolveDataUpdateValue}
-     * 解析后参数绑定；IS_NULL/NOT_NULL 无值；op 非法抛错（业务表单路径各节点保留原实现，不受影响）。
+     * 数据族任意表路径共享条件片段编译：EQ/NE/GT/GTE/LT/LTE 值经表达式路由
+     * （{@code =} 前缀预求值，无行上下文）、其余经 {@link #resolveDataUpdateValue} 解析后参数绑定；
+     * IS_NULL/NOT_NULL 无值；op 非法抛错（业务表单路径各节点保留原实现，不受影响）。
      */
     private String compileDataCondition(String nodeId, String table, String column, String op,
                                         String valueExpr, List<Object> params, Map<String, Object> vars) {
@@ -1626,12 +1627,50 @@ public class LogicFlowEngine {
                     case "LTE" -> "<=";
                     default -> "=";
                 };
-                params.add(resolveDataUpdateValue(valueExpr, vars));
+                params.add(resolveExprOrTemplate(nodeId, "数据节点 " + nodeId + " 条件列 " + column + " 值", valueExpr, vars));
                 return column + " " + symbol + " ?";
             }
             default -> throw new IllegalArgumentException(
                     "数据节点 filter.op 非法(须 EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL): " + op
                             + " (" + nodeId + ", " + table + ")");
+        }
+    }
+
+    /**
+     * 数据族值统一表达式路由（INSERT 值 / DELETE·QUERY 条件值）：
+     * {@code ==} 前缀转义字面量（剥一个 =，与 UPDATE SET 同语义）；{@code =} 前缀表达式预求值为单值
+     * （无行上下文，空白名单拒绝列引用）；其余走模板解析（{{var}} 保留原始类型）。
+     *
+     * @param scene 错误定位前缀（如 "DATA_DELETE 节点 dd_1 条件列 stockQty 值"）
+     */
+    private Object resolveExprOrTemplate(String nodeId, String scene, String value, Map<String, Object> vars) {
+        String raw = value == null ? "" : value.trim();
+        if (raw.startsWith("==")) {
+            return raw.substring(1);
+        }
+        if (raw.startsWith("=")) {
+            return evalExprValue(nodeId, scene, raw.substring(1), vars);
+        }
+        return resolveDataUpdateValue(value, vars);
+    }
+
+    /**
+     * 无行上下文场景（INSERT 值 / DELETE·QUERY 条件值）的 {@code =} 表达式求值：
+     * 复用 {@link UpdateExprTranslator} 语法（空白名单拒绝列引用，{{变量}} 经 resolver 取值），
+     * 翻译出的 SQL 片段（仅 ?/白名单函数/固定符号）经 {@code SELECT} 求值为单值——
+     * 函数计算下沉 DB 引擎（与 UPDATE SET 同一函数语义），对业务表单/任意表两条路径均透明。
+     */
+    private Object evalExprValue(String nodeId, String scene, String expr, Map<String, Object> vars) {
+        if (jdbcTemplate == null) {
+            throw new IllegalStateException("引擎未装配表达式求值能力(JdbcTemplate): " + nodeId);
+        }
+        UpdateExprTranslator.Result r = UpdateExprTranslator.translate(expr, Map.of(),
+                path -> resolvePath(path, vars), scene);
+        try {
+            return jdbcTemplate.queryForObject("SELECT " + r.sql(), Object.class, r.params().toArray());
+        } catch (org.springframework.dao.DataAccessException e) {
+            throw new IllegalArgumentException(scene + "表达式求值失败: "
+                    + e.getMostSpecificCause().getMessage() + " (" + nodeId + ")");
         }
     }
 
@@ -1712,7 +1751,10 @@ public class LogicFlowEngine {
             if (field == null || isBlank(field.getColumn())) {
                 continue;
             }
-            data.put(field.getColumn().trim(), resolveDataUpdateValue(field.getValue(), vars));
+            data.put(field.getColumn().trim(),
+                    resolveExprOrTemplate(node.getId(),
+                            "DATA_INSERT 节点 " + node.getId() + " 列 " + field.getColumn().trim() + " 值",
+                            field.getValue(), vars));
         }
         if (data.isEmpty()) {
             throw new IllegalArgumentException("DATA_INSERT 节点 data 无有效列值对: " + node.getId());
@@ -1854,7 +1896,8 @@ public class LogicFlowEngine {
                         default -> "=";
                     };
                     parts.add(column + " " + symbol + " ?");
-                    params.add(resolveDataUpdateValue(cond.getValue(), vars));
+                    params.add(resolveExprOrTemplate(node.getId(),
+                            "DATA_DELETE 节点 " + node.getId() + " 条件列 " + column + " 值", cond.getValue(), vars));
                 }
                 default -> throw new IllegalArgumentException(
                         "DATA_DELETE 节点 filter.op 非法(须 EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL): " + cond.getOp());
