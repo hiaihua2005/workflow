@@ -1527,6 +1527,11 @@ function legacyModeLabel(mode: string | undefined): string {
  * 统一多表形态（config.updates）：updates 缺失/为空时自动迁移——
  * 存量单表配置（table/setOps/where）→ updates[0]（引擎单条目与单表行为等价，含输出）；
  * 全新空配置 → 预置一条空表项。迁移后清空顶层单表字段，DSL 只保留 updates 一种形态
+ *
+ * 存量 SET 之外模式（ADD/SUB）→ SET + 等价表达式（面板打开即迁移内存，保存才落库）：
+ * ADD v → `= col + v`；SUB v → `= col - v`。引擎 SET 表达式路径与 ADD/SUB 逐参等价
+ * （裸列名取该行当前值、{{path}}/字面量转 ? 参数绑定），迁移后 # 呼出即走 bare 插入。
+ * 值为空或列名为空的不迁移（本就是无法运行的错误配置，保留 tag 提示用户修正）。
  */
 const dataUpdateCfg = computed(() => {
   const cfg = ensureConfig<DataUpdateNodeConfig>()
@@ -1541,6 +1546,17 @@ const dataUpdateCfg = computed(() => {
     cfg.table = ''
     cfg.setOps = []
     cfg.where = []
+  }
+  for (const u of cfg.updates) {
+    for (const op of u.setOps ?? []) {
+      const mode = String(op.mode ?? 'SET').trim().toUpperCase()
+      if (mode === 'SET') continue
+      const col = String(op.column ?? '').trim()
+      const v = String(op.value ?? '').trim()
+      if (!col || !v) continue
+      op.value = `= ${col} ${mode === 'SUB' ? '-' : '+'} ${v}`
+      op.mode = 'SET'
+    }
   }
   return cfg
 })

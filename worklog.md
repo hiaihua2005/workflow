@@ -7256,3 +7256,20 @@ Stage Summary:
 - 【已知问题】recover-dplus.sh 的 dump 导入环节 libncurses 库路径依赖脆弱（重供给后首跑必失败）→ 建议：脚本内统一 export LD_LIBRARY_PATH 且导入命令加库路径前缀；start-services.sh 前台探活超 300s 需后台化
 - 【git 核查】CM6 文件（expression/{cm6.ts,ExpressionEditor.vue,uelVars.ts}）在重供给后完好，仓库历史经恢复链路重建（哈希变更），工作树干净
 - 开发任务（lf-du-expr 数据更新表达式）：方案已定稿（worklog lf-du-expr-1）；后端 2-a 子代理两次派发均被 context cancel 中断，实施待续
+
+---
+Task ID: cron-r20
+Agent: main
+Task: Job 446961 D+ 终态轻量巡检（r20）
+
+Work Log:
+- dump-db.sh OK（workflow=260K v6=128K → backups/，本地提交 890bc577）
+- 四链路探活 200×4（3000 直连/外域 Host/3000 业务链路/8080 直连）
+- 真伪核验：admin/admin123 返回 accessToken=真绿
+- 内存：usage=3.37GB、oom_kill=0、vite 单进程（1165）、无 postcss worker；chrome 为 agent-browser UI 验证进程（正当临时占用，验证完关闭）
+- git push FAILED 诊断：分支 main 无 upstream + PAT 随重供给销毁（与 worklog L7056 同模式，已知复现项）
+- 无代码修改、无服务干预
+
+Stage Summary:
+- r20 全绿 200×4 真绿，内存 3.37G，oom 0
+- 遗留阻塞：GitHub 推送需用户供给新 PAT（git remote set-url origin https://x-access-token:<PAT>@github.com/liaoweimin74/workflow.git），本地领先多个 dump 提交待推

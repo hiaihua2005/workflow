@@ -134,6 +134,7 @@ const blurHandler = EditorView.domEventHandlers({
 })
 
 function createState(cfg: ExpressionExtensionConfig): EditorState {
+  console.log('[ExprEditor-debug] createState | extraSources =', cfg.extraSources?.length ?? 0, '| mode =', cfg.mode, '| placeholder =', cfg.placeholder)
   return EditorState.create({
     doc: String(props.modelValue ?? ''),
     extensions: [

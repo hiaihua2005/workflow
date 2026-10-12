@@ -104,9 +104,10 @@ const isSmall = computed(() => props.size === 'small')
 /** # 呼出字段补全源（getter 闭包随 hashFields 实时生效免重建；hashInsert 变化经 computed 换源，
  *  ExpressionEditor 对 customSource 引用变化做 Compartment 热替换） */
 const hashFieldsRef = computed<HashFieldOption[]>(() => props.hashFields ?? [])
-const hashSource = computed(() =>
-  makeHashFieldCompletionSource(() => hashFieldsRef.value, 'mustache', props.hashInsert)
-)
+const hashSource = computed(() => {
+  console.log('[VarInput-debug] hashInsert =', props.hashInsert, '| hashFields =', hashFieldsRef.value.length)
+  return makeHashFieldCompletionSource(() => hashFieldsRef.value, 'mustache', props.hashInsert)
+})
 
 const editorInst = ref<InstanceType<typeof ExpressionEditor> | null>(null)
 
