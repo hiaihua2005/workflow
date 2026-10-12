@@ -2044,7 +2044,8 @@ INSERT INTO `flyway_schema_history` VALUES
 (40,'32','seed workflow notification','SQL','V32__seed_workflow_notification.sql',2110666689,'root','2026-10-11 22:17:36',4,1),
 (41,'47','posts member group draft box','SQL','V47__posts_member_group_draft_box.sql',1622141536,'root','2026-10-11 22:17:36',3,1),
 (42,'48','node config uk version','SQL','V48__node_config_uk_version.sql',969157759,'root','2026-10-11 22:17:36',2,1),
-(43,'54','serial number','SQL','V54__serial_number.sql',1470816950,'root','2026-10-11 22:17:36',1,1);
+(43,'54','serial number','SQL','V54__serial_number.sql',1470816950,'root','2026-10-11 22:17:36',1,1),
+(44,'55','ai config menu','SQL','V55__ai_config_menu.sql',278095847,'root','2026-10-12 11:56:50',8,1);
 /*!40000 ALTER TABLE `flyway_schema_history` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -2352,6 +2353,46 @@ SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
 LOCK TABLES `msg_user_subscription` WRITE;
 /*!40000 ALTER TABLE `msg_user_subscription` DISABLE KEYS */;
 /*!40000 ALTER TABLE `msg_user_subscription` ENABLE KEYS */;
+UNLOCK TABLES;
+COMMIT;
+SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
+
+--
+-- Table structure for table `sys_ai_config`
+--
+
+DROP TABLE IF EXISTS `sys_ai_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sys_ai_config` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `created_at` datetime(6) DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  `is_deleted` int(11) NOT NULL,
+  `updated_at` datetime(6) DEFAULT NULL,
+  `updated_by` varchar(50) DEFAULT NULL,
+  `api_key` varchar(512) DEFAULT NULL,
+  `base_url` varchar(512) NOT NULL,
+  `connect_timeout_ms` int(11) NOT NULL,
+  `enabled` bit(1) NOT NULL,
+  `max_tokens` int(11) DEFAULT NULL,
+  `model` varchar(128) NOT NULL,
+  `read_timeout_ms` int(11) NOT NULL,
+  `temperature` double DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `sys_ai_config`
+--
+
+SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
+LOCK TABLES `sys_ai_config` WRITE;
+/*!40000 ALTER TABLE `sys_ai_config` DISABLE KEYS */;
+INSERT INTO `sys_ai_config` VALUES
+(2,'2026-10-12 12:03:58.934126','admin',0,'2026-10-12 12:03:58.934142','admin','Z.ai','https://internal-api.z.ai/v1',5000,0x01,4096,'glm-4-plus',120000,0.7);
+/*!40000 ALTER TABLE `sys_ai_config` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
@@ -2668,6 +2709,7 @@ INSERT INTO `sys_menu` VALUES
 (314,'2026-10-09 00:05:46.270000',NULL,0,'2026-10-09 00:05:46.270000',NULL,NULL,NULL,'成员组修改',2,305,NULL,'system:member-group:update',3,1),
 (315,'2026-10-09 00:05:46.271000',NULL,0,'2026-10-09 00:05:46.271000',NULL,NULL,NULL,'成员组删除',2,305,NULL,'system:member-group:delete',4,1),
 (316,'2026-10-09 00:05:46.271000',NULL,0,'2026-10-09 00:05:46.271000',NULL,NULL,NULL,'成员维护',2,305,NULL,'system:member-group:member',5,1),
+(320,'2026-10-12 11:56:50.174000',NULL,0,'2026-10-12 11:56:50.174000',NULL,'system/ai-config/AiConfigPage','Cpu','模型配置',1,1,'/system/ai-config','system:aiconfig:list',6,1),
 (9319,'2026-10-11 15:19:25.498182',NULL,0,'2026-10-11 15:19:25.498196',NULL,'page/PageRenderer',NULL,'组件演示·数据详情与步骤条',1,NULL,'/page/page_detail_steps_demo','page:read:page_detail_steps_demo',0,1);
 /*!40000 ALTER TABLE `sys_menu` ENABLE KEYS */;
 UNLOCK TABLES;
@@ -2805,7 +2847,7 @@ CREATE TABLE `sys_role_menu` (
   `menu_id` bigint(20) NOT NULL,
   `role_id` bigint(20) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9111 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9112 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2897,7 +2939,8 @@ INSERT INTO `sys_role_menu` VALUES
 (102,301,1),
 (103,302,1),
 (104,303,1),
-(9110,9319,1);
+(9110,9319,1),
+(9111,320,1);
 /*!40000 ALTER TABLE `sys_role_menu` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
@@ -4120,4 +4163,4 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-10-12  9:05:24
+-- Dump completed on 2026-10-12 12:05:26
