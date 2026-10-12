@@ -7334,3 +7334,22 @@ Stage Summary:
 - QUERY 筛选值补齐 # bare 呼出——数据族四类节点（UPDATE SET/INSERT 值/DELETE 条件/QUERY 条件）值表达式 UX 全对齐
 - bare 分支中文过滤 + ƒx 徽标落地（cm6.ts/VarInput.vue/PropertyPanel.vue 三文件）
 - 观察项（未修）：数据族表单下拉 allow-create 手输中文名会造出假表单值（如「物料库存」非真实 key → 列元数据为空、运行期表不存在），属文档化行为（支持手填物理表）但对中文用户是 foot-gun，建议后续对非 wf_biz_ 前缀手填值做存在性提示
+
+---
+Task ID: push-sync-20261012
+Agent: 主会话（Z.ai Code）
+Task: 用户指令「push」+ 用户提供 fine-grained PAT——推送本地提交至 GitHub
+
+Work Log:
+- 初始探测：origin=github.com/liaoweimin74/workflow（HTTPS），沙箱无 gh/ssh/token，首次 push 报 could not read Username；PAT 配置后 dry-run 验证凭据有效（报 non-fast-forward 而非认证错）
+- 发现远端分叉：fetch 后 origin/main 由 b88b6e05 前进至 f397ba52（+23 并行提交），本地领先 12 提交；patch-id 对比 0 重复；merge-tree 预演 7 冲突文件 + backups rename/rename
+- 执行 git merge origin/main 并解决全部冲突：backups 两侧 dump 全保留；worklog 取 HEAD（本地追加 4 小节）；LogicFlowDslValidator/LogicFlowEngine 全取 HEAD（本地表达式路由为超集）；cm6.ts/ExpressionEditor.vue/VarInput.vue 取 HEAD（本地均为远端超集）；PropertyPanel 11 块全取 HEAD（本地新语义 vs 远端旧形态）
+- 合并验证：函数无重复定义；vue-tsc 全量 logicflow 相关仅 3 个存量错误（nodeContract.ts/refScan.ts 两侧同版 3e6ed99e 非合并引入）；UpdateExprTranslatorTest 27/27 全绿
+- 全量后端测试 1320 例：failures=0、errors=25 全部集中在 5 个集成测试类（Spring ApplicationContext 加载失败）——根因 ConflictingBeanDefinitionException: api/controller 与 system/controller 两个 PostController 同名 bean（HEAD^1 与 origin/main 两侧都同时存在两文件，仓库存量问题非合并引入，历史会话仅跑针对性单测从未全量跑集成）
+- 关键发现：merge 期间远端再次前进 f397ba52→314e127d，git diff 证实 314e127d = 本地全部 12 提交（含 04acd8e8）+ 1 个 backup 提交——本地工作已由并行环境推上 GitHub；merge 结果与远端内容零差异，遂放弃 merge 对齐远端（现 HEAD==origin/main==314e127d，0 分叉）
+- 前端净差异仅 VarMentionInput.vue 删除（两侧独立做出同一清理，无引用残留安全）；本轮 merge 冲突解决成果无损失（取 HEAD 侧与远端一致）
+
+Stage Summary:
+- 推送诉求已满足：GitHub main 已包含本地全部工作（lf-du-expr-1~4 全链条），本地对齐 314e127d 无待推内容；PAT 已按历史实践写入 .git/config（仅本地文件不入库、不记 worklog）
+- 合并演练收益：验证了两条并行线的内容关系（本地线为前端功能超集、后端引擎表达式为超集），后续避免重复整合
+- 存量风险登记（未修）：①双 PostController bean 冲突导致集成测试（Spring 上下文）在沙箱永远起不来——修复需给其中一个改名 bean 或加 excludeFilter，影响面 25 例集成测试 ②数据族表单下拉 allow-create 手输中文名造出假表单值（lf-du-expr-4 观察项）
