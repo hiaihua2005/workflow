@@ -7170,3 +7170,23 @@ Stage Summary:
 - 结论：可行，推荐 CodeMirror 6（补全源直接复用 flowVars.ts 的 FlowVarItem 变量树，{{...}} 占位符用 StreamLanguage 高亮；不推荐 Monaco，体积超其 6-8 倍且移动端差）
 - 设计器 chunk 预估增重 15-25%（min），gzip 传输 +106~160KB，仅设计器路由受影响
 - 实施建议：新建 ExpressionEditor.vue（VarInput 加 editor 开关渐进替换），值表达式字段先行、Groovy 条件次之；保留 { } 选择钮与 chips；预计 1 个工作日；待用户确认后实施
+
+---
+Task ID: lf-cm6-editor-replace
+Agent: Z.ai Code (main session, trace 0fae76cf)
+Task: 用户确认——用 CodeMirror 6 替换项目中所有脚本和表达式输入
+
+Work Log:
+- 盘点：PropertyPanel 24 处 VarInput（mode placeholder×18/bare×6、textarea×5、chips×5、size small×12、clearable×1）；BPMN 4 处 UEL textarea（UserTask/HandlerTask/ServiceTask/SequenceFlow 表达式）；VarMentionInput 为无引用死代码（未动）；描述类/测试参数/XML 粘贴框不属表达式（未动）
+- 新增 src/components/expression/：cm6.ts（扩展工厂：mustache/uel 模板分词、SQL+{{var}} 混合分词、变量补全源复用 FlowVarItem 树拍平、SQL 关键字补全、Compartment 热替换、补全浮层挂 body 防裁剪）+ ExpressionEditor.vue（CM6 包装：占位符高亮/补全/清空钮/锚位插槽/失焦 change 提交/insertAtCursor 暴露）+ uelVars.ts（initiator.deptManager 等真实支持的 UEL 变量）
+- VarInput 内部 el-input→CM6，外部 API 全兼容（24 处零改动）；PropertyPanel 仅 SCRIPT 加 lang=groovy、SQL_SCRIPT 加 lang=sql 两处传参
+- FlowVarItem 增可选 groupLabel（UEL 分组展示名）；vitest.setup.ts 补 jsdom ResizeObserver stub
+- UX 增强（实施中发现）：占位符内补全自动闭合 }}（{{qt+Enter→{{formData.qty}}，插入即可用）；光标后方已有闭合标记时只插路径
+- 验证：vue-tsc 54=基线（新文件零错误）；logicflow+designer vitest 150/150（member-group 5 失败经 stash 对照确认为既有问题）；agent-browser E2E：更新面板 {{formData.qty}} 紫色 #8250df 高亮+补全树（formData.qty 表单·number）+选择器浮层插入+{{qt 自动闭合、Groovy 关键字蓝+bare 即输即补+chips、SQL 三色混合高亮+SELE→SELECT 关键字补全、UEL ${initiator.deptManager} 自动闭合+「流程·」分组；演示流 DSL 零变化（未保存丢弃临时节点）；console 无错误；截图×3（/tmp/e2e_cm6_update_panel.png、e2e_cm6_groovy.png、e2e_cm6_sql.png、e2e_cm6_uel.png）
+- 体积实测口径（/tmp/cm-bench）：精简形态 324KB min/106KB gzip、完整 481KB min/160KB gzip，仅进两个设计器懒加载 chunk
+- 提交 7e97970e（--no-gpg-sign；推送仍需用户提供 PAT）
+
+Stage Summary:
+- 项目内所有脚本/表达式输入已全面升级为 CM6 代码编辑器：即时自动补全（输入 {{ 即列变量树、Groovy/SQL 即输即补）、语法高亮（占位符紫/关键字蓝/注释灰）、自动闭合、保持 { } 选择器与 chips 双通道
+- 存量 DSL/行为零破坏：外部 API 不变、值语义不变、编辑态所见即存量值
+- 新文件：expression/{cm6.ts,ExpressionEditor.vue,uelVars.ts}；改 8 文件；提交 7e97970e
