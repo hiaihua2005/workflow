@@ -33,13 +33,11 @@ import { computed, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue'
 import type { FlowVarItem } from '@/views/logicflow/utils/flowVars'
 import {
   assembleCompartments,
+  assembleCompletionSources,
   buildDynamicExtensions,
   buildLang,
   buildStaticExtensions,
   buildTheme,
-  makeKeywordCompletionSource,
-  makeVarCompletionSource,
-  SQL_KEYWORDS,
   type ExpressionCompartments,
   type ExpressionExtensionConfig,
 } from './cm6'
@@ -67,6 +65,8 @@ const props = withDefaults(
     clearable?: boolean
     /** 追加自定义补全源（公式函数等；与变量补全源共存） */
     customSource?: CompletionSource
+    /** 优先补全源（SQL 表列/Bean 方法等结构化提示；排在 SQL 关键字源之前） */
+    prioritySources?: CompletionSource[]
   }>(),
   {
     variables: () => [],
@@ -116,6 +116,7 @@ function currentConfig(): ExpressionExtensionConfig {
     maxRows: props.maxRows,
     reserveRight: hasAnchor.value ? (props.clearable ? 58 : 34) : props.clearable ? 24 : 0,
     extraSources: props.customSource ? [props.customSource] : undefined,
+    prioritySources: props.prioritySources,
   }
 }
 
@@ -184,16 +185,15 @@ watch(
       props.maxRows,
       props.clearable,
       props.customSource,
+      props.prioritySources,
     ] as const,
   () => {
     const view = editorRef.value
     if (!view) return
     const cfg = currentConfig()
-    const acSources = [makeVarCompletionSource(cfg)]
-    if (cfg.lang === 'sql') acSources.push(makeKeywordCompletionSource(SQL_KEYWORDS))
-    // extraSources 与 createState 初值保持一致：reconfigure 重建 override 时若漏掉，
-    // 自定义补全源（# 呼出字段等）会在任意 props 变化后静默失效
-    if (cfg.extraSources?.length) acSources.push(...cfg.extraSources)
+    // 与 createState 初值同一组装函数（变量 → priority → SQL 关键字 → extra），
+    // 防 reconfigure 重建 override 时漏拼某类源致补全静默失效
+    const acSources = assembleCompletionSources(cfg)
     view.dispatch({
       effects: [
         compartments.lang.reconfigure(buildLang(cfg)),

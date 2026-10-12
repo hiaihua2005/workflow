@@ -267,6 +267,283 @@ export function makeKeywordCompletionSource(keywords: string[]): CompletionSourc
   }
 }
 
+// ===== SQL 表名/字段名补全（SQL_SCRIPT：全库 schema 元数据，上下文感知） =====
+
+/** SQL schema 元数据供给（同步缓存 getter；列缓存未就绪返回 []，由 onMiss 触发异步预取） */
+export interface SqlSchemaMeta {
+  getTables: () => string[]
+  getColumns: (table: string) => { key: string; label?: string; type?: string }[]
+  /** 列缓存 miss 时回调（如 ensureColumns 异步拉取，下次补全就绪） */
+  onMiss?: (table: string) => void
+}
+
+const SQL_TABLE_CTX = new Set(['FROM', 'JOIN', 'INTO', 'UPDATE'])
+const SQL_COLUMN_CTX = new Set([
+  'SELECT', 'DISTINCT', 'WHERE', 'AND', 'OR', 'ON', 'SET', 'HAVING', 'BY',
+  'ORDER', 'GROUP', 'LIKE', 'IS', 'IN', 'BETWEEN', 'WHEN', 'THEN', 'ELSE',
+  'NOT', 'COUNT', 'SUM', 'AVG', 'MIN', 'MAX',
+])
+/** 表名之后的别名候选跳过集（语句词/连接修饰词不做别名） */
+const SQL_NON_ALIAS = new Set([
+  ...SQL_TABLE_CTX, ...SQL_COLUMN_CTX, 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'CROSS',
+  'INSERT', 'DELETE', 'VALUES', 'CASE', 'END', 'UNION', 'ALL', 'EXISTS', 'LIMIT',
+  'OFFSET', 'AS', 'NULL', 'ASC', 'DESC', 'CREATE', 'TABLE', 'DROP', 'ALTER',
+])
+
+/** 词法提取：跳过 -- 注释 / /*…*​/ 注释 / 字符串 / {{占位符}}，只留 SQL 标识符 */
+function sqlWords(text: string): { text: string; upper: string }[] {
+  const out: { text: string; upper: string }[] = []
+  let i = 0
+  while (i < text.length) {
+    const rest = text.slice(i)
+    const m = /^(?:--[^\n]*(?:\n|$)|\/\*[\s\S]*?(?:\*\/|$)|'(?:[^']|'')*'?(?:|$)|\{\{[^{}]*(?:\}\}|$))/.exec(rest)
+    if (m) {
+      i += m[0].length
+      continue
+    }
+    const w = /^[A-Za-z_][\w$]*/.exec(rest)
+    if (w) {
+      out.push({ text: w[0], upper: w[0].toUpperCase() })
+      i += w[0].length
+      continue
+    }
+    i += 1
+  }
+  return out
+}
+
+/** 光标前语句的 SQL 上下文：待补类型（表名/列名）+ 语句内已引用表（别名归一化后物理表名） */
+function analyzeSqlContext(words: { text: string; upper: string }[]): {
+  kind: 'table' | 'columns'
+  tables: string[]
+  alias: Map<string, string>
+} {
+  const tables: string[] = []
+  const alias = new Map<string, string>()
+  let kind: 'table' | 'columns' = 'columns'
+  let expectTable = false
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i]
+    if (SQL_TABLE_CTX.has(w.upper)) {
+      kind = 'table'
+      expectTable = true
+      continue
+    }
+    if (SQL_COLUMN_CTX.has(w.upper)) {
+      kind = 'columns'
+      expectTable = false
+      continue
+    }
+    if (expectTable) {
+      // FROM/JOIN/UPDATE/INTO 后第一个词 = 表名；紧随的非保留词 = 别名
+      tables.push(w.text)
+      alias.set(w.text.toLowerCase(), w.text)
+      expectTable = false
+      let j = i + 1
+      if (words[j]?.upper === 'AS') j++
+      const nx = words[j]
+      if (nx && !SQL_NON_ALIAS.has(nx.upper)) {
+        alias.set(nx.text.toLowerCase(), w.text)
+        i = j
+      }
+      continue
+    }
+  }
+  return { kind, tables, alias }
+}
+
+/** 光标后方 FROM/JOIN 引用的表（SELECT 列表早于 FROM 的场景，列候选向后取） */
+function sqlTablesAfter(text: string): string[] {
+  const words = sqlWords(text)
+  const out: string[] = []
+  for (let i = 0; i < words.length; i++) {
+    if (SQL_TABLE_CTX.has(words[i].upper)) {
+      const nx = words[i + 1]
+      if (nx && !SQL_NON_ALIAS.has(nx.upper) && !SQL_COLUMN_CTX.has(nx.upper)) {
+        out.push(nx.text)
+        i++
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * SQL 表名/字段名补全源（SQL_SCRIPT 节点）：
+ * - FROM/JOIN/UPDATE/INSERT INTO 后 → 全库表名补全；
+ * - 列位置（SELECT 列表/INSERT 列清单/WHERE/ON/SET/HAVING 等）→ 语句内 FROM/JOIN/UPDATE
+ *   引用表（含别名解析与光标后方 FROM 表）的列名并集，detail 标注类型·来源表；
+ * - 别名限定（alias. / 表名.）→ 精确补该表列名；
+ * - {{ 占位符内不生效（交给变量补全源）；列缓存 miss 经 onMiss 预取，下次补全就绪；
+ * - 需经 prioritySources 注入（优先于 SQL 关键字源，否则被后者恒真匹配屏蔽）。
+ */
+export function makeSqlSchemaCompletionSource(meta: SqlSchemaMeta): CompletionSource {
+  return (ctx: CompletionContext): CompletionResult | null => {
+    if (ctx.matchBefore(/\{\{[^{}]*$/)) return null
+
+    // 1) 别名/表名限定：phys.col（点号后已输列前缀可空——光标前 word 为空匹配，
+    //    必须先于主入口 word 空判定，否则 alias. 场景永远走不到）
+    const qual = ctx.matchBefore(/[A-Za-z_][\w$]*\.[\w$]*$/)
+    if (qual) {
+      const before = ctx.state.sliceDoc(0, qual.from)
+      const stmtStart = before.lastIndexOf(';') + 1
+      const pos = analyzeSqlContext(sqlWords(before.slice(stmtStart)))
+      const dot = qual.text.indexOf('.')
+      const phys = pos.alias.get(qual.text.slice(0, dot).toLowerCase())
+      if (!phys) return null
+      const cols = meta.getColumns(phys)
+      if (!cols.length) {
+        meta.onMiss?.(phys)
+        return null
+      }
+      return {
+        from: qual.from + dot + 1,
+        options: cols.map((c) => ({
+          label: c.key,
+          detail: [c.label && c.label !== c.key ? c.label : '', c.type ?? ''].filter(Boolean).join(' · ') || undefined,
+          type: 'property',
+        })),
+        validFor: /^[\w$]*$/,
+      }
+    }
+
+    const w = ctx.matchBefore(/[\w$]*$/)
+    if (!w || (w.from === w.to && !ctx.explicit)) return null
+    const before = ctx.state.sliceDoc(0, w.from)
+    const stmtStart = before.lastIndexOf(';') + 1
+    const pos = analyzeSqlContext(sqlWords(before.slice(stmtStart)))
+
+    // 2) 表名位置：FROM/JOIN/UPDATE/INTO 后正在输入的词
+    if (pos.kind === 'table') {
+      const tables = meta.getTables()
+      if (!tables.length) return null
+      return {
+        from: w.from,
+        options: tables.map((t) => ({ label: t, detail: '表', type: 'table' })),
+        validFor: /^[\w$]*$/,
+      }
+    }
+
+    // 3) 列位置：语句内已引用表（光标前 + 光标后 FROM 表）列并集
+    const allTables = [...new Set([...pos.tables, ...sqlTablesAfter(ctx.state.sliceDoc(w.to))])]
+    if (!allTables.length) return null
+    const byKey = new Map<string, { label: string; detail: Set<string> }>()
+    for (const t of allTables) {
+      const cols = meta.getColumns(t)
+      if (!cols.length) {
+        meta.onMiss?.(t)
+        continue
+      }
+      for (const c of cols) {
+        const d = [c.label && c.label !== c.key ? c.label : '', c.type ?? ''].filter(Boolean).join(' · ')
+        const hit = byKey.get(c.key)
+        if (hit) {
+          if (d) hit.detail.add(d)
+        } else {
+          byKey.set(c.key, { label: c.key, detail: new Set(d ? [d] : []) })
+        }
+      }
+    }
+    if (!byKey.size) {
+      // 全部表列缓存未就绪（已触发 onMiss 预取）：本次不弹，下次补全即有数据
+      return null
+    }
+    return {
+      from: w.from,
+      options: [...byKey.values()].map((v) => ({
+        label: v.label,
+        detail: [...v.detail].join(' / ') || (allTables.length === 1 ? allTables[0] : undefined),
+        type: 'property',
+      })),
+      validFor: /^[\w$]*$/,
+    }
+  }
+}
+
+// ===== Groovy 脚本 Bean/方法补全（SCRIPT 节点：beans 门面，白名单清单驱动） =====
+
+/** 后端 Bean 清单条目（对应 GET /api/v1/backend-logic/beans 的 BackendBeanInfo） */
+export interface GroovyBeanMetaItem {
+  beanName: string
+  methodName: string
+  /** 签名展示（如 "syncOrder(String, Integer)"） */
+  displayName?: string
+  parameterCount?: number
+}
+
+/**
+ * Groovy Bean 补全源（SCRIPT 节点）：脚本内 {@code beans.<beanName>.<method>(args)}
+ * 调用注册表白名单 Bean（与 BEAN 节点同一白名单，运行时经 ScriptBeanFacade →
+ * BackendBeanRegistry 校验）。
+ * - `beans.` 后 → Bean 名（插 `名.` 续方法提示）；
+ * - `beans.<bean>.` 后 → 该 Bean 方法名（插 `方法(`，光标落括号内）；
+ * - `bea…` 词前缀 → beans 门面入口；
+ * - 清单加载失败（getBeans 返回 null）不弹，降级手输。
+ * - 需经 prioritySources 注入。
+ */
+export function makeGroovyBeanCompletionSource(
+  getBeans: () => GroovyBeanMetaItem[] | null | undefined
+): CompletionSource {
+  return (ctx: CompletionContext): CompletionResult | null => {
+    const list = getBeans()
+    if (!list || !list.length) return null
+    // 1) beans.<bean>.<partial → 该 Bean 方法（白名单顺序）
+    const m2 = ctx.matchBefore(/beans\.[A-Za-z_][\w$]*\.[\w$]*$/)
+    if (m2) {
+      const parts = m2.text.split('.')
+      const bean = (parts[1] ?? '').toLowerCase()
+      const partial = parts[2] ?? ''
+      const methods = list.filter((b) => b.beanName.toLowerCase() === bean)
+      if (!methods.length) return null
+      const seen = new Set<string>()
+      const options: Completion[] = []
+      for (const b of methods) {
+        if (seen.has(b.methodName)) continue
+        seen.add(b.methodName)
+        const sig = b.displayName && b.displayName.startsWith(b.methodName)
+          ? b.displayName.slice(b.methodName.length)
+          : (b.displayName || '')
+        options.push({
+          label: b.methodName,
+          detail: sig || undefined,
+          type: 'method',
+          apply: `${b.methodName}(`,
+        })
+      }
+      return { from: m2.to - partial.length, options, validFor: /^[\w$]*$/ }
+    }
+    // 2) beans.<partial → Bean 名（去重 + 方法数标注，插 `名.` 续提示）
+    const m1 = ctx.matchBefore(/beans\.[\w$]*$/)
+    if (m1) {
+      const partial = m1.text.slice('beans.'.length)
+      const count = new Map<string, number>()
+      for (const b of list) count.set(b.beanName, (count.get(b.beanName) ?? 0) + 1)
+      const options: Completion[] = [...count.entries()].map(([name, n]) => ({
+        label: name,
+        detail: `${n} 个方法`,
+        type: 'variable',
+        apply: `${name}.`,
+      }))
+      return { from: m1.to - partial.length, options, validFor: /^[\w$]*$/ }
+    }
+    // 3) beans 门面词入口
+    const w = ctx.matchBefore(/[A-Za-z_][\w$]*$/)
+    if (w && /^bea/i.test(w.text)) {
+      return {
+        from: w.from,
+        options: [{
+          label: 'beans',
+          detail: '后端 Bean 门面：beans.名.方法()',
+          type: 'keyword',
+          apply: 'beans.',
+        }],
+        validFor: /^[\w$]*$/,
+      }
+    }
+    return null
+  }
+}
+
 // ===== 高亮 =====
 
 /** 表达式主题色（占位符紫、SQL 关键字蓝等；其余 tag 落回 defaultHighlightStyle） */
@@ -344,8 +621,11 @@ export interface ExpressionExtensionConfig {
   maxRows?: number
   /** 右侧留白（选择器/清空锚位） */
   reserveRight?: number
-  /** 追加补全源（公式函数等自定义场景，与变量补全源共存） */
+  /** 追加补全源（公式函数等自定义场景，与变量补全源共存；排在 SQL 关键字源之后） */
   extraSources?: CompletionSource[]
+  /** 优先补全源（SQL 表列/Bean 方法等结构化提示；排在 SQL 关键字源之前——
+   *  关键字源在任意词位置恒返回结果，不前置会被屏蔽） */
+  prioritySources?: CompletionSource[]
 }
 
 /** 行高与容器主题（尺寸随 props 重建，经 Compartment 热替换） */
@@ -470,15 +750,21 @@ export function buildStaticExtensions(cfg: ExpressionExtensionConfig): Extension
   return exts
 }
 
-/** 组合动态 Compartment 初值（onMounted 与 props watcher 共用） */
-export function buildDynamicExtensions(compartments: ExpressionCompartments, cfg: ExpressionExtensionConfig): Extension[] {
-  const acSources: CompletionSource[] = [makeVarCompletionSource(cfg)]
+/** 补全源有序组装（createState 初值与 props watcher 共用，防 reconfigure 漏源）：
+ *  变量 → prioritySources（表列/Bean 等）→ SQL 关键字 → extraSources */
+export function assembleCompletionSources(cfg: ExpressionExtensionConfig): CompletionSource[] {
+  const acSources: CompletionSource[] = [makeVarCompletionSource(cfg), ...(cfg.prioritySources ?? [])]
   if (cfg.lang === 'sql') acSources.push(makeKeywordCompletionSource(SQL_KEYWORDS))
   if (cfg.extraSources?.length) acSources.push(...cfg.extraSources)
+  return acSources
+}
+
+/** 组合动态 Compartment 初值（onMounted 与 props watcher 共用） */
+export function buildDynamicExtensions(compartments: ExpressionCompartments, cfg: ExpressionExtensionConfig): Extension[] {
   return [
     compartments.lang.of(buildLang(cfg)),
     compartments.autoComplete.of(
-      autocompletion({ override: acSources, icons: false, closeOnBlur: true })
+      autocompletion({ override: assembleCompletionSources(cfg), icons: false, closeOnBlur: true })
     ),
     compartments.placeholder.of(cmPlaceholder(cfg.placeholder || '')),
     compartments.readOnly.of(

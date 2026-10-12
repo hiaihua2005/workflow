@@ -7368,3 +7368,31 @@ Work Log:
 Stage Summary:
 - f89dedb5 已推送：worklog 记录 + 双 PostController 去重（集成测试全绿）；远端 main 与本地一致
 - 后端测试基线跃升：集成测试从「沙箱永远起不来」恢复为可用回归资产
+
+---
+Task ID: cron-r20
+Agent: main
+Task: Job 446961 r20 轻量运维巡检
+
+Work Log:
+- dump-db.sh OK（workflow=260K v6=128K）
+- 四链路 200×4，8080 真绿（accessToken）
+- cgroup 3.60GB > 3.5GB 备案：vite RSS≈532MB，Java RSS≈465MB；oom_kill=0；vite 单实例正常
+
+Stage Summary:
+- r20 全绿，无需干预
+
+---
+Task ID: push-jar-fix-20261012
+Agent: 主会话（Z.ai Code）
+Task: 用户指令「jar 不要推送到仓库」——剥离 115MB jar 后完成推送
+
+Work Log:
+- GitHub pre-receive 拒收：backups/jar-workflow-platform-20261012-lfbeans.jar 115.54MB 超 GitHub 100MB 单文件限制（仓库根为 /home/z/my-project/，jar 位于仓库根 backups/ 下，磁盘保留）
+- 定位：待推范围 origin/main..main = 22527f32（并行 cron 会话 items 23/24 实现：ScriptBeanFacade/SandboxTest/GroovyScriptLogic/FlowableEngineConfig + cm6.ts makeGroovyBeanCompletionSource Bean/方法补全源）+ 183748fa（ScriptToolkitBean + 测试 + jar 备份提交）
+- 处置：本地备份分支 archive/pre-push-jar-removal 保留原历史 → reset --soft 7363d439 → 单提交重建全部代码改动（jar 不暂存、仓库根 .gitignore 忽略 backups/）
+- 补记：22527f32/183748fa 未写 worklog 开发小节，本次补记 items 23/24 落地事实（Script 输入框 Bean/方法补全 + SQL 表名补全 sqlTablesAfter）
+
+Stage Summary:
+- main 重建后推送，远端同步；jar 留磁盘备份（backups/）不入库，.gitignore 双保险（仓库根 backups/ + 子目录 *.jar）
+- item 22 答复备查：大模型组件配置在逻辑流画布节点属性面板（PropertyPanel.vue llmCfg：prompt/system/temperature），内联存于节点 DSL

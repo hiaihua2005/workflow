@@ -220,7 +220,7 @@
             </el-form-item>
             <el-form-item required>
               <template #label>
-                <FieldLabel label="脚本内容" tip="Groovy 脚本在服务端沙箱执行，注意安全；末行用 Map 字面量 [key: value, ...] 返回多输出，上下文变量直接用变量名访问" />
+                <FieldLabel label="脚本内容" tip="Groovy 脚本在服务端沙箱执行，注意安全；末行用 Map 字面量 [key: value, ...] 返回多输出，上下文变量直接用变量名访问；用 beans.<bean名>.<方法名>(参数…) 调用已注册的后端 Bean 方法（与 BEAN 节点同一白名单，参数个数需匹配），输入 beans. 或 bea 自动提示 Bean 名与方法名" />
               </template>
               <VarInput
                 v-model="scriptCfg.source"
@@ -1213,7 +1213,7 @@
           <template v-else-if="node.data.nodeType === 'SQL_SCRIPT'">
             <el-form-item required>
               <template #label>
-                <FieldLabel label="SQL 语句" tip="多条 SQL 用 ; 分隔（字符串/注释内的分号不会切分）；语句中用 {{var.path}} 引用上下文变量，执行时编译为 JDBC ? 参数绑定防注入（保留数值类型；'前缀{{var}}后缀' 拼接形态整段绑定字符串）；支持 -- name: 别名 注释为语句命名（输出键用别名，重复会校验拒绝）；仅支持 SELECT/INSERT/UPDATE/DELETE/REPLACE（及 SHOW/DESC/EXPLAIN/WITH 查询），DDL 会隐式提交破坏事务故不支持" />
+                <FieldLabel label="SQL 语句" tip="多条 SQL 用 ; 分隔（字符串/注释内的分号不会切分）；语句中用 {{var.path}} 引用上下文变量，执行时编译为 JDBC ? 参数绑定防注入（保留数值类型；'前缀{{var}}后缀' 拼接形态整段绑定字符串）；支持 -- name: 别名 注释为语句命名（输出键用别名，重复会校验拒绝）；FROM/JOIN/UPDATE/INSERT INTO 后自动提示表名，列位置（SELECT/INSERT 列清单/WHERE/SET 等）自动提示字段名，别名. 精确提示该表字段，输入即过滤（Ctrl+Space 随时呼出）；仅支持 SELECT/INSERT/UPDATE/DELETE/REPLACE（及 SHOW/DESC/EXPLAIN/WITH 查询），DDL 会隐式提交破坏事务故不支持" />
               </template>
               <VarInput
                 v-model="sqlScriptCfg.sql"
@@ -1223,6 +1223,7 @@
                 :rows="10"
                 chips
                 lang="sql"
+                :priority-sources="sqlSchemaSources"
                 class="sql-source"
                 placeholder="-- name: upsert_user&#10;UPDATE wf_biz_order SET status = {{newStatus}} WHERE id = {{orderId}};&#10;&#10;SELECT id, amount FROM wf_biz_order WHERE id = {{orderId}};"
               />
@@ -1351,6 +1352,7 @@ import type { ColumnConfigItem } from '@/api/bizData'
 import { nodeTypeLabel as typeLabel } from '../utils/nodeMeta'
 import { defaultConfig, type DataUpdateNodeConfig, type DataUpdateTableUpdate, type DataUpdateWhereOp, type DataUpsertNodeConfig, type DataUpsertUpsertItem, type DataQueryNodeConfig, type DataInsertNodeConfig, type DataDeleteNodeConfig, type NotifyNodeConfig, type DelayNodeConfig, type TransformNodeConfig, type AggregateNodeConfig, type LlmNodeConfig, type FlowNode, type FlowEdge, type HttpNodeConfig, type SqlScriptNodeConfig, OUTPUT_VAR_TYPES, type ResultVarDef } from '../utils/dsl'
 import type { HashFieldOption } from '@/components/expression/cm6'
+import { makeGroovyBeanCompletionSource, makeSqlSchemaCompletionSource } from '@/components/expression/cm6'
 import { parseSqlScriptPreview } from '../utils/sqlScript'
 import type { FlowVarItem } from '../utils/flowVars'
 
@@ -1873,7 +1875,7 @@ const llmCfg = computed(() => ensureConfig<LlmNodeConfig>())
 watch(
   () => node.value?.data.nodeType,
   (type) => {
-    if (type && ['DATA_QUERY', 'DATA_INSERT', 'DATA_DELETE'].includes(type)) {
+    if (type && ['DATA_QUERY', 'DATA_INSERT', 'DATA_DELETE', 'SQL_SCRIPT'].includes(type)) {
       void loadBizForms()
       // 微任务延迟：immediate 首跑早于 duTableOptions 等声明（TDZ），先让 setup 跑完
       void Promise.resolve().then(() => {
@@ -1971,6 +1973,20 @@ async function ensureDuColumns(table: string): Promise<void> {
     duTableLoading.delete(t)
   }
 }
+
+// ===== SQL_SCRIPT 表名/字段名补全：全库 schema 元数据（表清单 + 列缓存与 DATA_UPDATE 同源） =====
+
+/** 列缓存 miss 经 onMiss 预取（ensureDuColumns 幂等去重），首次补全后即就绪；
+ *  source 工厂仅创建一次，getter 闭包实时读响应式缓存 */
+const sqlSchemaSource = makeSqlSchemaCompletionSource({
+  getTables: () => duTableOptions.value,
+  getColumns: (t) => duColumnsByTable.get(t) ?? [],
+  onMiss: (t) => {
+    void ensureDuColumns(t)
+  },
+})
+/** computed 包装稳定数组引用：避免模板字面量每次渲染新数组触发编辑器重配置 */
+const sqlSchemaSources = computed(() => [sqlSchemaSource])
 
 watch(
   () =>
@@ -2273,6 +2289,14 @@ function onBeanChanged() {
   const ok = beanMethods.value.some((m) => m.value === beanCfg.value.methodName)
   if (!ok) beanCfg.value.methodName = ''
 }
+
+// ===== SCRIPT Groovy Bean/方法补全：beans 门面清单（加载失败降级不弹，手输不受影响） =====
+
+/** getBeans 返回 null = 清单加载失败（编辑器不弹 Bean 提示）；getter 实时读响应式清单 */
+const scriptBeanSource = makeGroovyBeanCompletionSource(() =>
+  beanLoadFailed.value ? null : beans.value
+)
+const scriptBeanSources = computed(() => [scriptBeanSource])
 
 // ===== 选中节点切换：重建 Headers 行（其余字段直接绑 config，无需重建） =====
 watch(

@@ -32,12 +32,17 @@ import java.util.concurrent.TimeUnit;
  * </ul>
  *
  * <p>流程变量以绑定形式注入上下文，脚本返回值（最后表达式）作为结果，可经
- * {@code resultVar} 写回流程变量 / 编排变量。
+ * {@code resultVar} 写回流程变量 / 编排变量。另注入 {@code beans} 门面
+ * （{@link ScriptBeanFacade}）：脚本可 {@code beans.<beanName>.<method>(args)}
+ * 调用注册表白名单 Bean 方法（与 BEAN 节点同一安全边界）；同名流程变量优先于门面。
  */
 public class GroovyScriptLogic {
 
     /** 脚本执行超时毫秒数（默认 5s，装配时经 workflow.logic.script.timeout-ms 注入）。 */
     private final long timeoutMillis;
+
+    /** Bean 门面（可选：null 时不注入 beans 绑定，旧构造器兼容）。 */
+    private final ScriptBeanFacade beanFacade;
 
     /** 共享守护线程池：超时中断 + 隔离脚本运行线程，避免阻塞引擎线程。 */
     private static final ExecutorScriptRunner RUNNER = new ExecutorScriptRunner();
@@ -47,12 +52,21 @@ public class GroovyScriptLogic {
     }
 
     public GroovyScriptLogic(long timeoutMillis) {
+        this(timeoutMillis, null);
+    }
+
+    public GroovyScriptLogic(long timeoutMillis, ScriptBeanFacade beanFacade) {
         this.timeoutMillis = timeoutMillis;
+        this.beanFacade = beanFacade;
     }
 
     public Object execute(String script, DelegateExecution execution, Map<String, Object> vars) {
         CompilerConfiguration config = sandboxConfig();
         Binding binding = new Binding();
+        // 先放门面后放流程变量：同名流程变量（历史遗留 beans 变量）优先于门面
+        if (beanFacade != null) {
+            binding.setVariable("beans", beanFacade);
+        }
         if (vars != null) {
             vars.forEach(binding::setVariable);
         }

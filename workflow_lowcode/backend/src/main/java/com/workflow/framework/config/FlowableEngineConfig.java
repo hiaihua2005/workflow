@@ -5,6 +5,7 @@ import com.workflow.engine.logic.BackendBeanRegistry;
 import com.workflow.engine.logic.executor.BackendLogicExecutor;
 import com.workflow.engine.logic.executor.GroovyScriptLogic;
 import com.workflow.engine.logic.executor.HttpLogicExecutor;
+import com.workflow.engine.logic.executor.ScriptBeanFacade;
 import com.workflow.engine.logic.listener.BackendLogicEventListener;
 import com.workflow.engine.logic.parse.VariableResolver;
 import com.workflow.engine.logic.resolver.ProcessConfigResolver;
@@ -67,9 +68,11 @@ public class FlowableEngineConfig {
 
     @Bean
     public GroovyScriptLogic groovyScriptLogic(
+            BackendBeanRegistry backendBeanRegistry,
             @org.springframework.beans.factory.annotation.Value(
                     "${workflow.logic.script.timeout-ms:5000}") long scriptTimeoutMillis) {
-        return new GroovyScriptLogic(scriptTimeoutMillis);
+        // 脚本注入 beans 门面：Groovy 里 beans.<beanName>.<method>(args) 调用白名单 Bean（与 BEAN 节点同一边界）
+        return new GroovyScriptLogic(scriptTimeoutMillis, new ScriptBeanFacade(backendBeanRegistry));
     }
 
     @Bean

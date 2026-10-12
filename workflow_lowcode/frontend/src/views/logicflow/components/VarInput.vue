@@ -13,6 +13,7 @@
       :placeholder="placeholder"
       :disabled="disabled"
       :custom-source="hashSource"
+      :priority-sources="prioritySources"
       @update:model-value="onValue"
     >
       <VariablePicker :variables="variables" :mode="mode" @pick="onPick" />
@@ -45,6 +46,7 @@
 
 <script setup lang="ts">
 import { computed, ref, useAttrs } from 'vue'
+import type { CompletionSource } from '@codemirror/autocomplete'
 import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
 import VariablePicker from './VariablePicker.vue'
 import { makeHashFieldCompletionSource, type HashFieldOption, type HashInsertMode } from '@/components/expression/cm6'
@@ -79,6 +81,9 @@ const props = withDefaults(
     /** # 选中插入形态：placeholder = {{formData.字段}}（默认）；bare = 裸列名（值表达式场景，
      *  显示层剥离存储的 = 前缀，写回时统一补回，编辑器内永不见 =） */
     hashInsert?: HashInsertMode
+    /** 优先补全源（SQL 表名/字段名、Groovy Bean/方法等结构化提示；
+     *  排在 SQL 关键字源之前，透传 ExpressionEditor 热替换） */
+    prioritySources?: CompletionSource[]
   }>(),
   {
     variables: () => [],
