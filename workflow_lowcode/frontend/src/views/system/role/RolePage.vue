@@ -1,12 +1,14 @@
 <script setup lang="ts">
 defineOptions({ name: 'RoleManagement' })
 
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Key } from '@element-plus/icons-vue'
 import { SearchTable } from '@/components/business'
 import type { SearchField, TableColumn, ActionButton, FormConfig } from '@/components/business/types'
 import type { Rule } from '@form-create/element-ui'
+import { registerPageActions } from '@/utils/aiPageExecutor'
 import { getRoleList, createRole, updateRole, deleteRole, getRoleMenus, assignRoleMenus } from '@/api/role'
 import { getMenuTree } from '@/api/menu'
 import type { RoleVO } from '@/types/role'
@@ -94,6 +96,124 @@ const formConfig: FormConfig<RoleVO> = {
   editPermission: 'system:role:update',
   deletePermission: 'system:role:delete',
 }
+
+// ==================== AI 页面操作（L2 注册层：角色管理） ====================
+const aiRoute = useRoute()
+
+function aiRows(limit = 10) {
+  const rows = (searchTableRef.value?.getList?.() ?? []) as RoleVO[]
+  return rows.slice(0, limit).map((r) => ({ id: r.id, roleName: r.roleName, roleCode: r.roleCode, description: r.description, status: r.status }))
+}
+
+const QUERY_FIELDS = ['roleName', 'status']
+
+/** 按 menuName 在菜单树中查找 id（支持部分匹配，返回全部命中叶子路径节点） */
+function findMenuIds(names: string[]): number[] {
+  const ids: number[] = []
+  const walk = (nodes: MenuTree[]) => {
+    for (const n of nodes) {
+      if (names.some((x) => (n.menuName ?? '').includes(x))) ids.push(n.id)
+      if (n.children?.length) walk(n.children)
+    }
+  }
+  walk(menuTree.value)
+  return ids
+}
+
+const unregisterAi = registerPageActions({
+  routePath: aiRoute.path,
+  pageType: 'admin',
+  manifest: () => ({
+    pageType: 'admin',
+    title: '角色管理',
+    searchFields: searchFields.map((f) => ({ field: f.prop, title: f.label, type: f.type })),
+    tableColumns: columns.map((c) => ({ field: (c as TableColumn).prop, title: (c as TableColumn).label })).filter((c) => c.field),
+    formFields: formConfig.rule.map((r) => ({ field: (r as any).field, title: (r as any).title, required: !!(r as any).validate?.length })),
+    buttons: ['search', 'reset', 'open-create', 'open-edit', 'submit', 'assign-menu', 'check-menu', 'submit-menu'],
+    notes: 'set-query 即时生效并刷新列表；弹窗表单先 open-create/open-edit 再 set-value，最后 submit；分配菜单流程=assign-menu(行序号)→check-menu(菜单名数组)→submit-menu',
+    layer: 'L2',
+  }),
+  handlers: {
+    'set-query': async (a) => {
+      const f = String(a.field ?? a.target ?? '')
+      if (!QUERY_FIELDS.includes(f)) return { ok: false, error: `查询字段不存在「${f}」（可用：${QUERY_FIELDS.join('/')}）` }
+      await searchTableRef.value?.setQuery({ [f]: a.value })
+      return { ok: true, data: `${f}=${JSON.stringify(a.value)}，已刷新列表` }
+    },
+    search: async () => { await searchTableRef.value?.fetchList(); return { ok: true, data: '已刷新列表' } },
+    reset: async () => { await searchTableRef.value?.resetQuery(); return { ok: true, data: '查询条件已重置' } },
+    'open-create': () => { searchTableRef.value?.openFormDialog(); return { ok: true, data: '已打开新增角色弹窗' } },
+    'open-edit': (a) => {
+      const idx = Number(a.target ?? a.value ?? NaN)
+      const row = (searchTableRef.value?.getList?.() ?? [])[idx]
+      if (!row) return { ok: false, error: `行序号 ${a.target} 不存在（先 get-state 查看当前页）` }
+      searchTableRef.value?.openEdit(row)
+      return { ok: true, data: `已打开编辑弹窗：${row.roleName}` }
+    },
+    'set-value': (a) => {
+      const st = searchTableRef.value?.dialogState?.()
+      if (!st?.visible) return { ok: false, error: '表单弹窗未打开（先 open-create 或 open-edit）' }
+      const f = String(a.field ?? a.target ?? '')
+      searchTableRef.value?.setFormField(f, a.value)
+      return { ok: true, data: `弹窗表单 ${f}=${JSON.stringify(a.value)}` }
+    },
+    submit: async () => {
+      const st = searchTableRef.value?.dialogState?.()
+      if (!st?.visible) return { ok: false, error: '表单弹窗未打开（先 open-create 或 open-edit 再 set-value）' }
+      const passed = await searchTableRef.value?.validateForm?.()
+      if (passed === false) return { ok: false, error: '表单校验未通过，请检查必填项（get-state 查看 form）' }
+      await searchTableRef.value?.submitDialog()
+      return { ok: true, data: st.isEdit ? '角色已更新' : '角色已创建' }
+    },
+    'assign-menu': async (a) => {
+      const idx = Number(a.target ?? a.value ?? NaN)
+      const row = (searchTableRef.value?.getList?.() ?? [])[idx]
+      if (!row) return { ok: false, error: `行序号 ${a.target} 不存在（先 get-state 查看当前页）` }
+      await handleAssignMenu(row)
+      return { ok: true, data: `已打开「${row.roleName}」的分配菜单弹窗` }
+    },
+    'check-menu': (a) => {
+      if (!menuDialogVisible.value) return { ok: false, error: '分配菜单弹窗未打开（先 assign-menu）' }
+      const names = Array.isArray(a.value) ? (a.value as string[]) : String(a.value ?? '').split(',')
+      const ids = findMenuIds(names.map((s) => s.trim()).filter(Boolean))
+      if (!ids.length) return { ok: false, error: `菜单未匹配到任何节点：${names.join('、')}` }
+      menuTreeRef.value?.setCheckedKeys(ids)
+      return { ok: true, data: `已勾选 ${ids.length} 个节点` }
+    },
+    'submit-menu': () => handleMenuSubmit().then(() => ({ ok: true, data: '菜单分配已保存' })).catch((e) => ({ ok: false, error: `保存失败：${e?.message ?? e}` })),
+    'get-state': () => {
+      const st = searchTableRef.value?.dialogState?.()
+      return {
+        ok: true,
+        data: {
+          query: searchTableRef.value?.getQuery?.() ?? {},
+          rows: aiRows(),
+          dialog: st,
+          form: st?.visible ? searchTableRef.value?.getFormValues?.() : null,
+          menuDialog: { visible: menuDialogVisible.value, checked: checkedMenuKeys.value },
+        },
+      }
+    },
+    'read-table': (a) => {
+      const limit = Number((a.params as any)?.limit ?? 10) || 10
+      return { ok: true, data: { rows: aiRows(limit), total: searchTableRef.value?.getQuery?.()?.total } }
+    },
+    expect: (a) => {
+      const p = (a.params ?? {}) as { type?: string; expected?: unknown; comparator?: string }
+      let actual: unknown
+      if (p.type === 'rowCount') actual = (searchTableRef.value?.getList?.() ?? []).length
+      else if (p.type === 'value') actual = searchTableRef.value?.getFormValues?.()?.[a.field ?? a.target ?? '']
+      else if (p.type === 'query') actual = searchTableRef.value?.getQuery?.()?.[a.field ?? a.target ?? '']
+      const pass = p.comparator === 'contains'
+        ? String(actual ?? '').includes(String(p.expected ?? ''))
+        : String(actual ?? '') === String(p.expected ?? '')
+      return pass
+        ? { ok: true, data: { actual, expected: p.expected, pass } }
+        : { ok: false, data: { actual, expected: p.expected, pass }, error: `断言失败：actual=${JSON.stringify(actual)}` }
+    },
+  },
+})
+onUnmounted(unregisterAi)
 </script>
 
 <template>

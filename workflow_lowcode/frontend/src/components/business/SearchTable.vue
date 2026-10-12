@@ -537,11 +537,11 @@ function handleSearch() {
   fetchList()
 }
 
-function handleReset() {
+function handleReset(): Promise<void> {
   sortState.value = null
   Object.keys(query).forEach((key) => delete query[key])
   Object.assign(query, initialQuery.value)
-  fetchList()
+  return fetchList()
 }
 
 function handleExport() {
@@ -639,10 +639,10 @@ function handleDialogClose() {
 // --- 外部控制方法（供父组件通过 ref 调用，如外部自建搜索栏 / 事件动作链） ---
 
 /** 外部注入查询条件并刷新；resetPage=true 时重置到第一页（默认） */
-function setQuery(extra: Record<string, any>, resetPage = true) {
+function setQuery(extra: Record<string, any>, resetPage = true): Promise<void> {
   Object.assign(query, extra)
   if (resetPage) query.page = 1
-  fetchList()
+  return fetchList()
 }
 
 /** 设置表格排序（代理 el-table.sort） */
@@ -660,7 +660,37 @@ function getList() {
   return list.value
 }
 
-  defineExpose({ fetchList, openFormDialog: handleCreate, openEdit: handleEdit, setQuery, sort, clearSelection, getList })
+// ---------- AI L2 扩展 expose：查询态 + 弹窗表单驱动 ----------
+function getQuery(): Record<string, any> {
+  return { ...query, page: query.page, size: query.size, total: total.value }
+}
+function dialogState() {
+  return { visible: dialogVisible.value, isEdit: isEdit.value, title: dialogTitle.value }
+}
+function setFormField(field: string, value: unknown) {
+  formRendererRef.value?.setFormData?.({ [field]: value })
+}
+function getFormValues(): Record<string, any> | null {
+  return formRendererRef.value?.getFormData?.() ?? null
+}
+
+  defineExpose({
+    fetchList,
+    openFormDialog: handleCreate,
+    openEdit: handleEdit,
+    setQuery,
+    sort,
+    clearSelection,
+    getList,
+    // AI L2 扩展
+    resetQuery: handleReset,
+    getQuery,
+    dialogState,
+    setFormField,
+    getFormValues,
+    validateForm: () => formRendererRef.value?.validate?.(),
+    submitDialog: handleDialogSubmit,
+  })
 </script>
 
 <style scoped>
