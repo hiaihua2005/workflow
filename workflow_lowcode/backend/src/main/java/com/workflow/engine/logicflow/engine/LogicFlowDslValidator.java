@@ -768,8 +768,8 @@ public class LogicFlowDslValidator {
         String formKey = textOrNull(config, "formKey");
         if (formKey == null || formKey.isBlank()) {
             errors.add("DATA_QUERY 节点 " + node.getId() + " 缺少 formKey");
-        } else if (!formKey.matches("[a-zA-Z][a-zA-Z0-9_]{0,63}")) {
-            errors.add("DATA_QUERY 节点 " + node.getId() + " formKey 非法: " + formKey);
+        } else if (!formKey.matches("[a-zA-Z_][a-zA-Z0-9_]{0,63}")) {
+            errors.add("DATA_QUERY 节点 " + node.getId() + " formKey/表名非法: " + formKey);
         }
         JsonNode filter = config.get("filter");
         if (filter != null && filter.isArray()) {
@@ -808,8 +808,8 @@ public class LogicFlowDslValidator {
         String formKey = textOrNull(config, "formKey");
         if (formKey == null || formKey.isBlank()) {
             errors.add("DATA_INSERT 节点 " + node.getId() + " 缺少 formKey");
-        } else if (!formKey.matches("[a-zA-Z][a-zA-Z0-9_]{0,63}")) {
-            errors.add("DATA_INSERT 节点 " + node.getId() + " formKey 非法: " + formKey);
+        } else if (!formKey.matches("[a-zA-Z_][a-zA-Z0-9_]{0,63}")) {
+            errors.add("DATA_INSERT 节点 " + node.getId() + " formKey/表名非法: " + formKey);
         }
         JsonNode data = config.get("data");
         if (data == null || !data.isArray() || data.isEmpty()) {
@@ -838,8 +838,8 @@ public class LogicFlowDslValidator {
         String formKey = textOrNull(config, "formKey");
         if (formKey == null || formKey.isBlank()) {
             errors.add("DATA_DELETE 节点 " + node.getId() + " 缺少 formKey");
-        } else if (!formKey.matches("[a-zA-Z][a-zA-Z0-9_]{0,63}")) {
-            errors.add("DATA_DELETE 节点 " + node.getId() + " formKey 非法: " + formKey);
+        } else if (!formKey.matches("[a-zA-Z_][a-zA-Z0-9_]{0,63}")) {
+            errors.add("DATA_DELETE 节点 " + node.getId() + " formKey/表名非法: " + formKey);
         }
         boolean hasId = !isBlankText(config, "id");
         JsonNode filter = config.get("filter");

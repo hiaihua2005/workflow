@@ -856,23 +856,28 @@ public class LogicFlowEngine {
     }
 
     /**
+     * 数据节点取值表达式占位符：{@code {{path}}}，path 段可带 [n] 列表索引
+     * （如 {@code dq_x1.rows[0].productCode}、{@code list[2]}），取上游查询结果行字段用。
+     */
+    private static final java.util.regex.Pattern DATA_VALUE_PATH = java.util.regex.Pattern
+            .compile("\\{\\{\\s*([\\w]+(?:\\[\\d+\\])?(?:\\.[\\w]+(?:\\[\\d+\\])?)*)\\s*}}");
+
+    /**
      * 取值解析：纯单占位符 {@code {{path}}} 返回变量原始对象（保留数值类型）；
      * 含占位符的混合模板做字符串插值；其余按字面量返回。
-     * path 支持 {@code var} 与 {@code var.sub.sub}（逐层 Map 取值）。
+     * path 支持 {@code var}、{@code var.sub.sub}（逐层 Map 取值）与 {@code var[0].sub}（段后 [n] 列表索引）。
      */
     private Object resolveDataUpdateValue(String expr, Map<String, Object> vars) {
         if (expr == null) {
             return null;
         }
         String trimmed = expr.trim();
-        java.util.regex.Matcher pure = java.util.regex.Pattern
-                .compile("\\{\\{\\s*([\\w]+(?:\\.[\\w]+)*)\\s*}}").matcher(trimmed);
+        java.util.regex.Matcher pure = DATA_VALUE_PATH.matcher(trimmed);
         if (pure.matches()) {
             return resolvePath(pure.group(1), vars);
         }
         if (trimmed.contains("{{")) {
-            java.util.regex.Matcher matcher = java.util.regex.Pattern
-                    .compile("\\{\\{\\s*([\\w]+(?:\\.[\\w]+)*)\\s*}}").matcher(trimmed);
+            java.util.regex.Matcher matcher = DATA_VALUE_PATH.matcher(trimmed);
             StringBuilder sb = new StringBuilder();
             int last = 0;
             while (matcher.find()) {
@@ -887,19 +892,63 @@ public class LogicFlowEngine {
         return trimmed;
     }
 
-    /** 点路径取值：首段为变量名，后续逐层 Map 取值；任一层缺失返回 null。 */
+    /**
+     * 点路径取值：首段为变量名，后续逐层 Map 取值，任一段可带 {@code [n]} 列表索引（越界返回 null）；
+     * 首段索引如 {@code list[0].sub} 同样支持；任一层缺失返回 null。
+     */
     private Object resolvePath(String path, Map<String, Object> vars) {
-        String[] parts = path.split("\\.");
-        Object current = vars.get(parts[0]);
-        for (int i = 1; i < parts.length && current != null; i++) {
-            if (current instanceof Map<?, ?> map) {
-                current = map.get(parts[i]);
-            } else {
+        java.util.regex.Matcher headIdx = DATA_PATH_SEGMENT.matcher(path);
+        String head = path;
+        int index = -1;
+        String rest = path;
+        if (headIdx.find()) {
+            head = headIdx.group(1);
+            if (headIdx.group(2) != null) {
+                index = Integer.parseInt(headIdx.group(2));
+            }
+            rest = path.substring(headIdx.end());
+        }
+        Object current = vars.get(head);
+        if (index >= 0) {
+            current = listIndexAt(current, index, path, head);
+        }
+        while (current != null && !rest.isEmpty()) {
+            if (!rest.startsWith(".")) {
+                throw new IllegalArgumentException("数据节点取值路径非法: " + path);
+            }
+            rest = rest.substring(1);
+            java.util.regex.Matcher segIdx = DATA_PATH_SEGMENT.matcher(rest);
+            String key = rest;
+            index = -1;
+            if (segIdx.find() && segIdx.start() == 0) {
+                key = segIdx.group(1);
+                if (segIdx.group(2) != null) {
+                    index = Integer.parseInt(segIdx.group(2));
+                }
+                rest = rest.substring(segIdx.end());
+            }
+            if (!(current instanceof Map<?, ?> map)) {
                 throw new IllegalArgumentException(
-                        "DATA_UPDATE 取值路径中间层非对象: " + path + " (于 " + parts[i - 1] + ")");
+                        "数据节点取值路径中间层非对象: " + path + " (于 " + key + ")");
+            }
+            current = map.get(key);
+            if (index >= 0) {
+                current = listIndexAt(current, index, path, key);
             }
         }
         return current;
+    }
+
+    /** 路径段匹配：{@code name} 或 {@code name[n]} */
+    private static final java.util.regex.Pattern DATA_PATH_SEGMENT =
+            java.util.regex.Pattern.compile("([\\w]+)(?:\\[(\\d+)\\])?");
+
+    /** 列表索引取值：非列表抛错（与逐层 Map 非对象同语义），越界返回 null（缺失层不抛）。 */
+    private Object listIndexAt(Object value, int index, String path, String seg) {
+        if (!(value instanceof List<?> list)) {
+            throw new IllegalArgumentException("数据节点取值路径中间层非列表: " + path + " (于 " + seg + ")");
+        }
+        return index < list.size() ? list.get(index) : null;
     }
 
     /** ADD/SUB 模式数值校验：Number 直通，字符串须可解析为 BigDecimal。 */
@@ -1415,7 +1464,8 @@ public class LogicFlowEngine {
 
     /**
      * 执行数据查询节点：按 formKey 复用 {@link BizDataSupport#queryGeneric}
-     * （租户隔离内建：tenant_id 由上下文强制注入，动态表列白名单防注入）。
+     * （租户隔离内建：tenant_id 由上下文强制注入，动态表列白名单防注入）；
+     * formKey 传库内物理表名时走任意数据表路径 {@link #executeDataQueryRaw}。
      *
      * <p>config：{@code { formKey, filter?: [{column, op?, value}], keyword?, keywordColumn?, size? }}，
      * filter.op 缺省 EQ（等值，兼容存量 DSL）；输出 {@code { total, page, size, rows: [...] }}（rows 行 = {id, version, ...业务列}）。
@@ -1427,6 +1477,10 @@ public class LogicFlowEngine {
         BackendDataQueryConfig config = readConfig(node, BackendDataQueryConfig.class);
         if (config == null || isBlank(config.getFormKey())) {
             throw new IllegalArgumentException("DATA_QUERY 节点缺少 formKey 配置: " + node.getId());
+        }
+        DataTableRef target = resolveDataTable(node.getId(), config.getFormKey());
+        if (!target.form()) {
+            return executeDataQueryRaw(node, config, target.tableName(), vars);
         }
         BizDataQueryRequest req = new BizDataQueryRequest();
         // 结构化筛选（AND 连接）：{logic, conditions:[{column, op, value}]}，op 缺省 EQ 与存量等值行为一致
@@ -1489,6 +1543,131 @@ public class LogicFlowEngine {
         return out;
     }
 
+    // ------------------------------------------------------------------
+    // 数据族节点任意数据表路径（formKey 传库内物理表名时）：目标解析 + 共享条件编译
+    // ------------------------------------------------------------------
+
+    /** 数据族节点目标：业务表单（formKey + 物理表 wf_biz_<key>，表单语义）或库内任意数据表（物理表名直连）。 */
+    private record DataTableRef(boolean form, String formKey, String tableName) {
+    }
+
+    /**
+     * 数据族节点目标解析（查询/新增/删除共用，与 DATA_UPDATE 直连表名互补）：
+     * <ol>
+     *   <li>已发布业务表单：{@code wf_biz_<k>} 表存在且 k 有已发布业务列定义 → 表单路径（租户隔离/必填校验/JSON 列/日期归一）；</li>
+     *   <li>库内数据表：k 本身为合法标识符且表存在 → 任意表路径（元数据校验 + 参数绑定）；</li>
+     *   <li>存量兜底：{@code wf_biz_<k>} 表存在但表单未发布/无列定义（历史 DSL 极端形态）→ 仍走表单路径，行为与历史一致；</li>
+     *   <li>均不满足 → 报错（两义均不可达）。</li>
+     * </ol>
+     */
+    private DataTableRef resolveDataTable(String nodeId, String keyOrTable) {
+        String k = keyOrTable == null ? "" : keyOrTable.trim();
+        if (k.isEmpty()) {
+            throw new IllegalArgumentException("数据节点缺少 formKey/表名配置: " + nodeId);
+        }
+        if (jdbcTemplate == null || tableManager == null || bizDataSupport == null) {
+            throw new IllegalStateException("引擎未装配数据访问能力(JdbcTemplate/DynamicTableManager/BizDataSupport): " + nodeId);
+        }
+        String bizTable = "wf_biz_" + k;
+        boolean formShaped = k.matches("[a-zA-Z][a-zA-Z0-9_]{0,63}") && tableManager.tableExists(bizTable);
+        if (formShaped && bizDataSupport.hasPublishedBusinessColumns(k)) {
+            return new DataTableRef(true, k, bizTable);
+        }
+        if (k.matches("[a-zA-Z_][a-zA-Z0-9_]*") && tableManager.tableExists(k)) {
+            return new DataTableRef(false, "", k);
+        }
+        if (formShaped) {
+            return new DataTableRef(true, k, bizTable);
+        }
+        throw new IllegalArgumentException(
+                "数据节点目标不存在（既非已发布业务表单，也非库内数据表）: " + k + " (" + nodeId + ")");
+    }
+
+    /**
+     * 数据族任意表路径共享条件片段编译：EQ/NE/GT/GTE/LT/LTE 值经 {@link #resolveDataUpdateValue}
+     * 解析后参数绑定；IS_NULL/NOT_NULL 无值；op 非法抛错（业务表单路径各节点保留原实现，不受影响）。
+     */
+    private String compileDataCondition(String nodeId, String table, String column, String op,
+                                        String valueExpr, List<Object> params, Map<String, Object> vars) {
+        switch (op) {
+            case "IS_NULL" -> {
+                return column + " IS NULL";
+            }
+            case "NOT_NULL" -> {
+                return column + " IS NOT NULL";
+            }
+            case "EQ", "NE", "GT", "GTE", "LT", "LTE" -> {
+                String symbol = switch (op) {
+                    case "NE" -> "<>";
+                    case "GT" -> ">";
+                    case "GTE" -> ">=";
+                    case "LT" -> "<";
+                    case "LTE" -> "<=";
+                    default -> "=";
+                };
+                params.add(resolveDataUpdateValue(valueExpr, vars));
+                return column + " " + symbol + " ?";
+            }
+            default -> throw new IllegalArgumentException(
+                    "数据节点 filter.op 非法(须 EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL): " + op
+                            + " (" + nodeId + ", " + table + ")");
+        }
+    }
+
+    /**
+     * 数据查询——库内任意数据表路径（formKey 传物理表名）：information_schema 列校验 + 结构化条件
+     * （AND，值参数绑定防注入）；表含 tenant_id 列时自动追加租户过滤（与业务表单路径同水位防护，无该列的
+     * 系统表不受影响）；keyword 须与 keywordColumn 同时配置（LIKE 模糊）。输出与业务表单路径同构：
+     * {@code { total, page, size, rows: [...] }}（rows 行 = 全列 Map）。
+     */
+    private Object executeDataQueryRaw(LogicFlowDsl.NodeDef node, BackendDataQueryConfig config,
+                                       String table, Map<String, Object> vars) {
+        if (jdbcTemplate == null || tableManager == null || tenantProvider == null) {
+            throw new IllegalStateException("引擎未装配数据查询能力(JdbcTemplate/DynamicTableManager/TenantProvider): " + node.getId());
+        }
+        Map<String, ColumnInfo> columns = columnsOf(table);
+        List<Object> params = new ArrayList<>();
+        List<String> where = new ArrayList<>();
+        if (config.getFilter() != null) {
+            for (BackendDataQueryConfig.DataFilter f : config.getFilter()) {
+                if (f == null || isBlank(f.getColumn())) {
+                    continue;
+                }
+                String column = requireColumn(columns, table, f.getColumn(), "筛选");
+                String op = f.getOp() == null || f.getOp().isBlank()
+                        ? "EQ" : f.getOp().trim().toUpperCase(Locale.ROOT);
+                where.add(compileDataCondition(node.getId(), table, column, op, f.getValue(), params, vars));
+            }
+        }
+        String keyword = orNullToTrimmed(config.getKeyword());
+        String keywordColumn = orNullToTrimmed(config.getKeywordColumn());
+        if (keyword != null && keywordColumn != null) {
+            String column = requireColumn(columns, table, keywordColumn, "关键字");
+            where.add(column + " LIKE ?");
+            params.add("%" + keyword + "%");
+        }
+        // keyword 未配 keywordColumn 时忽略（任意表无"全部业务列"口径可模糊；与配置类错误不同，不阻断执行）
+        if (columns.containsKey("tenant_id")) {
+            where.add("tenant_id = ?");
+            params.add(tenantProvider.getTenantId());
+        }
+        String whereSql = where.isEmpty() ? "" : " WHERE " + String.join(" AND ", where);
+        int size = config.getSize() == null || config.getSize() <= 0
+                ? BackendDataQueryConfig.DEFAULT_SIZE
+                : Math.min(config.getSize(), BackendDataQueryConfig.MAX_SIZE);
+        Long total = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM " + table + whereSql,
+                Long.class, params.toArray());
+        String orderSql = columns.containsKey("id") ? " ORDER BY id" : "";
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "SELECT * FROM " + table + whereSql + orderSql + " LIMIT " + size, params.toArray());
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("total", total == null ? 0 : total);
+        out.put("page", 1);
+        out.put("size", size);
+        out.put("rows", rows);
+        return out;
+    }
+
     /**
      * 执行数据新增节点：按 formKey 复用 {@link BizDataSupport#createGeneric}
      * （必填校验/JSON 列/日期归一/data-picker 冗余，租户隔离内建）。
@@ -1517,6 +1696,10 @@ public class LogicFlowEngine {
         if (data.isEmpty()) {
             throw new IllegalArgumentException("DATA_INSERT 节点 data 无有效列值对: " + node.getId());
         }
+        DataTableRef target = resolveDataTable(node.getId(), config.getFormKey());
+        if (!target.form()) {
+            return executeDataInsertRaw(node, data, target.tableName());
+        }
         BizDataVO created = bizDataSupport.createGeneric(config.getFormKey().trim(), data);
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("id", created.getId());
@@ -1524,6 +1707,57 @@ public class LogicFlowEngine {
             out.put("version", created.getVersion());
         }
         out.put("data", created.getData() != null ? created.getData() : Map.of());
+        return out;
+    }
+
+    /**
+     * 数据新增——库内任意数据表路径（formKey 传物理表名）：information_schema 列校验 + 值参数绑定防注入；
+     * 禁配 tenant_id（表含该列时引擎自动按当前租户填充，与业务表单路径租户水位一致）；
+     * 主键/审计列无平台托管（任意表结构不可假设），成功后尽力回读自增主键 id。
+     * 输出 {@code { table, inserted: 1, id? }}。
+     */
+    private Object executeDataInsertRaw(LogicFlowDsl.NodeDef node, Map<String, Object> data, String table) {
+        if (jdbcTemplate == null || tableManager == null || tenantProvider == null) {
+            throw new IllegalStateException("引擎未装配数据新增能力(JdbcTemplate/DynamicTableManager/TenantProvider): " + node.getId());
+        }
+        Map<String, ColumnInfo> columns = columnsOf(table);
+        List<String> cols = new ArrayList<>();
+        List<Object> params = new ArrayList<>();
+        for (Map.Entry<String, Object> e : data.entrySet()) {
+            String column = requireColumn(columns, table, e.getKey(), "写入");
+            if ("tenant_id".equalsIgnoreCase(column)) {
+                throw new IllegalArgumentException(
+                        "DATA_INSERT 节点禁止指定列 tenant_id（表含该列时引擎按当前租户自动填充）: " + node.getId());
+            }
+            cols.add(column);
+            params.add(e.getValue());
+        }
+        if (columns.containsKey("tenant_id")) {
+            cols.add("tenant_id");
+            params.add(tenantProvider.getTenantId());
+        }
+        String sql = "INSERT INTO " + table + " (" + String.join(", ", cols) + ") VALUES ("
+                + String.join(", ", java.util.Collections.nCopies(cols.size(), "?")) + ")";
+        org.springframework.jdbc.support.KeyHolder keyHolder =
+                new org.springframework.jdbc.support.GeneratedKeyHolder();
+        jdbcTemplate.update(con -> {
+            PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            for (int i = 0; i < params.size(); i++) {
+                ps.setObject(i + 1, params.get(i));
+            }
+            return ps;
+        }, keyHolder);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("table", table);
+        out.put("inserted", 1);
+        try {
+            Number key = keyHolder.getKey();
+            if (key != null) {
+                out.put("id", key.longValue());
+            }
+        } catch (RuntimeException ignore) {
+            // 复合/非自增生成键不可单值化时忽略（不作为节点失败）
+        }
         return out;
     }
 
@@ -1545,12 +1779,19 @@ public class LogicFlowEngine {
             throw new IllegalStateException("引擎未装配数据删除能力(BizDataSupport/JdbcTemplate/TenantProvider): " + node.getId());
         }
         String formKey = config.getFormKey().trim();
+        DataTableRef target = resolveDataTable(node.getId(), formKey);
         Object resolvedId = config.getId() == null ? null : resolveDataUpdateValue(config.getId(), vars);
         String id = resolvedId == null ? null : String.valueOf(resolvedId);
         if (id != null && !id.isBlank()) {
-            bizDataSupport.deleteGeneric(formKey, id.toString());
+            int deleted;
+            if (target.form()) {
+                bizDataSupport.deleteGeneric(formKey, id.toString());
+                deleted = 1;
+            } else {
+                deleted = deleteRawById(node.getId(), target.tableName(), id.toString());
+            }
             Map<String, Object> out = new LinkedHashMap<>();
-            out.put("deleted", 1);
+            out.put("deleted", deleted);
             out.put("mode", "id");
             return out;
         }
@@ -1558,6 +1799,9 @@ public class LogicFlowEngine {
         if (filter == null || filter.isEmpty()) {
             throw new IllegalArgumentException(
                     "DATA_DELETE 节点须提供 id 或至少一个 filter 条件（防全表删除）: " + node.getId());
+        }
+        if (!target.form()) {
+            return executeDataDeleteRaw(node, filter, target.tableName(), vars);
         }
         var ctx = bizDataSupport.loadContext(formKey);
         Set<String> allowed = new HashSet<>(ctx.columnKeys());
@@ -1607,6 +1851,61 @@ public class LogicFlowEngine {
         out.put("deleted", deleted);
         out.put("mode", "filter");
         return out;
+    }
+
+    /**
+     * 数据删除——库内任意数据表路径（formKey 传物理表名）：information_schema 列校验 + 条件值参数绑定；
+     * 表含 tenant_id 列时自动追加租户过滤（与业务表单路径同水位防护，无该列的系统表按配置条件删除）。
+     * 输出 {@code { deleted: N, mode: "filter" }}。
+     */
+    private Object executeDataDeleteRaw(LogicFlowDsl.NodeDef node, List<BackendDataDeleteConfig.DeleteCond> filter,
+                                        String table, Map<String, Object> vars) {
+        if (jdbcTemplate == null || tableManager == null || tenantProvider == null) {
+            throw new IllegalStateException("引擎未装配数据删除能力(JdbcTemplate/DynamicTableManager/TenantProvider): " + node.getId());
+        }
+        Map<String, ColumnInfo> columns = columnsOf(table);
+        List<String> parts = new ArrayList<>();
+        List<Object> params = new ArrayList<>();
+        for (BackendDataDeleteConfig.DeleteCond cond : filter) {
+            if (cond == null || isBlank(cond.getColumn())) {
+                continue;
+            }
+            String column = requireColumn(columns, table, cond.getColumn(), "删除条件");
+            String op = cond.getOp() == null || cond.getOp().isBlank()
+                    ? "EQ" : cond.getOp().trim().toUpperCase(Locale.ROOT);
+            parts.add(compileDataCondition(node.getId(), table, column, op, cond.getValue(), params, vars));
+        }
+        if (parts.isEmpty()) {
+            throw new IllegalArgumentException("DATA_DELETE 节点 filter 无有效条件: " + node.getId());
+        }
+        if (columns.containsKey("tenant_id")) {
+            parts.add("tenant_id = ?");
+            params.add(tenantProvider.getTenantId());
+        }
+        String sql = "DELETE FROM " + table + " WHERE " + String.join(" AND ", parts);
+        int deleted = jdbcTemplate.update(sql, params.toArray());
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("deleted", deleted);
+        out.put("mode", "filter");
+        return out;
+    }
+
+    /** 任意表按 ID 删除：id 列存在性校验 + 表含 tenant_id 列时追加租户过滤；返回删除行数（0 = 不存在不报错）。 */
+    private int deleteRawById(String nodeId, String table, String id) {
+        if (jdbcTemplate == null || tableManager == null || tenantProvider == null) {
+            throw new IllegalStateException("引擎未装配数据删除能力(JdbcTemplate/DynamicTableManager/TenantProvider): " + nodeId);
+        }
+        Map<String, ColumnInfo> columns = columnsOf(table);
+        String idCol = requireColumn(columns, table, "id", "按 ID 删除");
+        List<Object> params = new ArrayList<>();
+        StringBuilder sql = new StringBuilder("DELETE FROM ").append(table)
+                .append(" WHERE ").append(idCol).append(" = ?");
+        params.add(id);
+        if (columns.containsKey("tenant_id")) {
+            sql.append(" AND tenant_id = ?");
+            params.add(tenantProvider.getTenantId());
+        }
+        return jdbcTemplate.update(sql.toString(), params.toArray());
     }
 
     // ------------------------------------------------------------------

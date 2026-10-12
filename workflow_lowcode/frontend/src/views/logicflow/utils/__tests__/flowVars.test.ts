@@ -19,7 +19,19 @@ const NO_INPUT: InputVarDef[] = []
 
 describe('EXEC_NODE_TYPES', () => {
   it('包含全部执行型节点（与引擎 NodeType 一致）', () => {
-    for (const t of ['HTTP', 'BEAN', 'SCRIPT', 'CONDITION', 'BATCH', 'SUBFLOW', 'DATA_UPDATE']) {
+    for (const t of [
+      'HTTP',
+      'BEAN',
+      'SCRIPT',
+      'CONDITION',
+      'BATCH',
+      'SUBFLOW',
+      'DATA_UPDATE',
+      'SQL_SCRIPT',
+      'DATA_QUERY',
+      'DATA_INSERT',
+      'DATA_DELETE',
+    ]) {
       expect(EXEC_NODE_TYPES.has(t)).toBe(true)
     }
     expect(EXEC_NODE_TYPES.has('START')).toBe(false)

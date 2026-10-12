@@ -7132,3 +7132,23 @@ Stage Summary:
 - 逻辑流数据族条件类交互全面细化完成：查询筛选支持 8 种比较符（值独立行）、三组件表单/字段下拉与更新组件完全同口径（分组业务表单+真实列+中英文）、更新字段固定 SET（存量 ADD/SUB 只读兼容展示）、删除条件两行式
 - 引擎 DATA_QUERY 从纯等值升级为全比较符（结构化条件复用 BizDataQueryBuilder 安全模型：白名单+参数绑定），存量 DSL 零破坏
 - 协作范式再次生效：cron agent 交付主体（后端+utils+部分 UI），本会话监控+复核+补齐字段下拉口径缺口+全链路验证
+---
+Task ID: lf-rawtable-fieldpick-r22
+Agent: Z.ai Code (main session)
+Task: 用户需求 22——①数据查询/新增/删除的业务表单属性改为「业务表单 / 数据表」（参考数据更新组件，支持库内任意数据表）②数据新增/更新/查询的值表达式输入框除变量外支持选择数据表字段
+
+Work Log:
+- 【需求①引擎侧】新增 resolveDataTable 目标解析（查询/新增/删除共用）：已发布业务表单（wf_biz_<k> 存在 + hasPublishedBusinessColumns）→ 表单路径（原逻辑零改动）；k 本身为合法标识符且表存在 → 任意数据表新路径；wf_biz_<k> 孤儿/未发布存量形态兜底走表单路径；均不可达报错。BizDataSupport 新增 hasPublishedBusinessColumns（异常一律 false）
+- 【任意表路径】DATA_QUERY raw：information_schema 列校验 + 结构化条件（compileDataCondition 共享编译：EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL 值参数绑定）+ keyword/keywordColumn LIKE + 表含 tenant_id 列自动租户过滤，ORDER BY id LIMIT size，输出 {total,page,size,rows} 与表单路径同构；DATA_INSERT raw：列校验+参数绑定+禁配 tenant_id（表含则自动按当前租户填充）+GeneratedKeyHolder 尽力回读自增 id，输出 {table,inserted,id?}；DATA_DELETE raw：按 ID（id 列校验+租户列守卫）/按条件（≥1 有效条件+租户列守卫），输出 {deleted,mode}
+- 【需求②引擎侧】resolveDataUpdateValue/resolvePath 升级：占位符段支持 [n] 列表索引（DATA_VALUE_PATH 正则 + DATA_PATH_SEGMENT + listIndexAt），{{dq1.rows[0].field}} 与首段索引 {{list[0].x}} 全数据族值表达式可解析（纯占位符保留原始类型/混合模板插值/越界 null/非列表抛错）
+- 【DslValidator】DATA_QUERY/INSERT/DELETE formKey 模式放宽为 [a-zA-Z_][a-zA-Z0-9_]{0,63}（兼容表名形态），报错文案改「formKey/表名非法」
+- 【需求①前端 PropertyPanel】三节点目标属性 label→「业务表单 / 数据表」+ el-option-group 双组（业务表单=中文名（wf_biz_key）value=formKey；其他数据表=物理表名 value=表名，dataOtherTableOptions 全表剔除表单映射表）；新增 dataTargetTable（与引擎同规则：已发布表单 key→wf_biz_ 前缀，其余视为物理表名）；bizEntryColumns/bizColLoading 改按解析后表名取真实列（excludeManaged 仅表单生效）；预取 watcher 按解析表名拉列；数据族节点懒加载时同时拉全表清单（loadDuTables 复用，微任务包装防 TDZ）；4 处 title「先选择业务表单/数据表」+ tips/placeholders/删除租户提示文案同步
+- 【需求②前端】PropertyPanel 增 props.nodes（designer 传 panelNodes=store 真值）；ancestorQueryTables（variables upstream 组 ∩ DATA_QUERY 节点 → dataTargetTable）+ loopRowTables（BATCH collection={{<qid>.rows}} → itemVar 字段结构）；valueVars computed：数据族值表达式变量增强——上游查询节点展开 total(总行数)/rows(行列表)/rows[0].<字段>（detail=中文名·类型，bizEntryColumns 真实列优先），BATCH 循环 item.<字段>；QUERY 筛选值/INSERT 新增值/UPDATE SET+WHERE 值/DELETE 行 ID+条件值全部切换 :variables="valueVars"；祖先查询目标表列元数据签名 watcher 预取；tips 提示「点 { } 选数据表字段（上游查询行 rows[0].字段）」
+- 【验证】mvn package 通过；vue-tsc 54 处=既有基线（本改动 0 新增）；vitest logicflow 86/86；API E2E 8/8（scripts/test-lf-rawtable-e2e.sh）：任意表 GTE 查询 total=2/关键字 LIKE total=1/rows[0] 索引取值写入任意表（log 行 code=C001,name=甲，{table,inserted:1,id:1} 自增键回读+租户自动填充）/条件删除 deleted=2/按 ID 删除 deleted=1/业务表物理名直连 raw 路径 total=1/表单路径查询回归/表单路径新增+条件删除自恢复；演示流回归 leave_ledger_sync+pickup_stock_sync 双 SUCCESS 零回归，副作用已还原（P003=80、流水回 2 条、测试台账删除、临时表/临时流全清理）
+- 【UI E2E（agent-browser）】设计器实测：三节点 label「业务表单 / 数据表」；目标下拉两组（业务表单 8 项中文名+其他数据表全表）；选 wf_logic_flow 后字段下拉联动真实列（created_at DATETIME/dsl_json LONGTEXT/flow_key VARCHAR…）；更新组件 SET 值 { } 选择器出现「dq1 查询结果」可展开树（total/rows/rows[0].productCode 物料编码(productCode)·VARCHAR/rows[0].stockQty 库存数量(stockQty)·INT，tenant_id/version 排除），目标切到 raw 表时字段树即时切换为该表列；清空后点选 stockQty 插入 {{dq1.rows[0].stockQty}} 成功；console 无错误；截图 /tmp/e2e_r22_update_picker.png；临时流已删
+- 【修复过程】E2E 首轮发现 orNullToTrimmed(null)→null 与 !keyword.isEmpty() NPE（A/C/F 用例）→ 改 null-safe 判断后 8/8；脚本两处迭代（多行字面量括号、argv 传参替代三引号嵌套）
+
+Stage Summary:
+- 数据族三节点（查询/新增/删除）目标从「仅业务表单」开放为「业务表单 / 数据表」：业务表单保持表单语义（租户隔离/必填/JSON 列/日期归一/托管列），任意数据表走直连路径（元数据校验+参数绑定+条件租户守卫），value 语义向后完全兼容（formKey 优先判定）
+- 值表达式全面支持数据表字段：上游查询行 rows[0].<字段> 与循环行 item.<字段> 可在设计器点选插入（中文名标注），引擎点路径新增 [n] 列表索引解析，插入即可运行
+- 修改文件：后端 3（LogicFlowEngine/BizDataSupport/LogicFlowDslValidator）+ 前端 3（PropertyPanel.vue/LogicFlowDesigner.vue/nodeMeta.ts）+ E2E 脚本 1（test-lf-rawtable-e2e.sh）

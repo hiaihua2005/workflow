@@ -118,6 +118,7 @@
         :node="selectedNode"
         :loop-body-count="selectedLoopBodyCount"
         :variables="availableVars"
+        :nodes="panelNodes"
         :edges="panelEdges"
         @remove="removeNode"
       />
@@ -292,6 +293,9 @@ function allEdges(): FlowEdge[] {
 
 /** PropertyPanel errorAction 动态提示依赖的实时边集合（store 真值：连接/删边即联动，v-model 副本滞后不可用） */
 const panelEdges = computed<FlowEdge[]>(() => allEdges())
+
+/** PropertyPanel 数据族值表达式「数据表字段」展开依赖的实时节点集合（store 真值，同 panelEdges 口径） */
+const panelNodes = computed<FlowNodeModel[]>(() => allNodes())
 
 // ===== 画布数据 =====
 const nodes = ref<FlowNodeModel[]>([])

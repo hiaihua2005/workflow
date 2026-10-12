@@ -177,6 +177,11 @@ export const EXEC_NODE_TYPES = new Set<string>([
   'SUBFLOW',
   'DATA_UPDATE',
   'SQL_SCRIPT',
+  // 数据族三节点：引擎 dispatch 同样产出整体返回值写回上下文（query={total,rows} / insert=含 id 新行 / delete={deleted,mode}），
+  // 下游值表达式需从选择器取 {{dq_x.rows[0].字段}} / {{ins_x.id}}，缺列则数据族值表达式「数据表字段」展开无源
+  'DATA_QUERY',
+  'DATA_INSERT',
+  'DATA_DELETE',
 ])
 
 /** 循环变量名缺省值（与 dsl.ts defaultConfig / 引擎约定一致） */
