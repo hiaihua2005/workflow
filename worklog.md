@@ -7531,3 +7531,25 @@ Stage Summary:
 - 事故：环境重供给 → Java 进程丢失 + MariaDB 数据清空 + backups/ 磁盘 dump 全失（gitignore 盲区）
 - 恢复：recover-dplus.sh 重建链路 + git blob 历史找回 061423 数据快照回灌，终态真绿，数据量恢复至事故前水平
 - 教训：①backups/ 被 .gitignore 忽略导致 dump 不入 git，重供给即全失——建议 dump-db.sh 改为 git add -f 强制入库（保留最近 N 份）②recover-dplus.sh 的「无可用 dump」告警是数据丢失的关键前兆，应触发告警而非仅 warn
+
+---
+Task ID: manual-record-narrate
+Agent: main
+Task: 用户需求——录制用户手动操作（传统 UI 操作）并通过 LLM 转成中文测试用例
+
+Work Log:
+- 需求分析：原录制器仅捕获 AI 对话执行的 page_action；手动点击/输入/下拉完全不落账。方案：document 捕获阶段 DOM 事件监听 → 反向映射 page_action 协议 → 复用现有录制/回放管线 + 新增 LLM 中文转写端点
+- 前端新增 aiManualRecorder.ts：click/change/input 三事件捕获；el-select 展开记忆→选项点击转 set-value；switch 延迟读态；页签/分页语义化；按钮文本关键词映射语义 op（查询→search 等）；label→field 经 getActiveManifest 映射（兼容 L1 queryFields 与 L2 searchFields 键名，命中产 set-query/set-value 结构化动作，未命中产 fill 通用动作）；密码掩码 ******；输入防抖 700ms + 同动作 900ms 去重；排除 .ai-assistant-root/.el-message-box 等系统 UI；路由变化记 navigate；pause/resume 防回放二次录入
+- L3 执行器增强：resolveDomTarget 支持 #ai-N 之外的语义标签定位（按钮按 text/aria-label/title，输入控件按 labelOf），手动录制用例在无执行器页面也可回放
+- 后端新增 TestCaseNarrateService/Controller：POST /api/v1/ai/testcase/narrate，动作序列+页面路由 → LLM（json_object 模式，温度 0.2，词典式 system prompt）→ 严格 JSON {title,summary,steps[{text,expect}]}；```json 围栏剥离容错
+- AiTestPanel：录制开关同开同关手动捕获；来源标记 ai/manual/mixed 徽标；菜单新增「AI 转中文用例/查看中文用例」（弹窗展示摘要+步骤+预期，复制文本）；LLM 标题自动同步用例名
+- 【缺陷修复】SearchTable 图标按钮（查询/重置/导出）无文本导致点击不落账 → 补 aria-label+title（兼修无障碍）；捕获器与 L3 定位同步支持 aria-label/title
+- 【缺陷修复】mapFieldByManifest 类型自引用 never → 提取 ManifestWithSearch 命名类型
+- E2E（agent-browser）：用户管理页录制→手动输入 test+点查询→捕获 set-query:username=test + search:查询（src=manual 徽标）→AI 转写生成「按用户名查询用户列表」（摘要+2 步+预期）→回放 2/2 通过 91ms；控制台零错误
+- 构建：vue-tsc 本次文件 0 错误（SearchTable 2 错误为预存基线）；mvn 离线打包通过；Java 重启真绿（教训：nohup 日志路径必须用 /home/z/tools/，logs/ 目录不存在会导致启动静默失败）
+- 提交 1ffbebc2
+
+Stage Summary:
+- 录制器升级为「AI 动作 + 手动操作」双通道统一录制，同一用例可混合两种来源；手动动作经清单映射后可精确回放（L1/L2），无清单页面走 L3 语义标签兜底
+- LLM 中文转写让用例具备业务可读性（非技术人员可评审），且标题回写用例列表
+- 遗留：range 日期选择器捕获为原始字符串（L1 dateRange 需数组，回放可能失败）；el-cascader 等复杂控件暂未特化
