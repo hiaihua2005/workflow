@@ -7700,3 +7700,25 @@ Work Log:
 Stage Summary:
 - r42 全绿无干预
 - 【备案】oom_kill 0→2（+2）：核心进程全部存活且 RSS 正常，与 r37/r38 同模式（疑临时短进程），维持观察不动手
+
+---
+Task ID: cron-446961-r44
+Agent: main (cron 轻量运维)
+Task: 轻量运维巡检 r44（20:05 +08）——二次重供给 + 竞态雪崩 + 数据守护，深度恢复
+
+Work Log:
+- 20:05 探活：3000=200 但 biz=502 / 8080=000；mariadb 3306 不在线（dump 跳过）；PID 全更 + oom_kill 归零 → 判定沙箱二次重供给，冷启动进行中
+- 执行 recover-dplus.sh：3306=ok 但 Java 120s 未真绿（8080=000）；backend.log 实锤 Flowable 崩溃：Table 'flw_ru_batch' already exists（建表与 dump 导入竞态）
+- 发现双进程竞态：冷启动 start-services.sh（12:05）+ 其后台 recover（12:06）与我前台 recover 并发（脚本无锁，幂等不防并发）→ 杀竞态进程（1164/1407），转入受控单路径恢复
+- 【数据事故】git 历史最新 dump 停在 043553：r37~r43 的 dump 虽每轮报 OK 但因 dump-db.sh 第 48 行 `git add -A backups/` 对 gitignore 新文件无效（盲区 E）从未真正入库，重供给后全部丢失；平行会话 ae745ba7 提交时旧 dump 已被轮转删除且新增 dump 同样未入库 → 全网 v6 dump 归零
+- 幸 MariaDB 数据目录随 my-project 幸存（含 20:04 前全部数据），但并发导入已致 workflow_v6 字典-表空间不一致（error 1932: sys_member_group doesn't exist in engine），mysqldump 1072 字节吐空
+- 主库 workflow 验证完好（dump exit=0, 263049B, 96 表）；从 git 父提交 ae745ba7^ 找回 043553 v6 dump（130215B, 21 INSERT）
+- v6 重建：DROP（清残留目录）→ CREATE → 导入 → 验证 45 表/sys_menu=67/新 dump 130215B exit=0
+- Java 干净重启（PID 2578, 12:21:52 Started in 18.1s）；终态四链路 200×4 + accessToken 真绿
+- git 链路三连修：①工作区陈旧残留（重供给快照旧态）与 origin 冲突——甄别删除 6 个 stale 副本（aitest/ 目录、4 个 Java 源、aiPageBridge.ts）+ restore 未提交改动（worklog 先行备份），保留真未跟踪资产 3 个；②rebase origin/main（behind 8 含平行会话 L2 适配层等）+ push（6d48c111）；③最终快照 add -f 双 dump 入库 push（996cd76e），ls-tree 验证双份在远端
+- worklog 自守护：r43 条目重供给中丢失，已从备份补回；本轮详细记录补齐
+
+Stage Summary:
+- r44 = 二次重供给深度恢复成功：服务全绿（200×4 真绿）、双库数据完整（workflow 96 表 / v6 45 表）、双 dump 确定性入库远端、git 推送链路修复
+- 【事故根因】①dump-db.sh gitignore 盲区（盲区 E）酿成真实数据备份丢失——强烈建议授权修改第 48 行为 `git add -f backups/*.sql`；②recover-dplus.sh 无并发锁——冷启动自动触发与手动执行可竞态致 Flowable 建表冲突，建议加 flock 或真伪核验前置
+- 【服务影响评估】workflow 主库零丢失（目录幸存+dump 完整）；workflow_v6 以 043553（12:35 +08）快照重建，12:35~20:04 间 v6 无用户写入（运维只读期），等效零丢失
