@@ -7553,3 +7553,23 @@ Stage Summary:
 - 录制器升级为「AI 动作 + 手动操作」双通道统一录制，同一用例可混合两种来源；手动动作经清单映射后可精确回放（L1/L2），无清单页面走 L3 语义标签兜底
 - LLM 中文转写让用例具备业务可读性（非技术人员可评审），且标题回写用例列表
 - 遗留：range 日期选择器捕获为原始字符串（L1 dateRange 需数组，回放可能失败）；el-cascader 等复杂控件暂未特化
+
+---
+Task ID: ai-case-manage-fix
+Agent: main
+Task: 用户反馈①「录制的用例应该管理：查看用例详细信息、删除用例」②「AI生成用例点击没有反应」——全量修复（用户确认全量不打折）
+
+Work Log:
+- 根因定位（AI 生成无反应 = 4 缺陷叠加）：①生成在后台 converse 跑，反馈全写「对话」页签，用户停在「用例」页签零感知，按钮无 loading 态 ②tryCaptureTestCases 要求回复以 `[` 开头，LLM 带 ```json 围栏/说明文字即解析失败且无提示 ③捕获成功后 AiTestPanel 不刷新（仅 mounted 读一次） ④无 manifest 页面无前置拦截
+- aiTestRecorder：新增 changeListeners 订阅机制（stop/add/remove/rename/saveNarrative/clearAll/importAll 全部 notifyChange + subscribe() 返回退订函数）+ clearAll()
+- AiTestPanel 重写：①详情弹窗（元信息来源/步骤/页面/创建时间 + 中文用例区 + 动作序列明细：op 中文语义映射 18 种 + target/field/value/params）②删除/清空均 ElMessageBox.confirm ③来源筛选 chips（全部/手动/AI/混合）带计数 ④时间格式化（MM-DD HH:mm）⑤generating prop 驱动按钮 loading + 生成中 tip 条 ⑥onMounted 订阅 recorder.subscribe 自动刷新 ⑦点用例行即开详情 ⑧复制文本输出中文用例+动作序列
+- AiAssistantOrb 修复：①onGenerateCases 前置 getActiveManifest 校验（null 时 ElMessage.warning 引导去业务页）②生成全程反馈（开始 info → 成功 success「已生成 N 条」→ 失败 warning 附最后一条助手消息摘要）③extractCasesJson 三级容错：剥 ```json 围栏 → 直接 parse（含 {cases:[...]} 包装）→ 截取首个[到末个]子串 ④捕获成功自动切用例页签 ⑤sending 状态传 prop
+- 后端 AiAgentService TESTGEN 提示词强化：只输出 JSON 数组本身，禁止 Markdown 围栏、禁止前后解释文字；mvn 离线打包 + start-services.sh 重启（15s 就绪）
+- 【编译事故】el-dialog 内 `<template #footer>` 嵌套在 `<template v-if>` 中触发 Vue 编译器「Codegen node is missing for element/if/for node」整页白屏 → 重构：v-if 移到普通 div（.atp-detail-body），footer 槽保持 el-dialog 直接子级
+- E2E（agent-browser）十项全绿：AI 生成 5 条语义化用例（正常查询/组织筛选/重置/必填校验/完整新增流程）自动入列表；详情弹窗元信息+动作序列（「1 打开新增」「2 表单赋值 username 值：newuser」）；删除确认 5→4；清空确认 4→0；dashboard L3 兜底生成 3 条 KPI/流程用例；手动录制 set-query(username=test)+search(查询) 捕获→保存→自动刷新→手动徽标；筛选计数「手动1/AI0/混合0」；手动详情 op 中文映射；手动用例回放 2/2 通过 137ms；刷新后 console 零错误
+- 类型检查：改动文件 0 错误；提交 93978dab
+
+Stage Summary:
+- 用例管理闭环补全：查看详情（动作级透明）/删除/清空（均带确认）/来源筛选/自动刷新/复制分享——「录制→管理→回放→转写」全生命周期可用
+- AI 生成用例从「点击无反应」修复为全流程强反馈（前置拦截/进行中提示/成功/失败均有感知），解析容错覆盖 LLM 输出形态不确定性
+- 教训：el-dialog 的具名插槽 template 不可嵌套在 v-if template 内（Vue 编译器限制）；LLM JSON 输出必须做围栏/前后缀容错；UI 列表依赖跨组件变更时用观察者订阅而非单次读取
