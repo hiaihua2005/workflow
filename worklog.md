@@ -7775,3 +7775,18 @@ Work Log:
 Stage Summary:
 - r47 全绿：四次重供给恢复成功，冷启动恢复耗时约 12 分钟（deb 重下载为主因）
 - 【脚本修复授权申请（第四次）】①dump-db.sh 第 48 行 git add -f（本轮又手动补救）；②recover-dplus.sh 加 flock 锁；③建议 recover 优先复用 target/ 现成 jar（重供给时 deb 重下载可跳过 mariadb 二进制备份进 my-project 持久区以加速）
+
+---
+Task ID: r48-cron-202610140505
+Agent: main (cron ops)
+Task: 轻量巡检 r48（D+ 终态四链路探活）
+
+Work Log:
+- dump-db OK（workflow=260K v6=128K）；四链路初探 200×4 但 8080 真伪核验=假绿（"no such table: SYS_USER"，环境重供给，java 进程消失、backups/jar 为空）
+- 前台执行 recover-dplus.sh：MariaDB 重建→导入 backups/db-workflow-full-20261013-151633.sql→无 jar 备份走 mvn 构建（bash 截断于 600s 超时，但日志显示链路已跑完：done 8080=200 jar=ok 3306=ok 真绿）
+- 多轮重探：8080 login 含 accessToken=真绿；复核 a/b/c=200；收口 dump-db OK
+- 内存：cgroup ~3.49GB（未超 3.5GB 备案线），oom_kill=0，vite 单实例正常，无 postcss 杂进程
+
+Stage Summary:
+- r48 环境第 5 次重供给，recover-dplus.sh 自动恢复成功（mvn 重建路径，约 9 分钟）；mvn repackage 曾报 "zip file is empty" 但最终 jar 可用、真绿
+- 遗留风险：backups/jar 仍为空，每次重供给都需 ~8 分钟 mvn 重建；建议后续将构建产物纳入持久备份（沿用 r47 脚本修复授权申请）
