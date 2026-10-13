@@ -35,6 +35,55 @@ export interface AiChatHandlers {
 
 const CHAT_URL = '/api/v1/ai/chat'
 
+// ==================== 测试用例中文转写 ====================
+
+/** 中文用例单步 */
+export interface NarrateStep {
+  text: string
+  expect?: string
+}
+
+/** 中文用例（LLM 转写结果） */
+export interface TestCaseNarrative {
+  title: string
+  summary: string
+  steps: NarrateStep[]
+}
+
+/**
+ * 把录制的动作序列交给 LLM 转写为中文测试用例。
+ *
+ * @param pageRoute 录制时页面路由
+ * @param name      用例名（可空）
+ * @param actions   动作序列（page_action 协议）
+ */
+export async function narrateTestCase(pageRoute: string, name: string, actions: unknown[]): Promise<TestCaseNarrative> {
+  const response = await fetch('/api/v1/ai/testcase/narrate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('access_token') ?? ''}`,
+      'X-Tenant-Id': 'default',
+    },
+    body: JSON.stringify({ pageRoute, name, actions }),
+  })
+  if (!response.ok) {
+    let msg = `请求失败（${response.status}）`
+    try {
+      const data = await response.json()
+      if (data?.msg) msg = data.msg
+    } catch {
+      // 非 JSON 响应体
+    }
+    throw new Error(msg)
+  }
+  const data = (await response.json()) as { code?: number; msg?: string; data?: TestCaseNarrative }
+  if (data?.code !== 200 || !data.data) {
+    throw new Error(data?.msg || '转写失败')
+  }
+  return data.data
+}
+
 /**
  * 发起助手对话。
  *

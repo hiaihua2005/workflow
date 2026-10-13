@@ -47,7 +47,7 @@ function isVisible(el: HTMLElement): boolean {
 }
 
 /** 提取元素的可读标签：aria-label > 关联 label > placeholder > 相邻文本 > value */
-function labelOf(el: HTMLElement): string {
+export function labelOf(el: HTMLElement): string {
   const anyEl = el as unknown as Record<string, string>
   const aria = el.getAttribute('aria-label') || el.getAttribute('title') || ''
   if (aria) return aria

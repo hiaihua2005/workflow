@@ -12,7 +12,7 @@
     </div>
     <div v-if="recording" class="atp-recording-tip">
       <el-icon class="is-loading"><Loading /></el-icon>
-      正在录制「{{ recorder.recordingName() }}」——通过「对话」页签让 AI 操作页面，动作将自动记入用例
+      正在录制「{{ recorder.recordingName() }}」——AI 对话操作与页面手动点击/输入均会自动记入用例
     </div>
 
     <!-- 用例列表 -->
@@ -20,7 +20,12 @@
       <el-empty v-if="!cases.length" description="暂无用例：录制或让 AI 生成" :image-size="60" />
       <div v-for="c in cases" :key="c.id" class="atp-case" :class="{ current: currentCaseId === c.id }">
         <div class="atp-case-main">
-          <div class="atp-case-name" :title="c.name">{{ c.name }}</div>
+          <div class="atp-case-name" :title="c.name">
+            {{ c.name }}
+            <el-tag v-if="c.source === 'manual'" size="small" type="warning" class="atp-tag">手动</el-tag>
+            <el-tag v-else-if="c.source === 'mixed'" size="small" type="success" class="atp-tag">混合</el-tag>
+            <el-tag v-if="c.narrative" size="small" type="primary" class="atp-tag">中文用例</el-tag>
+          </div>
           <div class="atp-case-meta">{{ c.actions.length }} 步 · {{ shortRoute(c.pageRoute) }}</div>
         </div>
         <div class="atp-case-actions">
@@ -29,7 +34,9 @@
             <el-button size="small" text :disabled="replaying">⋯</el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="rename">重命名</el-dropdown-item>
+                <el-dropdown-item command="narrate">{{ c.narrative ? '重新转写中文' : 'AI 转中文用例' }}</el-dropdown-item>
+                <el-dropdown-item v-if="c.narrative" command="view-narrative">查看中文用例</el-dropdown-item>
+                <el-dropdown-item command="rename" divided>重命名</el-dropdown-item>
                 <el-dropdown-item command="export">导出本条</el-dropdown-item>
                 <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
               </el-dropdown-menu>
@@ -38,6 +45,22 @@
         </div>
       </div>
     </div>
+
+    <!-- 中文用例展示 -->
+    <el-dialog v-model="narrativeVisible" :title="narrativeCaseName" width="400px" append-to-body>
+      <template v-if="narrative">
+        <div class="atp-nar-summary">{{ narrative.summary }}</div>
+        <ol class="atp-nar-steps">
+          <li v-for="(s, i) in narrative.steps" :key="i" class="atp-nar-step">
+            <div class="atp-nar-text">{{ s.text }}</div>
+            <div v-if="s.expect" class="atp-nar-expect">预期：{{ s.expect }}</div>
+          </li>
+        </ol>
+        <div class="atp-nar-footer">
+          <el-button size="small" text @click="copyNarrative">复制文本</el-button>
+        </div>
+      </template>
+    </el-dialog>
 
     <!-- 回放报告 -->
     <el-dialog v-model="reportVisible" :title="`回放报告：${report?.caseName ?? ''}`" width="360px" append-to-body>
@@ -64,7 +87,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { executeAiActions } from '@/utils/aiPageExecutor'
+import { aiManualRecorder } from '@/utils/aiManualRecorder'
 import { aiTestRecorder, type AiTestCase, type AiTestReport } from '@/utils/aiTestRecorder'
+import { narrateTestCase, type TestCaseNarrative } from '@/api/ai'
 import { useAiAssistantStore } from '@/stores/aiAssistantStore'
 
 const emit = defineEmits<{ (e: 'generate'): void }>()
@@ -80,6 +105,10 @@ const replaying = ref(false)
 const reportVisible = ref(false)
 const report = ref<AiTestReport | null>(null)
 const currentCaseId = ref('')
+const narrating = ref(false)
+const narrativeVisible = ref(false)
+const narrative = ref<TestCaseNarrative | null>(null)
+const narrativeCaseName = ref('')
 
 onMounted(refresh)
 
@@ -93,18 +122,21 @@ function shortRoute(path: string): string {
   return path.length > 24 ? `${path.slice(0, 24)}…` : path
 }
 
-/** 录制开关：停止时保存用例 */
+/** 录制开关：停止时保存用例；手动操作捕获与录制会话同开同关 */
 function toggleRecord(): void {
   if (recorder.isRecording()) {
+    aiManualRecorder.stop()
     const saved = recorder.stop()
     if (saved) {
-      ElMessage.success(`用例已保存：${saved.name}（${saved.actions.length} 步）`)
+      const src = saved.source === 'manual' ? '手动操作' : saved.source === 'mixed' ? 'AI + 手动混合' : 'AI 操作'
+      ElMessage.success(`用例已保存：${saved.name}（${saved.actions.length} 步 · ${src}）`)
     } else {
       ElMessage.info('未捕获到动作，用例未保存')
     }
   } else {
     recorder.start(`用例 ${new Date().toLocaleTimeString()}`, route.path)
-    ElMessage.success('开始录制——切到「对话」页签让 AI 操作页面')
+    aiManualRecorder.start()
+    ElMessage.success('开始录制——AI 对话操作或直接手动操作页面均可')
   }
   refresh()
 }
@@ -113,10 +145,11 @@ function onGenerate(): void {
   emit('generate')
 }
 
-/** 回放：先导航到录制页面（留足加载时间），再顺序执行 + 断言 */
+/** 回放：先导航到录制页面（留足加载时间），再顺序执行 + 断言；回放期间暂停手动捕获 */
 async function replay(testCase: AiTestCase): Promise<void> {
   replaying.value = true
   currentCaseId.value = testCase.id
+  aiManualRecorder.pause()
   try {
     if (testCase.pageRoute && route.path !== testCase.pageRoute) {
       await router.push(testCase.pageRoute)
@@ -136,6 +169,7 @@ async function replay(testCase: AiTestCase): Promise<void> {
     reportVisible.value = true
     refresh()
   } finally {
+    aiManualRecorder.resume()
     replaying.value = false
   }
 }
@@ -152,7 +186,48 @@ async function onCaseMenu(cmd: string, c: AiTestCase): Promise<void> {
     }
   } else if (cmd === 'export') {
     download(JSON.stringify({ version: 1, cases: [c] }, null, 2), `ai-case-${c.name}.json`)
+  } else if (cmd === 'narrate') {
+    await narrate(c)
+  } else if (cmd === 'view-narrative') {
+    if (c.narrative) {
+      narrative.value = c.narrative
+      narrativeCaseName.value = c.name
+      narrativeVisible.value = true
+    }
   }
+}
+
+/** LLM 转写中文用例（动作序列 → 标题/摘要/步骤/预期） */
+async function narrate(c: AiTestCase): Promise<void> {
+  if (!c.actions.length) {
+    ElMessage.warning('用例没有动作，无法转写')
+    return
+  }
+  narrating.value = true
+  try {
+    const result = await narrateTestCase(c.pageRoute, c.name, c.actions)
+    recorder.saveNarrative(c.id, result)
+    ElMessage.success(`已生成中文用例：${result.title || c.name}`)
+    refresh()
+    narrative.value = result
+    narrativeCaseName.value = result.title || c.name
+    narrativeVisible.value = true
+  } catch (e) {
+    ElMessage.error((e as Error)?.message || '转写失败')
+  } finally {
+    narrating.value = false
+  }
+}
+
+function copyNarrative(): void {
+  if (!narrative.value) return
+  const lines = [`【${narrativeCaseName.value}】`, narrative.value.summary, '']
+  narrative.value.steps.forEach((s, i) => {
+    lines.push(`${i + 1}. ${s.text}`)
+    if (s.expect) lines.push(`   预期：${s.expect}`)
+  })
+  void navigator.clipboard?.writeText(lines.join('\n'))
+  ElMessage.success('已复制到剪贴板')
 }
 
 function exportCases(): void {
@@ -251,6 +326,42 @@ function download(content: string, filename: string): void {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.atp-tag {
+  margin-left: 4px;
+  transform: scale(0.85);
+}
+.atp-nar-summary {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--el-color-primary) 8%, transparent);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+.atp-nar-steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.atp-nar-text {
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+  line-height: 1.6;
+}
+.atp-nar-expect {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-top: 2px;
+}
+.atp-nar-footer {
+  margin-top: 10px;
+  text-align: right;
 }
 .atp-case-meta {
   font-size: 11px;

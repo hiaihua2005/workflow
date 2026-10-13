@@ -11,7 +11,7 @@
  */
 import router from '@/router'
 import { DANGER_OPS, type AiActionResult, type AiPageAction, type AiPageManifest, type ExecuteOptions } from '@/types/aiPageAction'
-import { getPageManifest, queryDomElement } from './aiPageContext'
+import { getPageManifest, queryDomElement, labelOf } from './aiPageContext'
 import { aiTestRecorder } from './aiTestRecorder'
 
 /** 页面执行器单动作返回（分发器负责补齐 index/op/target/layer 组装完整 AiActionResult） */
@@ -154,13 +154,13 @@ function nativeSetValue(el: HTMLInputElement | HTMLTextAreaElement, value: strin
 async function executeDomAction(action: AiPageAction): Promise<AiActionResult> {
   switch (action.op) {
     case 'click': {
-      const el = requireDomEl(parseDomTarget(action.target ?? action.field))
+      const el = resolveDomTarget(action.target ?? action.field, ['button', 'link', 'tab'])
       ;(el as HTMLElement).click()
       return { index: 0, op: action.op, target: action.target, ok: true, data: '已点击' }
     }
     case 'fill':
     case 'set-value': {
-      const el = requireDomEl(parseDomTarget(action.target ?? action.field)) as HTMLElement
+      const el = resolveDomTarget(action.target ?? action.field, ['input', 'select', 'textarea']) as HTMLElement
       const text = action.value === null || action.value === undefined ? '' : String(action.value)
       // 原生 select
       if (el instanceof HTMLSelectElement) {
@@ -220,6 +220,42 @@ function parseDomTarget(target?: string): number {
   const m = /^#ai-(\d+)$/.exec((target ?? '').trim())
   if (!m) throw new Error(`L3 目标必须是页面清单 domElements 中的 #ai-N（收到「${target ?? '空'}」；先 get-state 查看可用编号）`)
   return Number(m[1])
+}
+
+/**
+ * L3 目标解析：#ai-N 精确编号优先；否则按语义标签兜底定位（手动录制产出的
+ * 中文标签目标）——按钮按可见文本匹配，输入控件按 label/placeholder 匹配。
+ */
+function resolveDomTarget(target: string | undefined, kinds: string[]): HTMLElement {
+  const t = (target ?? '').trim()
+  if (/^#ai-\d+$/.test(t)) return requireDomEl(parseDomTarget(t))
+  if (!t) throw new Error('L3 目标为空（需提供 #ai-N 或语义标签）')
+  if (kinds.includes('button') || kinds.includes('tab')) {
+    const selector = 'button, [role="button"], a, .el-button, .el-dropdown-menu__item, .el-tabs__item'
+    const candidates = Array.from(document.querySelectorAll<HTMLElement>(selector)).filter(
+      (b) => !b.closest('.ai-assistant-root') && isVisibleEl(b),
+    )
+    const hit = candidates.find((b) => (b.textContent?.replace(/\s+/g, '').trim() === t.replace(/\s+/g, ''))
+      || b.getAttribute('aria-label') === t || b.getAttribute('title') === t)
+      ?? candidates.find((b) => b.textContent?.includes(t))
+      ?? candidates.find((b) => (b.getAttribute('aria-label') ?? b.getAttribute('title') ?? '').includes(t))
+    if (hit) return hit
+    throw new Error(`L3 未找到文本为「${t}」的可点击元素`)
+  }
+  // 输入控件按标签匹配（labelOf：aria/label/placeholder/form-item 标签）
+  const fields = Array.from(document.querySelectorAll<HTMLElement>('input:not([type=hidden]), textarea, select, .el-select')).filter(
+    (f) => !f.closest('.ai-assistant-root') && isVisibleEl(f),
+  )
+  const field = fields.find((f) => labelOf(f) === t) ?? fields.find((f) => labelOf(f).includes(t))
+  if (field) return field
+  throw new Error(`L3 未找到标签为「${t}」的输入控件`)
+}
+
+function isVisibleEl(el: HTMLElement): boolean {
+  const rect = el.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return false
+  const style = window.getComputedStyle(el)
+  return style.visibility !== 'hidden' && style.display !== 'none'
 }
 
 function requireDomEl(index: number): HTMLElement {

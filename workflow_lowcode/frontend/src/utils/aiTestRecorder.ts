@@ -7,6 +7,7 @@
  *   输出逐步通过/失败报告。
  */
 import type { AiActionResult, AiPageAction } from '@/types/aiPageAction'
+import type { TestCaseNarrative } from '@/api/ai'
 
 export interface AiTestCase {
   id: string
@@ -15,6 +16,10 @@ export interface AiTestCase {
   pageRoute: string
   createdAt: number
   actions: AiPageAction[]
+  /** LLM 转写的中文自然语言用例（标题/摘要/步骤/预期） */
+  narrative?: TestCaseNarrative
+  /** 用例来源：ai=AI 对话动作录制 / manual=用户手动操作捕获 / mixed=混合 */
+  source?: 'ai' | 'manual' | 'mixed'
 }
 
 export interface AiTestReport {
@@ -29,6 +34,9 @@ export interface AiTestReport {
 
 const STORAGE_KEY = 'ai_test_cases'
 const RECORDING_KEY = 'ai_test_recording'
+
+/** 当前录制会话的动作来源集合（判定 ai/manual/mixed） */
+let sessionSources = new Set<'ai' | 'manual'>()
 
 function loadCases(): AiTestCase[] {
   try {
@@ -69,6 +77,7 @@ class AiTestRecorder {
   /** 开始录制（同一时间仅一个会话） */
   start(name: string, pageRoute: string): void {
     this.recording = { id: nextId(), name: name || `用例 ${new Date().toLocaleString()}`, pageRoute, createdAt: Date.now(), actions: [] }
+    sessionSources = new Set()
     localStorage.setItem(RECORDING_KEY, JSON.stringify(this.recording))
   }
 
@@ -78,6 +87,7 @@ class AiTestRecorder {
     this.recording = null
     localStorage.removeItem(RECORDING_KEY)
     if (done && done.actions.length > 0) {
+      done.source = sessionSources.size > 1 ? 'mixed' : sessionSources.size === 1 ? [...sessionSources][0] : 'ai'
       const cases = loadCases()
       cases.unshift(done)
       saveCases(cases.slice(0, 50))
@@ -94,9 +104,19 @@ class AiTestRecorder {
 
   /** 录制钩子（执行器调用；replay/expect 结果失败的动作也记录，便于回放断言） */
   recordAction(action: AiPageAction, _result: AiActionResult): void {
+    this.record(action, 'ai')
+  }
+
+  /** 手动操作捕获钩子（aiManualRecorder 调用） */
+  recordManualAction(action: AiPageAction): void {
+    this.record(action, 'manual')
+  }
+
+  private record(action: AiPageAction, source: 'ai' | 'manual'): void {
     if (!this.recording) return
     // get-state 属探查类动作，录制意义小，跳过
     if (action.op === 'get-state') return
+    sessionSources.add(source)
     this.recording.actions.push({ ...action })
     localStorage.setItem(RECORDING_KEY, JSON.stringify(this.recording))
   }
@@ -128,6 +148,18 @@ class AiTestRecorder {
     const target = cases.find((c) => c.id === id)
     if (target) {
       target.name = name
+      saveCases(cases)
+    }
+  }
+
+  /** 保存 LLM 转写的中文用例 */
+  saveNarrative(id: string, narrative: TestCaseNarrative): void {
+    const cases = loadCases()
+    const target = cases.find((c) => c.id === id)
+    if (target) {
+      target.narrative = narrative
+      // LLM 起的标题更有业务语义，自动同步到用例名
+      if (narrative.title) target.name = narrative.title
       saveCases(cases)
     }
   }

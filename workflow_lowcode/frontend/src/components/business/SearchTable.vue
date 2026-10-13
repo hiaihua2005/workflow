@@ -83,9 +83,9 @@
         </el-form-item>
         <el-form-item>
           <div class="toolbar-buttons">
-            <el-button type="primary" :icon="Search" circle size="small" @click="handleSearch" />
-            <el-button :icon="Refresh" circle size="small" @click="handleReset" />
-            <el-button v-if="showExport" :icon="Download" :loading="exportLoading" circle size="small" @click="handleExport" />
+            <el-button type="primary" :icon="Search" circle size="small" aria-label="查询" title="查询" @click="handleSearch" />
+            <el-button :icon="Refresh" circle size="small" aria-label="重置" title="重置" @click="handleReset" />
+            <el-button v-if="showExport" :icon="Download" :loading="exportLoading" circle size="small" aria-label="导出" title="导出" @click="handleExport" />
           </div>
         </el-form-item>
       </el-form>
