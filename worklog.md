@@ -7686,3 +7686,17 @@ Work Log:
 Stage Summary:
 - r40+r41 全绿无服务干预；唯一异常为 git 分叉（重供给后本地快照 vs 平行会话远端提交），rebase 后恢复推送链路
 - git pack-objects 瞬时内存峰值（1.72GB）为 rebase 正常代价，非泄漏；cgroup 稳态 1.24GB
+
+---
+Task ID: cron-446961-r42
+Agent: main (cron 轻量运维)
+Task: 轻量运维巡检 r42（18:05 +08）
+
+Work Log:
+- dump-db OK（100513）自动入库推远端（与 origin/main 同步，r41 修复持续生效）
+- 四链路 200×4；真伪核验真绿；vite 524MB / Java 454MB / mariadb 正常，无 postcss worker
+- 内存 1.29GB 稳态；零干预零代码编辑
+
+Stage Summary:
+- r42 全绿无干预
+- 【备案】oom_kill 0→2（+2）：核心进程全部存活且 RSS 正常，与 r37/r38 同模式（疑临时短进程），维持观察不动手
