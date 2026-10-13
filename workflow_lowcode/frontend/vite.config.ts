@@ -13,6 +13,12 @@ import path from 'path'
 //   外域探测（fcapp.run Host 头）与 preview-*.space-z.ai 预览均依赖此放行。
 export default defineConfig({
   base: '/',
+  // 内联空 PostCSS 配置：阻止 Vite 向上搜索到工作区根目录的 postcss.config.mjs
+  // （那是 Next.js 门户的配置，依赖 @tailwindcss/postcss，本项目未安装 →
+  //  "Invalid PostCSS Plugin found at: plugins[0]" 崩溃）。样式走 @tailwindcss/vite 插件。
+  css: {
+    postcss: {}
+  },
   plugins: [vue(), tailwindcss()],
   optimizeDeps: {
     // @codemirror/lang-javascript 的 npm dist 预打包了 @codemirror/state/language 的完整副本；

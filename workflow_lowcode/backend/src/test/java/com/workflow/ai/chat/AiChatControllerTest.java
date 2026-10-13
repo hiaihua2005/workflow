@@ -68,10 +68,10 @@ class AiChatControllerTest {
         when(properties.isConfigured()).thenReturn(true);
         when(properties.getModel()).thenReturn("test-model");
         doAnswer(inv -> {
-            AiAgentService.Events events = inv.getArgument(3);
+            AiAgentService.Events events = inv.getArgument(4);
             events.message("已为你生成表单", List.of());
             return null;
-        }).when(agentService).chat(any(), anyString(), any(), any());
+        }).when(agentService).chat(any(), anyString(), any(), any(), any());
 
         mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body("生成请假单")))
                 .andExpect(status().isOk())
@@ -86,11 +86,11 @@ class AiChatControllerTest {
         when(properties.isConfigured()).thenReturn(true);
         when(properties.getModel()).thenReturn("test-model");
         doAnswer(inv -> {
-            AiAgentService.Events events = inv.getArgument(3);
+            AiAgentService.Events events = inv.getArgument(4);
             events.message("去用户管理", List.of(
                     new com.workflow.ai.model.PageRef("/system/user", "用户管理")));
             return null;
-        }).when(agentService).chat(any(), anyString(), any(), any());
+        }).when(agentService).chat(any(), anyString(), any(), any(), any());
 
         String text = mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body("怎么添加用户")))
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);

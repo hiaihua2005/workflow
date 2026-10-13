@@ -56,7 +56,8 @@ class AiAgentServiceTest {
     }
 
     private AiAgentService service(AiToolRegistry registry) {
-        return new AiAgentService(chatModelProvider, properties, registry, recorder, new ObjectMapper());
+        return new AiAgentService(chatModelProvider, properties, registry, recorder,
+                new AiAgentSessionStore(), new ObjectMapper());
     }
 
     static class StubTool implements AiTool {
@@ -64,6 +65,17 @@ class AiAgentServiceTest {
         @Override public String description() { return "d"; }
         @Override public JsonNode parametersSchema() { return new ObjectMapper().createObjectNode(); }
         @Override public String execute(JsonNode arguments, AiToolContext context) { return "{\"value\":42}"; }
+    }
+
+    /** 客户端执行工具（agent 循环应暂停下发，不调服务端 execute）。 */
+    static class ClientTool implements AiTool {
+        @Override public String name() { return "client_stub"; }
+        @Override public String description() { return "d"; }
+        @Override public JsonNode parametersSchema() { return new ObjectMapper().createObjectNode(); }
+        @Override public String execute(JsonNode arguments, AiToolContext context) {
+            throw new IllegalStateException("客户端执行工具不应在服务端执行");
+        }
+        @Override public boolean clientExecuted() { return true; }
     }
 
     private ChatModel scripted(ChatResult... results) {
@@ -83,6 +95,9 @@ class AiAgentServiceTest {
         final List<String> results = new ArrayList<>();
         final List<JsonNode> resultPayloads = new ArrayList<>();
         final List<PageRef> navigations = new ArrayList<>();
+        final List<String> clientToolNames = new ArrayList<>();
+        final List<String> clientSessionIds = new ArrayList<>();
+        final List<String> clientCallIds = new ArrayList<>();
 
         @Override public void toolCall(String name, JsonNode args) { calls.add(name); }
         @Override public void toolResult(String name, JsonNode result) { results.add(name); resultPayloads.add(result); }
@@ -91,6 +106,11 @@ class AiAgentServiceTest {
             navigations.clear();
             navigations.addAll(navs);
         }
+        @Override public void clientTool(String sessionId, String callId, String name, JsonNode args) {
+            clientToolNames.add(name);
+            clientSessionIds.add(sessionId);
+            clientCallIds.add(callId);
+        }
     }
 
     @Test
@@ -98,7 +118,7 @@ class AiAgentServiceTest {
         when(chatModelProvider.getIfAvailable()).thenReturn(scripted(new ChatResult("你好", List.of())));
         Recorder rec = new Recorder();
 
-        service(new AiToolRegistry(List.of(new StubTool()))).chat(List.of(), "hi", List.of(), rec);
+        service(new AiToolRegistry(List.of(new StubTool()))).chat(List.of(), "hi", List.of(), null, rec);
 
         assertThat(rec.messages).containsExactly("你好");
         assertThat(rec.navigations).isEmpty();
@@ -112,11 +132,30 @@ class AiAgentServiceTest {
                 new ChatResult("已完成", List.of())));
         Recorder rec = new Recorder();
 
-        service(new AiToolRegistry(List.of(new StubTool()))).chat(List.of(), "生成", List.of(), rec);
+        service(new AiToolRegistry(List.of(new StubTool()))).chat(List.of(), "生成", List.of(), null, rec);
 
         assertThat(rec.calls).containsExactly("stub");
         assertThat(rec.results).containsExactly("stub");
         assertThat(rec.messages).containsExactly("已完成");
+    }
+
+    @Test
+    void clientTool_pausesWithoutMessage_thenResumeFinishes() {
+        when(chatModelProvider.getIfAvailable()).thenReturn(scripted(
+                new ChatResult("", List.of(new ToolCall("c1", "client_stub", "{\"action\":\"refresh\"}"))),
+                new ChatResult("页面已刷新", List.of())));
+        Recorder rec = new Recorder();
+        AiAgentService svc = service(new AiToolRegistry(List.of(new ClientTool())));
+
+        // 第一段：下发 client_tool 后暂停（无最终回复）
+        svc.chat(List.of(), "刷新页面", List.of(), null, rec);
+        assertThat(rec.clientToolNames).containsExactly("client_stub");
+        assertThat(rec.clientSessionIds.get(0)).isNotBlank();
+        assertThat(rec.messages).isEmpty();
+
+        // 续跑：回传执行结果 → 模型产出最终回复
+        svc.resume(rec.clientSessionIds.get(0), rec.clientCallIds.get(0), "{\"ok\":true}", rec);
+        assertThat(rec.messages).containsExactly("页面已刷新");
     }
 
     @Test
@@ -127,7 +166,7 @@ class AiAgentServiceTest {
         Recorder rec = new Recorder();
         AiToolRegistry registry = new AiToolRegistry(List.of(new OpenPageTool(new ObjectMapper())));
 
-        service(registry).chat(List.of(), "表单管理在哪", List.of(new PageRef("/form", "表单管理")), rec);
+        service(registry).chat(List.of(), "表单管理在哪", List.of(new PageRef("/form", "表单管理")), null, rec);
 
         assertThat(rec.resultPayloads.get(0).path("path").asText()).isEqualTo("/form");
         assertThat(rec.navigations).extracting(PageRef::path).containsExactly("/form");
@@ -142,7 +181,7 @@ class AiAgentServiceTest {
                 new PageRef("/system/user", "用户管理"),
                 new PageRef("/system/role", "角色管理"));
 
-        service(new AiToolRegistry(List.of())).chat(List.of(), "怎么添加用户", pages, rec);
+        service(new AiToolRegistry(List.of())).chat(List.of(), "怎么添加用户", pages, null, rec);
 
         assertThat(rec.navigations).extracting(PageRef::path).containsExactly("/system/user");
     }
@@ -152,7 +191,7 @@ class AiAgentServiceTest {
         properties.setEnabled(false);
         Recorder rec = new Recorder();
 
-        assertThatThrownBy(() -> service(new AiToolRegistry(List.of())).chat(List.of(), "x", List.of(), rec))
+        assertThatThrownBy(() -> service(new AiToolRegistry(List.of())).chat(List.of(), "x", List.of(), null, rec))
                 .isInstanceOf(AiException.class)
                 .extracting(e -> ((AiException) e).getCode())
                 .isEqualTo(AiException.Code.CONFIG_MISSING);

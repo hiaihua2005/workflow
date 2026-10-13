@@ -1,12 +1,13 @@
 <template>
   <div v-if="showOrb" class="ai-assistant-root">
-    <!-- 悬浮球（点击开/关对话窗体；可拖动换位，Task 80b） -->
+    <!-- 悬浮球（窗口打开时隐藏，关闭后显示；可拖动换位，Task 80b） -->
     <button
+      v-if="showOrb && !windowOpen"
       ref="orbEl"
       class="ai-orb"
-      :class="{ 'ai-orb-active': windowOpen, 'ai-orb-dragging': orbDragging }"
+      :class="{ 'ai-orb-dragging': orbDragging, 'ai-orb-busy': executing }"
       :style="orbStyle"
-      :title="windowOpen ? '收起小智' : '打开小智（可拖动）'"
+      :title="executing ? `正在执行页面操作（${executingTool}）` : '打开小智（可拖动）'"
       @pointerdown="onOrbPointerDown"
       @pointermove="onOrbPointerMove"
       @pointerup="onOrbPointerUp"
@@ -16,8 +17,14 @@
       <RobotIcon class="ai-orb-icon" />
     </button>
 
-    <!-- 完全悬浮的对话窗体（header 可拖动移动位置，Task 80） -->
-    <div v-if="windowOpen" ref="windowEl" class="ai-window" :style="winStyle">
+    <!-- 完全悬浮的对话窗体（header 可拖动移动位置，Task 80；可停靠右侧防遮挡） -->
+    <div
+      v-if="windowOpen"
+      ref="windowEl"
+      class="ai-window"
+      :class="{ 'ai-window--dock': store.dockMode }"
+      :style="store.dockMode ? undefined : winStyle"
+    >
       <div
         class="ai-window-header"
         title="拖动移动位置 · 双击复位"
@@ -28,12 +35,16 @@
         @dblclick="resetWindowPos"
       >
         <div class="ai-window-title">
-          <span class="ai-header-avatar"><RobotIcon /></span>
+          <span class="ai-header-avatar" :class="{ 'ai-header-avatar--busy': executing }"><RobotIcon /></span>
           <span class="ai-title">小智·AI 助手</span>
+          <span v-if="executing" class="ai-executing-tag">执行中…</span>
         </div>
         <div class="ai-window-actions">
-          <button class="ai-icon-btn" title="清除历史" :disabled="store.messages.length === 0" @click="handleClear">
+          <button class="ai-icon-btn" title="清除对话历史" :disabled="store.messages.length === 0" @click="handleClear">
             <el-icon :size="16"><Delete /></el-icon>
+          </button>
+          <button class="ai-icon-btn" :title="store.dockMode ? '切回悬浮窗体' : '停靠右侧（布局让位，完全不遮挡）'" @click="store.toggleDock">
+            <el-icon :size="16"><Right /></el-icon>
           </button>
           <button class="ai-icon-btn" title="收起" @click="windowOpen = false">
             <el-icon :size="16"><Close /></el-icon>
@@ -43,7 +54,7 @@
 
       <div ref="messagesRef" class="ai-messages">
         <div v-if="store.messages.length === 0" class="ai-empty">
-          你好，我是小智。可以帮你生成表单、指引功能入口等。试试说："帮我生成一个员工请假单表单"。
+          你好，我是小智。可以帮你生成表单、操作页面、指引功能入口等。试试说："帮我生成一个员工请假单表单"。
         </div>
 
         <div v-for="message in store.messages" :key="message.id" class="ai-msg" :class="message.role">
@@ -78,6 +89,13 @@
           <span class="ai-msg-avatar"><RobotIcon /></span>
           <div class="ai-msg-body"><div class="ai-bubble">正在处理…</div></div>
         </div>
+
+        <div v-if="executing" class="ai-msg assistant">
+          <span class="ai-msg-avatar"><RobotIcon /></span>
+          <div class="ai-msg-body">
+            <div class="ai-bubble">🔧 正在执行页面操作（{{ executingTool }}）… 窗体已收起避免遮挡</div>
+          </div>
+        </div>
       </div>
 
       <div class="ai-input">
@@ -102,11 +120,12 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Delete, Close, Position } from '@element-plus/icons-vue'
-import { chat, type AiChatTurn } from '@/api/ai'
+import { Delete, Close, Position, Right } from '@element-plus/icons-vue'
+import { chat, chatContinue, type AiChatHandlers, type AiChatTurn } from '@/api/ai'
 import { useAiAssistantStore } from '@/stores/aiAssistantStore'
 import { useAuthStore } from '@/stores/auth'
 import { aiActionBus } from '@/utils/aiActionBus'
+import { initAiPageBridge, executeToolCall, describePage } from '@/utils/aiPageBridge'
 import { flattenMenuPages } from '@/utils/menuIndex'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import RobotIcon from './RobotIcon.vue'
@@ -116,12 +135,26 @@ const router = useRouter()
 const store = useAiAssistantStore()
 const authStore = useAuthStore()
 
-const windowOpen = ref(false)
+/** 窗体开合（store 托管：停靠模式下 AdminLayout 随之让位） */
+const windowOpen = computed({
+  get: () => store.windowOpen,
+  set: (v: boolean) => store.setWindowOpen(v),
+})
 const input = ref('')
 const sending = ref(false)
 const messagesRef = ref<HTMLElement | null>(null)
 const windowEl = ref<HTMLElement | null>(null)
 let controller: AbortController | null = null
+
+/** 页面操作执行态（client_tool 循环）：窗体自动收起 + 悬浮球呼吸提示 */
+const executing = ref(false)
+const executingTool = ref('')
+let windowOpenBeforeAct = false
+/** 待执行的客户端工具（client_tool 事件先入队，onDone 后串行执行并续跑） */
+let pendingClientTool: { sessionId: string; callId: string; name: string; args: Record<string, any> } | null = null
+/** 表单生成工具结果（沿用 applyFormSchema 回填链路） */
+let formToolProduced = false
+let formToolApplied = false
 
 /** 登录页不显示悬浮球 */
 const showOrb = computed(() => store.visible && route.name !== 'Login')
@@ -239,6 +272,8 @@ function clampWindowPos(x: number, y: number): { x: number; y: number } {
 
 function onWindowDragStart(e: PointerEvent) {
   if (e.button !== 0) return
+  // 停靠模式：位置由布局接管，禁用自由拖动
+  if (store.dockMode) return
   // 右上角图标按钮（清除/收起）不触发拖动
   if ((e.target as HTMLElement).closest('.ai-icon-btn')) return
   const el = windowEl.value
@@ -281,6 +316,8 @@ function resetWindowPos() {
 }
 
 onMounted(() => {
+  // 注入 AI 页面操作执行核心的导航回调（page_action.navigate 走站内路由）
+  initAiPageBridge((path) => router.push(path))
   try {
     const orbRaw = localStorage.getItem(AI_ORB_POS_KEY)
     if (orbRaw) {
@@ -342,42 +379,88 @@ function send() {
   store.addMessage('user', text)
   input.value = ''
   sending.value = true
-
-  let formToolProduced = false
-  let formToolApplied = false
+  formToolProduced = false
+  formToolApplied = false
 
   const menus = menuPages.value
 
   controller = chat(
-    { message: text, history, context: { ...(store.context ?? {}), menus } },
     {
-      onToolResult: (name, result) => {
-        if (name === 'generate_form_schema') {
-          formToolProduced = true
-          formToolApplied = tryApplyForm(result)
-        }
-      },
-      onMessage: (assistantText, navigations) => {
-        // 正文已内联链接的页面，不再在底部重复出现
-        const extra = (navigations ?? []).filter((nav) => !assistantText.includes(`(${nav.path})`))
-        store.addMessage(
-          'assistant',
-          assistantText,
-          formToolProduced ? { applied: formToolApplied } : undefined,
-          extra.length ? extra : undefined,
-        )
-      },
-      onError: (error) => {
-        sending.value = false
-        controller = null
-        store.addMessage('assistant', `⚠️ ${error?.msg || '对话失败，请重试'}`)
-      },
-      onDone: () => {
-        sending.value = false
-        controller = null
-      },
+      message: text,
+      history,
+      context: { ...(store.context ?? {}), menus, components: describePage().components },
     },
+    makeHandlers(),
   )
+}
+
+/** 构造共享 SSE 处理器：chat 与 chatContinue 共用同一套客户端工具循环逻辑。 */
+function makeHandlers(): AiChatHandlers {
+  return {
+    onToolResult: (name, result) => {
+      if (name === 'generate_form_schema') {
+        formToolProduced = true
+        formToolApplied = tryApplyForm(result)
+      }
+    },
+    onClientTool: (info) => {
+      // 流还在传输，先入队；onDone 后执行并续跑（服务端流在 client_tool 后即结束）
+      pendingClientTool = info
+    },
+    onMessage: (assistantText, navigations) => {
+      // 正文已内联链接的页面，不再在底部重复出现
+      const extra2 = (navigations ?? []).filter((nav) => !assistantText.includes(`(${nav.path})`))
+      store.addMessage(
+        'assistant',
+        assistantText,
+        formToolProduced ? { applied: formToolApplied } : undefined,
+        extra2.length ? extra2 : undefined,
+      )
+      formToolProduced = false
+    },
+    onError: (error) => {
+      sending.value = false
+      executing.value = false
+      controller = null
+      store.addMessage('assistant', `⚠️ ${error?.msg || '对话失败，请重试'}`)
+    },
+    onDone: () => {
+      sending.value = false
+      controller = null
+      const pending = pendingClientTool
+      pendingClientTool = null
+      if (pending) {
+        void runClientTool(pending)
+      } else {
+        // 全链结束：恢复执行前的窗体开合状态
+        if (windowOpenBeforeAct) {
+          windowOpen.value = true
+          windowOpenBeforeAct = false
+        }
+      }
+    },
+  }
+}
+
+/** 执行前端工具（page_action/dom_action）→ 结果回传续跑；执行期间窗体收起防遮挡。 */
+async function runClientTool(info: { sessionId: string; callId: string; name: string; args: Record<string, any> }) {
+  executing.value = true
+  executingTool.value = info.name
+  if (windowOpen.value) {
+    windowOpenBeforeAct = true
+    windowOpen.value = false
+  }
+  try {
+    const result = await executeToolCall(info.name, info.args)
+    store.addMessage('assistant', `🔧 ${info.name} → ${result.ok ? '✅' : '⚠️'} ${result.message}`)
+    sending.value = true
+    controller = chatContinue(info.sessionId, info.callId, result, makeHandlers())
+  } catch (e) {
+    executing.value = false
+    store.addMessage('assistant', `⚠️ 页面操作执行失败: ${(e as Error)?.message ?? e}`)
+  } finally {
+    executing.value = false
+  }
 }
 
 /** 页面入口跳转 */
@@ -465,6 +548,41 @@ function tryApplyForm(result: unknown): boolean {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
   z-index: 2499;
   overflow: hidden;
+}
+
+/* 停靠模式：右侧整栏（AdminLayout 主内容区同步让位），铺满高度 */
+.ai-window--dock {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  width: 360px;
+  height: 100%;
+  border-radius: 0;
+  border-top: none;
+  border-bottom: none;
+  border-right: none;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
+}
+
+.ai-executing-tag {
+  font-size: 10px;
+  color: var(--el-color-warning);
+  white-space: nowrap;
+}
+
+/* 悬浮球执行态呼吸 */
+.ai-orb-busy {
+  animation: ai-pulse 1s ease-in-out infinite;
+}
+@keyframes ai-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--el-color-warning) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px transparent;
+  }
 }
 
 /* 深色标题栏，突出存在感（四态恒深色系：主色拼黑，白字始终可读）；同时是拖拽把手（Task 80） */

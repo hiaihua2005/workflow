@@ -13,6 +13,7 @@ export interface AiMessage {
 }
 
 const VISIBLE_KEY = 'ai_assistant_visible'
+const DOCK_KEY = 'ai_assistant_dock'
 
 let seq = 0
 function nextId(): string {
@@ -28,6 +29,19 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
   const visible = ref(localStorage.getItem(VISIBLE_KEY) !== '0')
   const messages = ref<AiMessage[]>([])
   const context = ref<Record<string, unknown> | null>(null)
+  /** 停靠模式：窗体停靠右侧整栏，布局层让位（AdminLayout 读取此状态加右边距） */
+  const dockMode = ref(localStorage.getItem(DOCK_KEY) === '1')
+  /** 对话窗体开合（提升到 store：布局层随开合让位/收权；开=隐藏悬浮球，关=显示） */
+  const windowOpen = ref(false)
+
+  function toggleDock(): void {
+    dockMode.value = !dockMode.value
+    localStorage.setItem(DOCK_KEY, dockMode.value ? '1' : '0')
+  }
+
+  function setWindowOpen(value: boolean): void {
+    windowOpen.value = value
+  }
 
   function toggle(): void {
     setVisible(!visible.value)
@@ -58,5 +72,18 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
     context.value = value
   }
 
-  return { visible, messages, context, toggle, setVisible, addMessage, clear, setContext }
+  return {
+    visible,
+    messages,
+    context,
+    dockMode,
+    windowOpen,
+    toggleDock,
+    setWindowOpen,
+    toggle,
+    setVisible,
+    addMessage,
+    clear,
+    setContext,
+  }
 })

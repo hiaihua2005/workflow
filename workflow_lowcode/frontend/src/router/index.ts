@@ -97,6 +97,14 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '模型配置' }
       },
       {
+        // AI 测试工具（录制 / 回放 / 用例管理）：面向测试人员，不进菜单（直达 URL
+        // /aitest/cases）；录制为全局状态，可跨页面开始与保存
+        path: 'aitest/cases',
+        name: 'AiTestCases',
+        component: () => import('@/views/aitest/AiTestCasesPage.vue'),
+        meta: { title: 'AI 测试工具' }
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/profile/ProfilePage.vue'),

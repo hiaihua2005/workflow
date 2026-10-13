@@ -489,7 +489,10 @@ onUnmounted(() => {
         <div
           ref="pageStageRef"
           class="page-stage relative flex-1 flex flex-col min-h-0"
-          :class="{ 'is-fallback-fullscreen': pageFullscreen && pageFullscreenFallback }"
+          :class="{
+            'is-fallback-fullscreen': pageFullscreen && pageFullscreenFallback,
+            'ai-dock-open': aiStore.dockMode && aiStore.visible && aiStore.windowOpen,
+          }"
         >
           <main class="flex-1 overflow-auto p-4 bg-transparent dark:bg-transparent">
             <router-view v-slot="{ Component }">
@@ -516,6 +519,12 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* AI 停靠侧栏（aiPageBridge 配套）：窗体停靠右侧整栏时主内容让位，填表零遮挡 */
+.page-stage.ai-dock-open {
+  margin-right: 360px;
+  transition: margin-right 0.2s ease;
+}
+
 /* 页签页全屏（Task 122）：脱离布局流后必须自带底色（布局根为透明，否则白屏），
    按当前主题匹配 body 背景渐变；原生 :fullscreen 与 CSS 回退覆盖层两态都覆盖 */
 .page-stage:fullscreen,

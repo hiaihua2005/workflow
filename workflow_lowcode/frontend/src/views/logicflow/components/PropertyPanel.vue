@@ -496,7 +496,7 @@
 
                 <div class="rows-block">
                   <div class="rows-head">
-                    <FieldLabel label="更新条件 WHERE" tip="多条件 AND 连接；该表条件为空时将影响全表，请谨慎配置；条件值支持 {{formData.xxx}} 点路径取表单字段，或输入 # 呼出目标表单字段下拉（选中插 {{formData.字段}}）" />
+                    <FieldLabel label="更新条件 WHERE" tip="多条件 AND 连接；该表条件为空时将影响全表，请谨慎配置；值支持 {{var}} 取上下文（点 { } 插入，含上游查询行 rows[0].字段）、表达式（= 前缀，四则运算与 ROUND/ABS/IFNULL 等函数，无行上下文不支持列引用）或输入 # 呼出目标表字段（选中插裸列名）；纯文本字面量用单引号包裹" />
                     <el-button size="small" text type="primary" @click="u.where.push({ column: '', op: 'EQ', value: '' })">添加</el-button>
                   </div>
                   <div v-if="!u.where.length" class="rows-empty du-warn">未配置条件，执行将更新该表全表</div>
@@ -532,11 +532,12 @@
                       v-if="!isNullOp(cond.op)"
                       v-model="cond.value"
                       :variables="valueVars"
-                      :hash-fields="entryHashFields(u)"
+                      :hash-fields="setEntryHashFields(u)"
+                      hash-insert="bare"
                       mode="placeholder"
                       size="small"
                       class="du-value-line"
-                      placeholder="值或 {{formData.xxx}}，# 选表单字段"
+                      placeholder="值或 {{var}}，# 插目标表字段"
                     />
                   </div>
                 </div>
@@ -1923,7 +1924,7 @@ function addDataUpdateEntry(): void {
 const duColumnsByTable = reactive(new Map<string, { key: string; columnType: string }[]>())
 const duTableLoading = reactive(new Set<string>())
 
-/** 数据更新条目 # 呼出字段（WHERE 值用，保持旧语义）：业务表单 → 真实列优先 + 中文名·类型
+/** 数据更新条目 # 呼出字段（业务表单口径）：业务表单 → 真实列优先 + 中文名·类型
  *  （与 SET 字段下拉同源，排除 tenant_id/version）；其他数据表不启用（无 formData 映射） */
 function entryHashFields(u: DataUpdateTableUpdate): HashFieldOption[] {
   const table = String(u?.table ?? '').trim()

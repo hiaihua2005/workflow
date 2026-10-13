@@ -27,11 +27,14 @@ export interface AiChatHandlers {
   onToolCall?: (name: string, args: unknown) => void
   onToolResult?: (name: string, result: unknown) => void
   onMessage?: (text: string, navigations: AiNavigation[]) => void
+  /** 前端执行工具下发（page_action/dom_action）：执行后调 chatContinue 续跑 */
+  onClientTool?: (info: { sessionId: string; callId: string; name: string; args: Record<string, any> }) => void
   onDone?: () => void
   onError?: (error: { code: string; msg: string }) => void
 }
 
 const CHAT_URL = '/api/v1/ai/chat'
+const CHAT_CONTINUE_URL = '/api/v1/ai/chat/continue'
 
 /**
  * 发起助手对话。
@@ -39,10 +42,50 @@ const CHAT_URL = '/api/v1/ai/chat'
  * @returns AbortController（调用 abort() 取消）
  */
 export function chat(payload: AiChatPayload, handlers: AiChatHandlers): AbortController {
+  return streamChat(CHAT_URL, payload, handlers)
+}
+
+/**
+ * 客户端工具执行结果回传并续跑（事件序列与 chat 相同，可再次含 client_tool）。
+ *
+ * @returns AbortController（调用 abort() 取消）
+ */
+export function chatContinue(
+  sessionId: string,
+  callId: string,
+  result: unknown,
+  handlers: AiChatHandlers,
+): AbortController {
+  return streamChat(CHAT_CONTINUE_URL, { sessionId, callId, result }, handlers)
+}
+
+/**
+ * 录制日志 → LLM 生成 Playwright 测试用例（非流式）。
+ *
+ * @returns 生成的 TypeScript 测试文件文本
+ */
+export async function generateTestSpec(route: string, records: unknown[]): Promise<string> {
+  const response = await fetch('/api/v1/ai/test-spec', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${localStorage.getItem('access_token') ?? ''}`,
+      'X-Tenant-Id': 'default',
+    },
+    body: JSON.stringify({ route, records }),
+  })
+  const body = await response.json().catch(() => null)
+  if (body?.code !== 200) {
+    throw new Error(body?.msg || `用例生成失败（${response.status}）`)
+  }
+  return String(body?.data?.spec ?? '')
+}
+
+function streamChat(url: string, payload: unknown, handlers: AiChatHandlers): AbortController {
   const controller = new AbortController()
   void (async () => {
     try {
-      const response = await fetch(CHAT_URL, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,6 +174,14 @@ function dispatchBlock(block: string, handlers: AiChatHandlers): void {
         typeof payload?.text === 'string' ? payload.text : '',
         Array.isArray(payload?.navigations) ? payload.navigations : [],
       )
+      break
+    case 'client_tool':
+      handlers.onClientTool?.({
+        sessionId: String(payload?.sessionId ?? ''),
+        callId: String(payload?.callId ?? ''),
+        name: String(payload?.name ?? ''),
+        args: (payload?.args ?? {}) as Record<string, any>,
+      })
       break
     case 'done':
       handlers.onDone?.()

@@ -62,3 +62,10 @@ tool-results/
 
 # 本地备份目录（jar 121MB 超 GitHub 100MB 限制；db dump/截图等一并只留本地）
 backups/
+
+# 会话临时产物（冒烟脚本/兼容迁移副本/db 备份/工具快照）
+tmp/
+.playwright-cli/
+.vscode/
+cases.yaml
+login.yaml

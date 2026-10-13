@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch, onMounted, computed, provide, nextTick } from 'vue'
+import { ref, reactive, watch, onMounted, onUnmounted, computed, provide, nextTick } from 'vue'
 import { measureFormLabelWidth } from './formLabelWidth'
 import { ElMessage } from 'element-plus'
 import { useRoute, useRouter } from 'vue-router'
@@ -96,6 +96,7 @@ import { resolveOptionRules, hasOptionDatasource } from '@/vendor/option-datasou
 import { normalizeEchoData, withArrayLabels } from '@/views/form/arrayValueLabel'
 import { useLinkageContainer, type LinkageContainer } from '../composables/useLinkageContainer'
 import ContainerButtons from './ContainerButtons.vue'
+import { registerAiComponent, unregisterAiComponent, type AiFieldMeta } from '@/utils/aiPageBridge'
 
 // 注册数据表格组件到 form-create（表单内嵌 page-table 支持）
 formCreate.component('page-table', PageDataTable)
@@ -797,7 +798,62 @@ async function saveSnapshot(): Promise<boolean> {
   }
 }
 
-defineExpose({ submit, saveSnapshot, getFormData, validate, loadSchema, loadData, reloadRecord })
+/** AI 填表：合并字段值（form-create v-model 双向绑定，直接改 formData 即回显；fcApi.setValue 兜底）。 */
+function setFields(values: Record<string, unknown>): void {
+  if (!values || typeof values !== 'object') return
+  Object.assign(formData.value, values)
+  try {
+    fcApi.value?.setValue?.(values)
+  } catch {
+    /* 部分 api 版本无批量 setValue，v-model 已覆盖 */
+  }
+}
+
+defineExpose({ submit, saveSnapshot, getFormData, validate, setFields, loadSchema, loadData, reloadRecord })
+
+// ==================== AI 页面操作注册（aiPageBridge） ====================
+
+/** 同一表单多实例（页面多容器）时避免 id 冲突 */
+let aiFormUid = 0
+const aiFormId = `form:${props.formDefId ?? 'adhoc'}:${++aiFormUid}`
+let aiUnregister: (() => void) | null = null
+
+/** 递归收集表单字段元数据（field/title/type），供 AI 上下文（fillForm 字段清单）。 */
+function collectFieldMetas(rules: any[], out: AiFieldMeta[]): void {
+  for (const node of rules || []) {
+    const n = node as Record<string, any>
+    if (n.field) {
+      out.push({ key: n.field, label: n.title, type: n.type })
+    }
+    if (Array.isArray(n.children)) collectFieldMetas(n.children, out)
+    if (n.props && Array.isArray(n.props.rule)) collectFieldMetas(n.props.rule, out)
+  }
+}
+
+watch(resolvedSchema, (val) => {
+  if (!val.length || aiUnregister) return
+  const fields: AiFieldMeta[] = []
+  collectFieldMetas(val, fields)
+  aiUnregister = registerAiComponent(
+    {
+      id: aiFormId,
+      kind: 'form',
+      title: props.formDefId ?? '当前表单',
+      capabilities: detectFormCaps(),
+      fields,
+    },
+    { setFields, validate, getFormData, submit },
+  )
+}, { immediate: true })
+
+function detectFormCaps(): string[] {
+  return ['fillForm', 'validateForm', 'getFormData', 'submitForm']
+}
+
+onUnmounted(() => {
+  aiUnregister?.()
+  aiUnregister = null
+})
 </script>
 
 <style scoped>

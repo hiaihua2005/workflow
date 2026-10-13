@@ -312,6 +312,10 @@ public class LogicFlowDslValidator {
                 // 空判定无需 value
             } else if (isBlankText(cond, "value")) {
                 errors.add(label + "缺少 value");
+            } else {
+                // = 前缀表达式（== 为转义）：与 INSERT 值 / DELETE·QUERY 条件值同一发布期校验，
+                // 语法/函数白名单/占位符格式；无行上下文，列引用留给运行期空白名单拒绝
+                validateDataExprValue(cond, label + " 值", errors);
             }
         }
     }
@@ -845,7 +849,7 @@ public class LogicFlowDslValidator {
     }
 
     /**
-     * 数据族表达式值发布期校验（INSERT 值 / DELETE·QUERY 条件值共用）：
+     * 数据族表达式值发布期校验（INSERT 值 / DELETE·QUERY 条件值 / UPDATE WHERE 条件值共用）：
      * {@code =} 前缀（非 {@code ==} 转义）时做语法/函数白名单/占位符格式校验；
      * 列引用无行上下文不可用，但发布期无列元数据，存在性留给运行期（空白名单拒绝）。
      */

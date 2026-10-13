@@ -36,6 +36,12 @@ public class AiToolRegistry {
         return tools.containsKey(name);
     }
 
+    /** 是否为前端执行工具（agent 循环遇之暂停等待客户端回传）。 */
+    public boolean isClientExecuted(String name) {
+        AiTool tool = tools.get(name);
+        return tool != null && tool.clientExecuted();
+    }
+
     /** 执行工具；未知工具或执行异常返回错误 JSON，不抛出。 */
     public String execute(String name, JsonNode arguments, AiToolContext context) {
         AiTool tool = tools.get(name);

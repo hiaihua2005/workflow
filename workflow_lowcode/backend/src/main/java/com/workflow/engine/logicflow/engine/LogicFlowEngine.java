@@ -831,7 +831,10 @@ public class LogicFlowEngine {
                             default -> "<=";
                         };
                         whereParts.add(column + " " + symbol + " ?");
-                        params.add(resolveDataUpdateValue(cond.getValue(), vars));
+                        // 与 DELETE·QUERY 条件值同一路由：= 前缀表达式（无行上下文，空白名单拒绝列引用）、
+                        // == 转义字面量；其余走模板解析（{{var}} 保留原始类型），存量配置行为不变
+                        params.add(resolveExprOrTemplate(nodeId,
+                                "DATA_UPDATE 节点 " + nodeId + " 条件列 " + column + " 值", cond.getValue(), vars));
                     }
                     default -> throw new IllegalArgumentException(
                             "DATA_UPDATE 节点 where.op 非法(须 EQ/NE/GT/GTE/LT/LTE/IS_NULL/NOT_NULL): " + cond.getOp());
@@ -1637,7 +1640,7 @@ public class LogicFlowEngine {
     }
 
     /**
-     * 数据族值统一表达式路由（INSERT 值 / DELETE·QUERY 条件值）：
+     * 数据族值统一表达式路由（INSERT 值 / DELETE·QUERY 条件值 / UPDATE WHERE 条件值）：
      * {@code ==} 前缀转义字面量（剥一个 =，与 UPDATE SET 同语义）；{@code =} 前缀表达式预求值为单值
      * （无行上下文，空白名单拒绝列引用）；其余走模板解析（{{var}} 保留原始类型）。
      *

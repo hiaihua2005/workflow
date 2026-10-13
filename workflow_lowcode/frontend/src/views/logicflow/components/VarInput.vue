@@ -1,26 +1,34 @@
 <template>
   <div class="var-field" v-bind="wrapperAttrs">
-    <ExpressionEditor
-      ref="editorInst"
-      :model-value="displayValue"
-      :variables="variables"
-      :mode="mode"
-      :lang="lang"
-      :multiline="textarea"
-      :rows="rows"
-      :small="isSmall"
-      :clearable="clearable"
-      :placeholder="placeholder"
-      :disabled="disabled"
-      :custom-source="hashSource"
-      :priority-sources="prioritySources"
-      @update:model-value="onValue"
-    >
-      <VariablePicker :variables="variables" :mode="mode" @pick="onPick" />
-    </ExpressionEditor>
+    <div class="var-row" :class="{ 'is-multiline': textarea }">
+      <ExpressionEditor
+        ref="editorInst"
+        :model-value="displayValue"
+        :variables="variables"
+        :mode="mode"
+        :lang="lang"
+        :multiline="textarea"
+        :rows="rows"
+        :small="isSmall"
+        :clearable="clearable"
+        :placeholder="placeholder"
+        :disabled="disabled"
+        :custom-source="hashSource"
+        :priority-sources="prioritySources"
+        @update:model-value="onValue"
+      >
+        <!-- ƒx 徽标：占据编辑器内原 {} 按钮的锚位；值表达式形态（bare）恒显示，
+             与字段行数无关（toStored 保存时统一补 = 前缀，整框都是表达式语义） -->
+        <template v-if="isExprMode" #default>
+          <span class="fx-badge" aria-hidden="true" title="表达式：= 前缀求值，裸列名引用行字段">ƒx</span>
+        </template>
+      </ExpressionEditor>
 
-    <!-- 表达式徽标：显示层已剥离 = 前缀，用角标区分“值表达式”与字面量/模板 -->
-    <span v-if="showFxBadge" class="fx-badge" aria-hidden="true">ƒx</span>
+      <!-- 变量选择按钮：移出输入框（编辑器右侧外挂） -->
+      <span class="var-picker-out">
+        <VariablePicker :variables="variables" :mode="mode" @pick="onPick" />
+      </span>
+    </div>
 
     <!-- 就近变量列表（Groovy 编辑器等长文本场景） -->
     <div v-if="chips" class="var-chips">
@@ -139,12 +147,8 @@ function toStored(v: string): string {
 
 const displayValue = computed(() => (isExprMode.value ? toDisplay(props.modelValue) : String(props.modelValue ?? '')))
 
-/** 存储值以单 = 开头（非 == 转义）→ 当前为表达式语义，角标提示 */
-const showFxBadge = computed(() => {
-  if (!isExprMode.value) return false
-  const s = String(props.modelValue ?? '').trimStart()
-  return s.startsWith('=') && !s.startsWith('==')
-})
+/** 值表达式形态（bare）恒显示 ƒx 徽标：整框都是表达式语义（存储层 = 前缀由 toStored 统一保证），
+ * == 开头为转义字面量，徽标仍保留以标示输入框语义 */
 
 const editorInst = ref<InstanceType<typeof ExpressionEditor> | null>(null)
 
@@ -182,17 +186,41 @@ function onChipPick(v: FlowVarItem) {
   gap: 6px;
 }
 
-.var-field :deep(.expr-editor),
+/* ===== 编辑器 + 外挂变量按钮 行布局 ===== */
+.var-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* 多行编辑器（Groovy/SQL/提示词）：按钮顶对齐，贴近首行（对齐原编辑器内右上角锚位习惯） */
+.var-row.is-multiline {
+  align-items: flex-start;
+}
+
+.var-row :deep(.expr-editor) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .var-field :deep(.cm-editor) {
   width: 100%;
 }
 
-/* ===== 表达式角标（ƒx）===== */
+.var-picker-out {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.var-row.is-multiline .var-picker-out {
+  margin-top: 7px;
+}
+
+/* ===== 表达式角标（ƒx）：位于编辑器内右上锚位（原 {} 按钮位置）===== */
 .fx-badge {
-  position: absolute;
-  top: -7px;
-  right: 5px;
-  z-index: 2;
   padding: 0 4px;
   border: 1px solid color-mix(in srgb, var(--el-color-primary) 32%, transparent);
   border-radius: 4px;
@@ -204,7 +232,6 @@ function onChipPick(v: FlowVarItem) {
   line-height: 13px;
   letter-spacing: 0.5px;
   pointer-events: none;
-  box-shadow: 0 1px 2px rgba(31, 36, 55, 0.08);
 }
 
 /* ===== 就近变量 chips ===== */

@@ -10,10 +10,23 @@
 -- 尺寸用途：图片组件回显信息条（宽×高）、缩略图请求参数参考、
 -- 后续按尺寸筛选的查询能力预留。
 --
--- 【幂等】ADD COLUMN IF NOT EXISTS（MariaDB 10.x 语法），可重复执行；
+-- 【幂等】ADD COLUMN IF NOT EXISTS 是 MariaDB 10.x 专有语法，MySQL 8 不支持，
+-- 故沿用 V28 的 information_schema 动态判断写法，两种库都能重复执行；
 -- 与 hibernate ddl-auto=update 共存：Flyway 先行建列，ddl-auto 校验通过。
 -- ============================================================
 
-ALTER TABLE `sys_attachment`
-    ADD COLUMN IF NOT EXISTS `img_width`  INT NULL COMMENT '图片宽度 px（仅 upload-image 且位图解码成功时有值）',
-    ADD COLUMN IF NOT EXISTS `img_height` INT NULL COMMENT '图片高度 px（同上）';
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.columns
+    WHERE table_schema = DATABASE()
+      AND table_name = 'sys_attachment'
+      AND column_name = 'img_width'
+);
+
+SET @ddl := IF(@col_exists = 0,
+    'ALTER TABLE `sys_attachment` ADD COLUMN `img_width` INT NULL COMMENT ''图片宽度 px（仅 upload-image 且位图解码成功时有值）'', ADD COLUMN `img_height` INT NULL COMMENT ''图片高度 px（同上）''',
+    'SELECT 1'
+);
+
+PREPARE stmt FROM @ddl;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

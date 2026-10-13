@@ -82,7 +82,7 @@
 
 <script setup lang="ts">
 import ContainerButtons from '@/views/form/components/ContainerButtons.vue'
-import { ref, reactive, computed, onMounted, provide, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, provide, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import formCreate from '@form-create/element-ui'
@@ -110,6 +110,7 @@ import { normalizeForRender, deepDisableRules } from '@/views/form/schemaRules'
 import { setActiveDsBindings } from '@/utils/formDsBindingsStore'
 import { resolveOptionRules, hasOptionDatasource } from '@/vendor/option-datasource'
 import { useLinkageContainer } from '@/views/form/composables/useLinkageContainer'
+import { registerAiComponent, unregisterAiComponent } from '@/utils/aiPageBridge'
 
 // 注册页面数据组件到 form-create（type: page-table / page-tree）
 formCreate.component('page-table', PageDataTable)
@@ -147,6 +148,7 @@ provide(ACTION_BUS_KEY, {
   },
   register: (dataSourceId: string, instance: any) => {
     componentRefs[dataSourceId] = instance
+    aiRegisterList(dataSourceId, instance)
   },
   /** 表格按钮默认行为：是否存在同数据源的数据容器（自动关联，无需动作链即可打开容器表单） */
   hasLinkedContainer: (dataSourceId?: string) => !!dataSourceId && !!findContainer(dataSourceId),
@@ -193,6 +195,35 @@ const pageSchema = reactive<{
 
 /** 组件引用注册表：dataSourceId → 组件实例（供 refresh/set-filter） */
 const componentRefs = reactive<Record<string, any>>({})
+
+// ==================== AI 页面操作：数据组件注册（aiPageBridge） ====================
+/** 已注册的 AI 注销函数：dataSourceId → unregister */
+const aiUnregisters = new Map<string, () => void>()
+
+/** 数据组件挂载时同步注册到 AI 操作桥（page_action 的寻址空间）。 */
+function aiRegisterList(dataSourceId: string, instance: any): void {
+  aiUnregisters.get(dataSourceId)?.()
+  const caps = ['setFilter', 'resetFilter', 'refresh', 'openCreate'].filter(
+    (c) => typeof instance?.[c] === 'function',
+  )
+  const ds = pageSchema.dataSources.find((d) => d.id === dataSourceId)
+  const un = registerAiComponent(
+    {
+      id: dataSourceId,
+      kind: 'list',
+      title: ds?.refId ?? dataSourceId,
+      capabilities: caps,
+      fields: (ds?.searchFields ?? []).map((key) => ({ key })),
+    },
+    instance,
+  )
+  aiUnregisters.set(dataSourceId, un)
+}
+
+onUnmounted(() => {
+  for (const un of aiUnregisters.values()) un()
+  aiUnregisters.clear()
+})
 
 /** 数据详情实例注册表：dataSourceId → page-detail 实例列表（行点击/node 点击联动 load(record)；'*' = 未绑数据源，跟随任意点击） */
 const detailRefs = reactive<Record<string, any[]>>({})

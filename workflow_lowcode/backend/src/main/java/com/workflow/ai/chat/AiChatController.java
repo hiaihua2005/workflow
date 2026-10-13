@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,6 +24,9 @@ import java.util.Map;
  *
  * <p>{@code POST /api/v1/ai/chat} 返回 {@code text/event-stream} 文本，事件序列：
  * meta → (tool_call → tool_result)* → message → done（或 error）。
+ * 遇前端执行工具（page_action/dom_action）时改为：meta → (tool_call → tool_result)* →
+ * client_tool →（流结束，会话暂停），前端执行后调 {@code POST /api/v1/ai/chat/continue}
+ * 续跑（同样的事件序列，可多次 client_tool）。
  *
  * <p>采用同步响应体而非 {@code SseEmitter}：当前 agent 为非流式产出（事件在结束时一次性产生），
  * 同步返回可避免 Servlet 异步在容器上的响应终止缺陷（chunked 未正确收尾导致客户端读取失败）。
@@ -56,7 +60,41 @@ public class AiChatController {
         List<ChatMessage> history = toHistory(request.history());
         List<PageRef> pages = request.context() == null || request.context().menus() == null
                 ? List.of() : request.context().menus();
+        // 请求体反序列化走 Jackson 3（Map/List 载体），服务端用 Jackson 2 节点 → 此处转换
+        List<Map<String, Object>> comps = request.context() == null ? null : request.context().components();
+        JsonNode components = comps == null ? null : objectMapper.valueToTree(comps);
 
+        return runChat(writer -> agentService.chat(history, message, pages, components, writer),
+                objectMapper);
+    }
+
+    /**
+     * 客户端工具执行结果回传 + 续跑（SSE 文本，事件序列与 /chat 相同，可再次含 client_tool）。
+     */
+    @PostMapping(value = "/chat/continue", produces = "text/event-stream;charset=UTF-8")
+    public String chatContinue(@RequestBody(required = false) ContinueRequest request) {
+        if (request == null || isBlank(request.sessionId()) || isBlank(request.callId())) {
+            throw new IllegalArgumentException("缺少 sessionId 或 callId");
+        }
+        final String resultJson = toJsonOrNull(request.result());
+        return runChat(writer -> agentService.resume(request.sessionId(), request.callId(), resultJson, writer),
+                objectMapper);
+    }
+
+    /** 结果 JSON 安全序列化（null/异常 → "{}"；Map 载体直接序列化）。 */
+    private String toJsonOrNull(Object value) {
+        if (value == null) {
+            return "{}";
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            return "{}";
+        }
+    }
+
+    /** 公共执行骨架：meta → agent 事件 → done/error（统一 SSE 组装与异常处理）。 */
+    private String runChat(java.util.function.Consumer<AiAgentService.Events> runner, ObjectMapper mapper) {
         if (!properties.isConfigured()) {
             return sse("error", Map.of("code", AiException.Code.CONFIG_MISSING.name(), "msg", "AI 服务未配置"));
         }
@@ -64,7 +102,7 @@ public class AiChatController {
         StringBuilder body = new StringBuilder();
         body.append(sse("meta", Map.of("model", properties.getModel())));
         try {
-            agentService.chat(history, message, pages, new AiAgentService.Events() {
+            runner.accept(new AiAgentService.Events() {
                 @Override
                 public void toolCall(String name, JsonNode args) {
                     body.append(sse("tool_call", Map.of("name", name, "args", args)));
@@ -80,6 +118,16 @@ public class AiChatController {
                     body.append(sse("message", Map.of(
                             "text", text,
                             "navigations", navigations == null ? List.of() : navigations)));
+                }
+
+                @Override
+                public void clientTool(String sessionId, String callId, String name, JsonNode args) {
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("sessionId", sessionId);
+                    data.put("callId", callId);
+                    data.put("name", name);
+                    data.put("args", args);
+                    body.append(sse("client_tool", data));
                 }
             });
             body.append(sse("done", Map.of()));
@@ -107,6 +155,10 @@ public class AiChatController {
         return s == null ? "" : s;
     }
 
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
     private List<ChatMessage> toHistory(List<ChatRequest.ChatTurn> turns) {
         List<ChatMessage> out = new ArrayList<>();
         if (turns == null) {
@@ -130,7 +182,7 @@ public class AiChatController {
      *
      * @param message 本轮用户输入
      * @param history 历史消息（user/assistant）
-     * @param context 客户端上下文（路由/表单 id/可用菜单，供服务端感知）
+     * @param context 客户端上下文（路由/表单 id/可用菜单/可操作组件，供服务端感知）
      */
     public record ChatRequest(String message, List<ChatTurn> history, ChatContext context) {
 
@@ -141,11 +193,24 @@ public class AiChatController {
         /**
          * 客户端上下文。
          *
-         * @param route 当前路由标识
-         * @param formId 当前表单 id（可空）
-         * @param menus 用户可访问菜单页面（供 open_page 白名单）
+         * @param route      当前路由标识
+         * @param formId     当前表单 id（可空）
+         * @param menus      用户可访问菜单页面（供 open_page 白名单）
+         * @param components 当前页面可操作组件清单（aiPageBridge.describePage 上报，供 page_action；
+         *                   请求体反序列化走 Jackson 3，动态结构用 Map/List 载体）
          */
-        public record ChatContext(String route, String formId, List<PageRef> menus) {
+        public record ChatContext(String route, String formId, List<PageRef> menus,
+                                  List<Map<String, Object>> components) {
         }
+    }
+
+    /**
+     * 续跑请求。
+     *
+     * @param sessionId 暂停时下发的会话 id
+     * @param callId    已执行的工具调用 id
+     * @param result    前端执行结果（任意 JSON：{ok, message, data?}；Map 载体）
+     */
+    public record ContinueRequest(String sessionId, String callId, Map<String, Object> result) {
     }
 }
