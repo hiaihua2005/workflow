@@ -7622,3 +7622,16 @@ Work Log:
 Stage Summary:
 - 遮挡让位交互闭环：点页面收起 → 操作不受挡 → AI 回完球上红点提示 → 点球回来继续；钉住满足双栏并行需求
 - 与既有「执行动作自动收起」「dock 停靠模式」形成三层让位体系
+
+---
+Task ID: cron-446961-r37
+Agent: main
+Task: 轻量运维巡检 r37（13:05 +08）
+
+Work Log:
+- dump-db OK（050513）且 push 正常（r36 修复 upstream 后恢复）；四链路 200×4；真伪核验真绿
+- vite 单实例 / Java 439MB 级正常驻留；no postcss；mem 与 oom 见摘要
+
+Stage Summary:
+- r37 全绿无干预；r36 的 git 推送修复持续生效（dump 自动入库推远端）
+- 【补充备案】oom_kill 1→4（+3）：本轮 vite/Java/chrome 均存活正常，mem 1.82GB 未触 3.5GB 阈值；被杀对象疑为临时短进程（无法从 oom_control 定位具体 pid）；r35→r36 曾 4→1（统计重建），本轮回升至 4——绝对值低且核心进程零影响，维持观察不动手
