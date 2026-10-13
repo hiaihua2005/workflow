@@ -7651,3 +7651,22 @@ Stage Summary:
 - r38 全绿无干预
 - 【备案】oom_kill 4→5（+1）：核心进程（vite/Java/mariadb）全部存活且 RSS 正常，mem 未触阈值，与 r37 +3 同模式（疑临时短进程），维持观察不动手
 - 【备注】git log 可见 118e7591「fix(ai-orb): 浮窗遮挡页面致数据视觉延迟」已落地——用户报告的 AI 窗口干扰页面 bug 已在前一轮修复并提交
+
+---
+Task ID: cron-446961-r39
+Agent: main (cron 轻量运维)
+Task: 轻量运维巡检 r39（15:05 +08）——环境重供给·冷启动自动恢复
+
+Work Log:
+- 15:05 探活：四链路 200×4，但真伪核验失败——8080 返回 {"code":500,"msg":"no such table: SYS_USER"} = Node 假绿
+- 异动证据：Java 进程消失（RSS 榜无 java，进程数=0）、全系统 PID 更替、oom_kill 归零重计 → 判定沙箱已被重供给
+- 内存 3.52GB 瞬时超 3.5GB 阈值（重供给启动期瞬时值）
+- 07:06:46 执行 recover-dplus.sh：报「全部健康，幂等退出」——实为冷启动自动触发的后台 recover 恰在探测间隙完成（Java PID 1544 于 07:06 拉起，-Xmx320m sandbox 配置正确）
+- 二轮重探：200×4 + accessToken 真绿；dump 070734 OK（workflow=260K v6=128K，数据量与重供给前一致，证实 recover 最新 dump 导入无损）
+- 收口内存 3.25GB 回落阈值下，oom_kill 0（重供给后新基线）
+- 【观察】recover-dplus.sh 健康检查仅测 HTTP 200，未含真伪核验——本次幂等退出结论碰巧正确（Java 恰好已起）；若遇「Java 未起且 Node 假绿」窗口期会误判健康。建议后续授权为其健康检查追加 accessToken 验证（本轮不修改代码）
+
+Stage Summary:
+- r39 = 冷启动已自动恢复：沙箱重供给 → start-services.sh 自动后台 recover → Java 正常拉起，数据零丢失（dump 数据量一致）
+- 探测期间短暂 Node 假绿窗口（约 1-2 分钟）为重供给启动期正常现象，非事故
+- 全部服务终态健康，无需进一步干预
