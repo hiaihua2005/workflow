@@ -7604,3 +7604,21 @@ Work Log:
 Stage Summary:
 - 数据防护链修复：upstream 建立后后续轮次 push 恢复正常；043553 快照已推远端
 - 【遗留建议·需授权改代码】dump-db.sh 第 48 行 `git add -A backups/` 应改 `git add -f backups/*.sql`（或 gitignore 放行 backups/*.sql），否则每轮新 dump 都不入库，防护链名存实亡——r30 已提过此建议，本轮实锤其影响
+
+---
+Task ID: ai-orb-occlusion-fix
+Agent: main
+Task: 用户报障「AI助手窗口打开时会影响被操作的页面，致使页面数据填完了才显示」——遮挡问题全量修复
+
+Work Log:
+- 排查：longtask PerformanceObserver 实测四场景（窗口开/关空闲 3s、真实键入 10 字符、AI 流式回复期间键入）全部零 longtask；manifest 缓存与录制器防抖链路复查无每键重活——排除性能/渲染阻塞，定性为**视觉遮挡**（float 窗口挡住页面右侧数据区，数据已填入但被遮住，挪开才"显示"）
+- 修复①：float 窗口打开时点击 AI 窗口外页面区域自动收起成球（document capture click；排除 .ai-assistant-root 与 Element Plus 浮层 el-overlay/el-popper/el-message-box/el-dialog/el-drawer/el-select-dropdown/el-date-picker 等交互中场景；钉住/停靠/执行中豁免）
+- 修复②：header 新增图钉按钮（pinned 存 store），钉住后点击页面不收起——照顾「边看 AI 回复边操作」习惯
+- 修复③：收起状态下 AI 新回复 → 球上红色未读徽标（pop 动画，9+ 截断，打开即清零；observation 占位不计）
+- 修复④：录制开始自动收起窗口（store.requestCollapse 信号）+ 球上「REC」红标闪烁——收起后仍能看到录制状态
+- 【补缺陷】aiTestRecorder.start()/stop() 原不触发订阅通知 → REC 标识不刷新；start/stop 纳入 notifyChange 后全周期正常
+- E2E（agent-browser）全绿：点页面即收起 / 钉住豁免+取消后恢复收起 / 发消息后立即收起→回复到达球显徽标「1」→打开清零可见回复 / 录制开始收起+REC→重开仍在→停止消失；console 零错误；类型检查 0 新增；提交 118e7591；截图 backups/ai-orb-collapse-unread.png
+
+Stage Summary:
+- 遮挡让位交互闭环：点页面收起 → 操作不受挡 → AI 回完球上红点提示 → 点球回来继续；钉住满足双栏并行需求
+- 与既有「执行动作自动收起」「dock 停靠模式」形成三层让位体系
