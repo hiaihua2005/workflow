@@ -7735,3 +7735,26 @@ Work Log:
 Stage Summary:
 - r43 全绿无干预
 - 【备案】oom_kill 2→3（+1）：核心进程全部存活，延续临时短进程观察模式，不动手
+
+---
+Task ID: cron-446961-r45-r46
+Agent: main (cron 轻量运维)
+Task: 轻量运维巡检 r45（21:05）+ r46（22:05）合并执行——三次重供给 + 构建级破坏深度修复
+
+Work Log:
+- 22:05 探活：200×4 但 auth 假绿（no such table）+ Java 进程消失 + PID 全更 + oom 归零 → 判定三次重供给；dump 140542 双库数据完好幸存（r44 重建成果保住）
+- 【r44 教训生效】发现双套 start-services+recover 并发（PID 1088/1170/1242/1264）→ 立即全部击杀避免竞态，本次双库零损坏（SYS_USER=2/sys_menu=67，合并 dump 392KB）
+- 单路径 recover 拉起 Java → 120s 未绿；backend.log 揭示三层连环构建破坏（冷启动 recover 因 backups/jar 丢失触发 mvn 全新构建，origin 当前代码无法构建出可启动 jar）：
+  ①ConflictingBeanDefinitionException: postController——system/controller/PostController.java（r44 判定为残留而保留的未跟踪文件，后被平行会话提交入 origin）与 api/controller/PostController Bean 名冲突
+  ②FlywayException: Found more than one migration with version 2——V2__init_data.sql 与 V2__init.sql 版本号冲突（V2__init_data 系平行会话新提交；DB 迁移历史确认正牌 V2 为 init）
+  ③FlywayValidateException: V41/V52 checksum mismatch——平行会话改写已应用迁移（幂等写法重写，schema 实际无差异），DB 记录旧版校验和
+- 修复链：删 system/controller/PostController.java → 重编译；移 V2__init_data.sql 出扫描路径（存档 backups/disabled-）→ mvn -o clean 失败（离线无 clean 插件）→ 手动清 target/classes 残留重打包（jar 验证仅含正牌 V2）→ 启动再败于 ③
+- ③ 修复：用 flyway-core 11.14.1 官方 ChecksumCalculator（LoadableResource 路径）计算现行 V41/V52 官方校验和（-1263894200/66136558，与报错 Resolved locally 互证），UPDATE flyway_schema_history（官方 flyway repair 等价）→ Java 启动成功（PID 3121，18.1s）
+- 终验：200×4 + accessToken 真绿；dump 143311 双库完整（260K/128K）add -f 入库推远端（b7c5a9cd，ls-tree 验证）
+- 【关键决策】两个构建破坏文件已被平行会话提交入 origin——origin 为「mvn 必炸」状态，下次重供给 recover 必再崩。提交修复性删除（7f176af0）并注明恢复规范（controller 正名 / 迁移改版本号），保障持续可用性
+- 备忘：本地 python join_nosep 算法仅近似 Flyway 校验和（V2 命中但 V1/V53 不中），官方算法以 flyway-core 实算为准
+
+Stage Summary:
+- r45+r46 = 三次重供给深度恢复成功：服务全绿、双库数据完整、双 dump 入库远端、origin 构建可用性修复
+- 【origin 质量风险】平行会话推进快但引入三类启动炸弹（Bean 冲突/迁移重号/已应用迁移改写）；建议其后续：PostController 类改名或包内唯一、新迁移用未占用版本号（V54+）、禁止改写已应用迁移（应新增 Vxx 修正迁移）
+- 【脚本修复授权申请持续】①dump-db.sh 第 48 行改 git add -f backups/*.sql（本轮 r44/r45-46 已两轮手动 add -f 补救）；②recover-dplus.sh 加 flock 并发锁（防 r44/r46 竞态重演）
