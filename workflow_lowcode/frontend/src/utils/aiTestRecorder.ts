@@ -38,6 +38,19 @@ const RECORDING_KEY = 'ai_test_recording'
 /** 当前录制会话的动作来源集合（判定 ai/manual/mixed） */
 let sessionSources = new Set<'ai' | 'manual'>()
 
+/** 用例库变更订阅（AI 生成/导入/删除等任意来源变更后，UI 自动刷新） */
+const changeListeners = new Set<() => void>()
+
+function notifyChange(): void {
+  changeListeners.forEach((fn) => {
+    try {
+      fn()
+    } catch {
+      /* 订阅者异常不影响其它订阅者 */
+    }
+  })
+}
+
 function loadCases(): AiTestCase[] {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]') as AiTestCase[]
@@ -91,6 +104,7 @@ class AiTestRecorder {
       const cases = loadCases()
       cases.unshift(done)
       saveCases(cases.slice(0, 50))
+      notifyChange()
       return done
     }
     return null
@@ -136,11 +150,19 @@ class AiTestRecorder {
     const cases = loadCases()
     cases.unshift(full)
     saveCases(cases.slice(0, 50))
+    notifyChange()
     return full
   }
 
   remove(id: string): void {
     saveCases(loadCases().filter((c) => c.id !== id))
+    notifyChange()
+  }
+
+  /** 清空全部用例 */
+  clearAll(): void {
+    saveCases([])
+    notifyChange()
   }
 
   rename(id: string, name: string): void {
@@ -149,6 +171,7 @@ class AiTestRecorder {
     if (target) {
       target.name = name
       saveCases(cases)
+      notifyChange()
     }
   }
 
@@ -161,7 +184,14 @@ class AiTestRecorder {
       // LLM 起的标题更有业务语义，自动同步到用例名
       if (narrative.title) target.name = narrative.title
       saveCases(cases)
+      notifyChange()
     }
+  }
+
+  /** 订阅用例库变更（返回取消订阅函数）；用例列表 UI 据此自动刷新 */
+  subscribe(fn: () => void): () => void {
+    changeListeners.add(fn)
+    return () => changeListeners.delete(fn)
   }
 
   /** 导出全部用例为 JSON 字符串 */
@@ -182,6 +212,7 @@ class AiTestRecorder {
       count += 1
     }
     saveCases(existing.slice(0, 100))
+    if (count > 0) notifyChange()
     return count
   }
 

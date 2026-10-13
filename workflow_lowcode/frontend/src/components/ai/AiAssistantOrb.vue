@@ -138,7 +138,7 @@
       </template>
 
       <!-- 测试用例页签 -->
-      <AiTestPanel v-else @generate="onGenerateCases" />
+      <AiTestPanel v-else :generating="sending" @generate="onGenerateCases" />
     </div>
   </div>
 </template>
@@ -557,32 +557,87 @@ async function converse(text: string) {
   }
 }
 
-/** 用例页签：AI 生成用例（走对话管线） */
-function onGenerateCases() {
+/** 本轮对话捕获的测试用例数（onGenerateCases 结束后据此反馈） */
+let capturedTestCases = 0
+
+/** 用例页签：AI 生成用例（走对话管线；全程在当前页签给足反馈） */
+async function onGenerateCases() {
   if (sending.value) return
-  void converse(
-    '[TESTGEN] 请基于当前页面组件清单，生成覆盖主要路径与边界校验的测试用例（5 条左右），按约定输出 JSON 数组。',
-  )
+  // 前置校验：当前页面必须存在组件清单，否则 LLM 无法设计动作
+  const manifest = getActiveManifest()
+  if (!manifest) {
+    ElMessage.warning({
+      message: '当前页面没有可操作的组件清单，请先打开具体业务页面（如用户管理、角色管理）后再生成用例',
+      duration: 4000,
+    })
+    return
+  }
+  capturedTestCases = 0
+  ElMessage.info({ message: 'AI 正在基于当前页面组件清单设计测试用例，请稍候…', duration: 3000 })
+  try {
+    await converse(
+      '[TESTGEN] 请基于当前页面组件清单，生成覆盖主要路径与边界校验的测试用例（5 条左右），按约定输出 JSON 数组。',
+    )
+  } finally {
+    if (capturedTestCases > 0) {
+      ElMessage.success(`已生成 ${capturedTestCases} 条测试用例，点击用例可查看详情并回放`)
+    } else {
+      const lastAssistant = [...store.messages].reverse().find((m) => m.role === 'assistant')
+      const hint = lastAssistant?.content?.slice(0, 60) ?? ''
+      ElMessage.warning({
+        message: hint ? `未能生成用例：${hint}…（详情见「对话」页签）` : '未能生成用例，请到「对话」页签查看原因',
+        duration: 5000,
+      })
+    }
+  }
 }
 
-/** 解析 AI 回复中的测试用例 JSON（仅 [TESTGEN] 场景后紧跟的数组；容错 ```json 围栏） */
-function tryCaptureTestCases(text: string): number {
-  if (!text || !text.trim().startsWith('[')) return 0
-  try {
-    const parsed = JSON.parse(text.trim()) as unknown
-    if (!Array.isArray(parsed)) return 0
-    let count = 0
-    for (const item of parsed) {
-      const c = item as { name?: string; actions?: AiPageAction[] }
-      if (c && typeof c.name === 'string' && Array.isArray(c.actions) && c.actions.length > 0) {
-        aiTestRecorder.add({ name: c.name, pageRoute: route.path, actions: c.actions })
-        count += 1
+/** 从 LLM 回复中提取用例 JSON 数组（容错：```json 围栏 / 前后说明文字 / {cases:[...]} 包装） */
+function extractCasesJson(text: string): unknown[] | null {
+  if (!text || !text.trim()) return null
+  let raw = text.trim()
+  // 剥 Markdown 代码围栏（```json … ``` 或 ``` … ```）
+  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (fence && fence[1].trim()) raw = fence[1].trim()
+  const parseMaybe = (input: string): unknown[] | null => {
+    try {
+      const parsed = JSON.parse(input) as unknown
+      if (Array.isArray(parsed)) return parsed
+      if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { cases?: unknown }).cases)) {
+        return (parsed as { cases: unknown[] }).cases
       }
+    } catch {
+      /* 非法 JSON */
     }
-    return count
-  } catch {
-    return 0
+    return null
   }
+  const direct = parseMaybe(raw)
+  if (direct) return direct
+  // 截取首个 '[' 到最后一个 ']'（LLM 可能在 JSON 前后加说明文字）
+  const start = raw.indexOf('[')
+  const end = raw.lastIndexOf(']')
+  if (start >= 0 && end > start) return parseMaybe(raw.slice(start, end + 1))
+  return null
+}
+
+/** 解析 AI 回复中的测试用例并入库；返回捕获条数 */
+function tryCaptureTestCases(text: string): number {
+  const list = extractCasesJson(text)
+  if (!list) return 0
+  let count = 0
+  for (const item of list) {
+    const c = item as { name?: string; actions?: AiPageAction[] }
+    if (c && typeof c.name === 'string' && Array.isArray(c.actions) && c.actions.length > 0) {
+      aiTestRecorder.add({ name: c.name, pageRoute: route.path, actions: c.actions })
+      count += 1
+    }
+  }
+  if (count > 0) {
+    capturedTestCases = count
+    // 若从对话页签发起，自动切到用例页签展示结果
+    store.panelTab = 'tests'
+  }
+  return count
 }
 
 /** 页面入口跳转 */

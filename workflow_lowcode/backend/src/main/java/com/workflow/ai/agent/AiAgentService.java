@@ -87,6 +87,7 @@ public class AiAgentService {
               确认关键值，并在回复中说明将要执行的操作。
             - 若用户要求“生成测试用例/设计测试用例”（不执行）：直接输出 JSON 数组，不调用工具，
               每条 {"name":"用例名","actions":[...]}，actions 使用上述 op；仅当用户要求“执行/回放”时才调用 page_control。
+              生成用例时**只输出 JSON 数组本身**：禁止 Markdown 代码块围栏（```）、禁止在 JSON 前后添加任何说明文字。
             """;
 
     private final ObjectProvider<ChatModel> chatModelProvider;
