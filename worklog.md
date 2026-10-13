@@ -7635,3 +7635,19 @@ Work Log:
 Stage Summary:
 - r37 全绿无干预；r36 的 git 推送修复持续生效（dump 自动入库推远端）
 - 【补充备案】oom_kill 1→4（+3）：本轮 vite/Java/chrome 均存活正常，mem 1.82GB 未触 3.5GB 阈值；被杀对象疑为临时短进程（无法从 oom_control 定位具体 pid）；r35→r36 曾 4→1（统计重建），本轮回升至 4——绝对值低且核心进程零影响，维持观察不动手
+
+---
+Task ID: cron-446961-r38
+Agent: main (cron 轻量运维)
+Task: 轻量运维巡检 r38（14:05 +08）
+
+Work Log:
+- dump-db OK（060531）且自动入库推远端（git status 与 origin/main 同步）
+- 四链路 200×4；真伪核验真绿（accessToken 正常签发）
+- 内存 1.49GB（未触 3.5GB 阈值）；vite 单进程（541MB）+ Java（468MB）+ mariadb 正常；无 postcss worker
+- 零干预零代码编辑
+
+Stage Summary:
+- r38 全绿无干预
+- 【备案】oom_kill 4→5（+1）：核心进程（vite/Java/mariadb）全部存活且 RSS 正常，mem 未触阈值，与 r37 +3 同模式（疑临时短进程），维持观察不动手
+- 【备注】git log 可见 118e7591「fix(ai-orb): 浮窗遮挡页面致数据视觉延迟」已落地——用户报告的 AI 窗口干扰页面 bug 已在前一轮修复并提交
