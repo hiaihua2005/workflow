@@ -87,11 +87,12 @@ class AiTestRecorder {
     return this.recording?.name ?? ''
   }
 
-  /** 开始录制（同一时间仅一个会话） */
+  /** 开始录制（同一时间仅一个会话；通知订阅者刷新 REC 标识） */
   start(name: string, pageRoute: string): void {
     this.recording = { id: nextId(), name: name || `用例 ${new Date().toLocaleString()}`, pageRoute, createdAt: Date.now(), actions: [] }
     sessionSources = new Set()
     localStorage.setItem(RECORDING_KEY, JSON.stringify(this.recording))
+    notifyChange()
   }
 
   /** 停止录制并保存用例；返回用例（未录制过返回 null） */
@@ -99,6 +100,7 @@ class AiTestRecorder {
     const done = this.recording
     this.recording = null
     localStorage.removeItem(RECORDING_KEY)
+    notifyChange()
     if (done && done.actions.length > 0) {
       done.source = sessionSources.size > 1 ? 'mixed' : sessionSources.size === 1 ? [...sessionSources][0] : 'ai'
       const cases = loadCases()

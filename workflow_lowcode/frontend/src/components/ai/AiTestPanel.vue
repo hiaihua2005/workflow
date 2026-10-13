@@ -297,6 +297,8 @@ function toggleRecord(): void {
     recorder.start(`用例 ${new Date().toLocaleTimeString()}`, route.path)
     aiManualRecorder.start()
     ElMessage.success('开始录制——AI 对话操作或直接手动操作页面均可')
+    // 让位：用户要去页面上手动操作，浮窗自动收起（球上有录制进度可见）
+    store.requestCollapse()
   }
   refresh()
 }

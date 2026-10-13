@@ -15,6 +15,8 @@
     >
       <RobotIcon class="ai-orb-icon" />
       <span v-if="store.executing && execProgress.total > 0" class="ai-orb-badge">{{ execProgress.current }}/{{ execProgress.total }}</span>
+      <span v-else-if="testRecording" class="ai-orb-rec">REC</span>
+      <span v-else-if="unread > 0 && !windowOpen" class="ai-orb-unread">{{ unread > 9 ? '9+' : unread }}</span>
       <span v-else-if="store.executing" class="ai-orb-badge ai-orb-badge-dot">…</span>
     </button>
 
@@ -44,6 +46,14 @@
           </span>
         </div>
         <div class="ai-window-actions">
+          <button
+            class="ai-icon-btn"
+            :class="{ active: store.pinned }"
+            :title="store.pinned ? '取消钉住（点击页面区域自动收起）' : '钉住窗口（点击页面区域不收起）'"
+            @click="store.pinned = !store.pinned"
+          >
+            <el-icon :size="16"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z" /></svg></el-icon>
+          </button>
           <button
             class="ai-icon-btn"
             :title="isDock ? '切换为悬浮窗' : '停靠到右侧（不遮挡页面）'"
@@ -395,6 +405,57 @@ watch(
   },
 )
 
+// ---------------------------------------------------------------- 点击页面区域自动收起（遮挡让位）
+// 用户点击 AI 窗口外的页面区域 = 回去操作页面了，浮窗自动收起成球，不再遮挡数据区；
+// 钉住（store.pinned）/ 停靠模式 / 执行中豁免。收起后 AI 回复完成会有未读徽标提示。
+const FLOATING_UI_SELECTOR = [
+  '.el-overlay', '.el-message-box', '.el-popper', '.el-message', '.el-notification',
+  '.el-picker-panel', '.el-color-dropdown', '.el-dropdown-menu', '.el-select-dropdown',
+  '.el-date-picker', '.el-dialog', '.el-drawer', '.el-tooltip__popper',
+].join(',')
+
+function onDocClickForCollapse(e: MouseEvent): void {
+  if (!windowOpen.value || isDock.value || store.pinned || store.executing) return
+  const t = e.target as HTMLElement | null
+  if (!t) return
+  // AI 自身 UI 与 Element Plus 浮层（append-to-body 的弹窗/下拉/日期面板）内的点击不触发收起
+  if (t.closest('.ai-assistant-root') || t.closest(FLOATING_UI_SELECTOR)) return
+  windowOpen.value = false
+}
+document.addEventListener('click', onDocClickForCollapse, true)
+onUnmounted(() => document.removeEventListener('click', onDocClickForCollapse, true))
+
+// 录制开始等场景的收起请求
+watch(
+  () => store.collapseTick,
+  () => {
+    if (windowOpen.value) windowOpen.value = false
+  },
+)
+
+// ---------------------------------------------------------------- 未读徽标（收起状态下 AI 有新回复）
+const unread = ref(0)
+/** 录制中状态（球上 REC 标识；用例库订阅驱动） */
+const testRecording = ref(aiTestRecorder.isRecording())
+onMounted(() => {
+  aiTestRecorder.subscribe(() => {
+    testRecording.value = aiTestRecorder.isRecording()
+  })
+})
+watch(
+  () => store.messages.length,
+  (len, prev) => {
+    if (!windowOpen.value && len > prev) {
+      const last = store.messages[len - 1]
+      // observation 占位消息不计未读
+      if (last && last.role === 'assistant' && !last.observation) unread.value += 1
+    }
+  },
+)
+watch(windowOpen, (open) => {
+  if (open) unread.value = 0
+})
+
 function handleClear() {
   controller?.abort()
   controller = null
@@ -736,6 +797,58 @@ function tryApplyForm(result: unknown): boolean {
   min-width: 16px;
   padding: 0;
 }
+/* 收起状态下有新回复的未读徽标（区别于执行进度黑底徽标） */
+.ai-orb-unread {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--el-color-danger, #f56c6c);
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  animation: ai-unread-pop 0.3s ease;
+}
+@keyframes ai-unread-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+/* 录制中标识（球上红点闪烁） */
+.ai-orb-rec {
+  position: absolute;
+  top: -5px;
+  right: -8px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: var(--el-color-danger, #f56c6c);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+  animation: ai-rec-blink 1.2s ease-in-out infinite;
+}
+@keyframes ai-rec-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
 
 /* 完全悬浮的对话窗体 */
 .ai-window {
@@ -850,6 +963,11 @@ function tryApplyForm(result: unknown): boolean {
 .ai-icon-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.18);
   color: #fff;
+}
+/* 钉住激活态（图钉亮起） */
+.ai-icon-btn.active {
+  background: rgba(255, 255, 255, 0.22);
+  color: #6ee7b7;
 }
 .ai-icon-btn:disabled {
   opacity: 0.4;

@@ -41,6 +41,13 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
   const panelTab = ref<'chat' | 'tests'>('chat')
   /** 危险动作自动确认（测试回放场景可开；默认关闭走确认弹窗） */
   const autoConfirm = ref(false)
+  /** 钉住窗口：点击页面区域不自动收起（默认不钉，点击页面即收起让位） */
+  const pinned = ref(false)
+  /** 收起请求信号（跨组件）：录制开始等场景请求把浮窗收起成球 */
+  const collapseTick = ref(0)
+  function requestCollapse(): void {
+    collapseTick.value += 1
+  }
 
   function setMode(value: 'float' | 'dock'): void {
     mode.value = value
@@ -78,7 +85,7 @@ export const useAiAssistantStore = defineStore('aiAssistant', () => {
   }
 
   return {
-    visible, messages, context, mode, executing, panelTab, autoConfirm,
-    toggle, setVisible, setMode, addMessage, clear, setContext,
+    visible, messages, context, mode, executing, panelTab, autoConfirm, pinned, collapseTick,
+    toggle, setVisible, setMode, addMessage, clear, setContext, requestCollapse,
   }
 })
