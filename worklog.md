@@ -7670,3 +7670,19 @@ Stage Summary:
 - r39 = 冷启动已自动恢复：沙箱重供给 → start-services.sh 自动后台 recover → Java 正常拉起，数据零丢失（dump 数据量一致）
 - 探测期间短暂 Node 假绿窗口（约 1-2 分钟）为重供给启动期正常现象，非事故
 - 全部服务终态健康，无需进一步干预
+
+---
+Task ID: cron-446961-r40-r41
+Agent: main (cron 轻量运维)
+Task: 轻量运维巡检 r40（16:05）+ r41（17:05）合并执行（消息排队批量到达，一次巡检覆盖两轮）
+
+Work Log:
+- dump-db OK（090518）但 push FAILED——诊断：本地 ahead 1（本轮 dump）/ behind 4（平行会话提交 daf07c79 L2 适配层修复等）
+- 修复（沿用 r36 惯例）：fetch → rebase origin/main（1/1 成功）→ push 成功（daf07c79..a98d244f），main 与 origin/main 同步
+- 四链路 200×4；真伪核验真绿（accessToken）；Java PID 1471 / vite PID 1320 正常常驻
+- 内存瞬时 3.67GB 超 3.5GB 阈值——元凶为 rebase 触发的 git pack-objects（RSS 1.72GB，瞬时进程）；进程退场后回落 1.24GB，vite 单进程 528MB / Java 461MB 备案
+- oom_kill 0（重供给后基线保持），无 postcss worker，零干预服务进程
+
+Stage Summary:
+- r40+r41 全绿无服务干预；唯一异常为 git 分叉（重供给后本地快照 vs 平行会话远端提交），rebase 后恢复推送链路
+- git pack-objects 瞬时内存峰值（1.72GB）为 rebase 正常代价，非泄漏；cgroup 稳态 1.24GB
