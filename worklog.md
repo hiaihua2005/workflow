@@ -7573,3 +7573,17 @@ Stage Summary:
 - 用例管理闭环补全：查看详情（动作级透明）/删除/清空（均带确认）/来源筛选/自动刷新/复制分享——「录制→管理→回放→转写」全生命周期可用
 - AI 生成用例从「点击无反应」修复为全流程强反馈（前置拦截/进行中提示/成功/失败均有感知），解析容错覆盖 LLM 输出形态不确定性
 - 教训：el-dialog 的具名插槽 template 不可嵌套在 v-if template 内（Vue 编译器限制）；LLM JSON 输出必须做围栏/前后缀容错；UI 列表依赖跨组件变更时用观察者订阅而非单次读取
+
+---
+Task ID: cron-446961-r34
+Agent: main
+Task: 轻量运维巡检 r34（10:05 +08）
+
+Work Log:
+- dump-db OK（workflow=260K v6=128K，含 0137 用例管理修复轮快照）
+- 四链路 200×4；真伪核验 accessToken 真绿
+- vite 单实例 RSS 514MB / Java 468MB 正常；mem 1.79GB；no postcss
+- oom_kill=3（非零但无新增迹象，本轮无 kill 事件，备案观察）
+
+Stage Summary:
+- r34 全绿无干预；oom_kill 基线自 r30 重供给后清零，现值 3 为供给以来累计（含 r33 前 vite 秒死事件），未再上涨
