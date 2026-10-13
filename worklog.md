@@ -7722,3 +7722,16 @@ Stage Summary:
 - r44 = 二次重供给深度恢复成功：服务全绿（200×4 真绿）、双库数据完整（workflow 96 表 / v6 45 表）、双 dump 确定性入库远端、git 推送链路修复
 - 【事故根因】①dump-db.sh gitignore 盲区（盲区 E）酿成真实数据备份丢失——强烈建议授权修改第 48 行为 `git add -f backups/*.sql`；②recover-dplus.sh 无并发锁——冷启动自动触发与手动执行可竞态致 Flowable 建表冲突，建议加 flock 或真伪核验前置
 - 【服务影响评估】workflow 主库零丢失（目录幸存+dump 完整）；workflow_v6 以 043553（12:35 +08）快照重建，12:35~20:04 间 v6 无用户写入（运维只读期），等效零丢失
+
+---
+Task ID: cron-446961-r43
+Agent: main (cron 轻量运维)
+Task: 轻量运维巡检 r43（19:05 +08）
+
+Work Log:
+- dump-db OK（110520）自动入库推远端；四链路 200×4；真伪核验真绿
+- 内存 1.36GB 稳态；vite 509MB / Java 449MB / mariadb 正常；零干预零代码编辑
+
+Stage Summary:
+- r43 全绿无干预
+- 【备案】oom_kill 2→3（+1）：核心进程全部存活，延续临时短进程观察模式，不动手
