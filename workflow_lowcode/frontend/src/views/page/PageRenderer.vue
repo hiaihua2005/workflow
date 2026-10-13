@@ -225,7 +225,7 @@
 // 路由组件 name 与路由 name 一致，供 AdminLayout keep-alive include 匹配缓存
 defineOptions({ name: 'PageRenderer' })
 
-import { ref, computed, reactive, onMounted, watch, h } from 'vue'
+import { ref, computed, reactive, onMounted, onUnmounted, watch, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -260,6 +260,8 @@ import {
   type SummaryColumnSpec,
 } from './components/tableEnhance'
 import type { CardStyle } from '@/components/business/ListCards.types'
+import { registerPageExecutor, type ActionOutcome } from '@/utils/aiPageExecutor'
+import type { AiPageAction } from '@/types/aiPageAction'
 
 const route = useRoute()
 const router = useRouter()
@@ -441,6 +443,155 @@ const drawerFormRef = ref<InstanceType<typeof FormRenderer>>()
 onMounted(load)
 // 说明：不同 pageKey 由 AdminLayout keep-alive :key="route.path" 隔离为独立实例，
 // 各自 onMounted 时按快照 pageKey 加载；缓存实例不再监听 route.params 变化。
+
+// ==================== AI 页面操作（L1 执行器 + 组件清单上报） ====================
+/** 注册 AI 执行器（routePath 守卫防 keep-alive 缓存实例串页）；清单在页面就绪后由 manifest() 动态求值 */
+const unregisterAi = registerPageExecutor({
+  routePath: route.path,
+  pageType: 'view',
+  manifest: () => buildViewManifest(),
+  resolveElement: (action) => (['set-query', 'search', 'reset'].includes(action.op) ? document.querySelector<HTMLElement>('.page-renderer .search-card') : null),
+  execute: (action) => executeViewAction(action),
+})
+onUnmounted(unregisterAi)
+
+/** VIEW 轨组件清单（供 page_control 定位） */
+function buildViewManifest(): Record<string, unknown> {
+  return {
+    pageType: 'view',
+    title: page.value?.name ?? pageKey.value,
+    displayMode: displayMode.value,
+    queryFields: searchRules.value.map((r) => ({
+      field: r.field,
+      title: r.title,
+      control: r.type === 'datePicker' ? 'dateRange' : 'input',
+      matchType: r.matchType,
+      ...(r.type === 'datePicker' ? { note: '值格式 [开始,结束]，如 ["2026-01-01 00:00:00","2026-01-31 23:59:59"]' } : {}),
+    })),
+    tableColumns: tableColumns.value.map((c) => ({ prop: c.prop, label: c.label })),
+    buttons: ['search', 'reset', 'refresh', ...actionButtonsConfig.value.map((b) => b.key)],
+    capabilities: ['set-query', 'search', 'reset', 'refresh', 'sort', 'open-create', 'read-table', 'get-state', 'expect', 'set-value(dialog)', 'submit(dialog)', 'validate(dialog)', 'delete-rows(batch)'],
+  }
+}
+
+/** VIEW 轨动作执行（查询视图：查询条件/搜索/重置/刷新/排序/新增/读表格/断言/弹窗表单赋值） */
+async function executeViewAction(action: AiPageAction): Promise<ActionOutcome> {
+  const op = action.op
+  const field = (action.field ?? (action.target && !action.target.startsWith('#') ? action.target : '')) as string
+  const okData = (data?: unknown) => ({ ok: true, data })
+  switch (op) {
+    case 'set-query': {
+      const rule = searchRules.value.find((r) => r.field === field)
+      if (!rule) return { ok: false, error: `查询条件不存在「${field}」（可用：${searchRules.value.map((r) => r.field).join('/') || '无'}）` }
+      query[field] = action.value ?? ''
+      return okData(`已填入查询条件 ${field}=${JSON.stringify(action.value)}`)
+    }
+    case 'search':
+      handleSearch()
+      await waitForRows()
+      return okData({ total: lastRows.value.length, note: '查询已执行' })
+    case 'reset':
+      handleReset()
+      await waitForRows()
+      return okData('查询条件已清空并重新查询')
+    case 'refresh':
+      refresh()
+      await waitForRows()
+      return okData('数据已刷新')
+    case 'sort': {
+      const p = (action.params ?? {}) as { sort?: string; order?: string }
+      if (!p.sort) return { ok: false, error: 'sort 需要 params.sort（列名）' }
+      searchTableRef.value?.sort(p.sort, (p.order === 'desc' ? 'descending' : 'ascending') as 'ascending' | 'descending')
+      await waitForRows()
+      return okData(`已按 ${p.sort} ${p.order ?? 'asc'} 排序`)
+    }
+    case 'open-create':
+      if (actionButtonsConfig.value.some((b) => b.key === 'create') || actionConfig.value.create) {
+        openCreate()
+        return okData('已打开新增弹窗')
+      }
+      return { ok: false, error: '当前视图未启用新增按钮' }
+    case 'set-value': {
+      // 弹窗表单赋值（新增/编辑/内嵌/抽屉）：取当前打开的 FormRenderer 实例
+      const form = activeDialogForm()
+      if (!form) return { ok: false, error: '当前没有打开的表单弹窗（先 open-create 或人工打开）' }
+      form.setFormData({ [field]: action.value })
+      return okData(`已填入 ${field}=${JSON.stringify(action.value)}`)
+    }
+    case 'validate': {
+      const form = activeDialogForm()
+      if (!form) return { ok: false, error: '当前没有打开的表单弹窗' }
+      const valid = await form.validate().catch(() => false)
+      return valid ? okData('校验通过') : { ok: false, error: '校验未通过（查看页面表单红字提示）' }
+    }
+    case 'submit': {
+      // 弹窗表单提交（危险动作，已由执行器统一确认）
+      if (editVisible.value) await handleEditSubmit()
+      else if (inlineVisible.value) await handleInlineSubmit()
+      else if (drawerVisible.value) await handleDrawerSubmit()
+      else return { ok: false, error: '当前没有打开的表单弹窗' }
+      return okData('提交完成')
+    }
+    case 'delete-rows': {
+      if (!selectedRows.value.length) return { ok: false, error: '请先在表格中勾选要删除的行（delete-rows 删除选中行）' }
+      await handleBatchDelete()
+      return okData(`已删除 ${selectedRows.value.length} 行`)
+    }
+    case 'read-table': {
+      const limit = Number((action.params as { limit?: number } | undefined)?.limit ?? 10)
+      const rows = lastRows.value.slice(0, Math.max(1, Math.min(limit, 50)))
+      return okData({ total: lastRows.value.length, rows })
+    }
+    case 'get-state':
+      return okData({
+        displayMode: displayMode.value,
+        query: { ...query },
+        selectedCount: selectedRows.value.length,
+        rowCount: lastRows.value.length,
+        dialogOpen: editVisible.value || inlineVisible.value || drawerVisible.value,
+      })
+    case 'expect': {
+      const p = (action.params ?? {}) as { type?: string; expected?: unknown; comparator?: string }
+      const comparator = p.comparator ?? 'eq'
+      let actual: unknown
+      if (p.type === 'rows') actual = lastRows.value.length
+      else if (p.type === 'value') actual = query[field]
+      else actual = lastRows.value.length
+      const pass = compareExpect(actual, p.expected, comparator)
+      return pass
+        ? okData({ actual, expected: p.expected, pass })
+        : { ok: false, data: { actual, expected: p.expected, pass }, error: `断言失败：actual=${JSON.stringify(actual)} ${comparator} ${JSON.stringify(p.expected)}` }
+    }
+    default:
+      return { ok: false, error: `查询视图不支持「${op}」（支持：set-query/search/reset/refresh/sort/open-create/set-value/validate/submit/delete-rows/read-table/get-state/expect）` }
+  }
+}
+
+/** 当前打开的弹窗表单实例（新增/内嵌/抽屉） */
+function activeDialogForm(): { setFormData: (p: Record<string, unknown>) => void; validate: () => Promise<boolean> } | null {
+  if (editVisible.value) return editFormRef.value ?? null
+  if (inlineVisible.value) return inlineFormRef.value ?? null
+  if (drawerVisible.value) return drawerFormRef.value ?? null
+  return null
+}
+
+/** 等待表格取数回填 lastRows（search 后读数据用） */
+async function waitForRows(): Promise<void> {
+  await new Promise((r) => window.setTimeout(r, 600))
+}
+
+/** expect 比较（eq/contains/notEmpty/gt/lt/ge/le） */
+function compareExpect(actual: unknown, expected: unknown, comparator: string): boolean {
+  switch (comparator) {
+    case 'contains': return String(actual ?? '').includes(String(expected ?? ''))
+    case 'notEmpty': return actual !== '' && actual !== null && actual !== undefined
+    case 'gt': return Number(actual) > Number(expected)
+    case 'lt': return Number(actual) < Number(expected)
+    case 'ge': return Number(actual) >= Number(expected)
+    case 'le': return Number(actual) <= Number(expected)
+    default: return String(actual ?? '') === String(expected ?? '')
+  }
+}
 
 // ========== 强制刷新（keep-alive 场景） ==========
 // AdminLayout 菜单重击当前页签时携带 query._t 强制导航（keep-alive 下组件不重挂载）。

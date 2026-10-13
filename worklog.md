@@ -7473,3 +7473,165 @@ Work Log:
 Stage Summary:
 - 大模型服务可视化动态配置落地：外部部署在「系统管理→模型配置」填 OpenAI 兼容端点/Key/模型名即可，保存即生效无需重启；静态 env/yml/沙箱桥接降级为默认兜底，开箱即用语义不变
 - 未决观察：①配置接口鉴权沿用平台惯例（仅登录态，无方法级角色注解，与现有 system 控制器一致）②前端无 lint 脚本（Vue 子项目仅 dev/build），以 vite 实时编译+浏览器 console 为准
+
+---
+Task ID: ai-page-action-impl
+Agent: main
+Task: 「AI 助手通过 LLM 操作页面」全量落地（用户确认按对话方案全量不打折扣实施）
+
+Work Log:
+- 环境恢复：发现容器重供给导致本地代码回退（缺 ai-config 等近期功能），核对 origin/main 为全量正本后备份分叉（backup/local-divergence-20261013 @ ade87418）并 reset 到 origin/main（213b3746）；重建 jar 使模型配置功能恢复（/api/ai-config 200）
+- 数据修复：为 test1 页面补挂菜单（sys_menu 9320 + 授权）；重建被环境重置丢失的 bill_test 表单定义（wf_form_def 补 schema + column_config 含 person_id 主表关联字段），恢复请假表格数据链路
+- 后端（5 文件）：新增 PageControlTool（page_control 工具，actions 结构校验原样透传）；AiAgentService 扩展 Events.pageActions + chat 增加 pageManifest 参数注入系统提示（上限 8000 字符）+ BASE_PROMPT 增「页面操作」章节（op 语义/observation 回传约定/测试用例生成协议 [TESTGEN]）+ MAX_STEPS 5→8；AiChatController 新增 SSE page_action 帧 + ChatContext.pageManifest（String 传输，服务端 readTree 解析）+ parseManifest；两处测试文件适配新签名
+- 前端新增（5 文件）：types/aiPageAction.ts（协议：AiPageAction/AiActionResult/AiPageManifest/DANGER_OPS/ExecuteOptions）；utils/aiPageContext.ts（页面清单注册中心 + L3 DOM 扫描器：可见性判定/label 提取/data-ai-idx 标记/重扫防漂移，上限 50 元素）；utils/aiPageExecutor.ts（三层分发执行器：L1/L2 PageExecutor 注册 + routePath 守卫防 keep-alive 串页、L3 click/fill/get-state/expect、danger 确认钩子、目标高亮 .ai-flash-target、navigate 全局路由、录制钩子、registerPageActions L2 组合式）；utils/aiTestRecorder.ts（用例录制/回放/导入导出/报告，localStorage 持久化）；components/ai/AiTestPanel.vue（用例页签：录制开关/回放报告/重命名/删除/导入导出/AI 生成）
+- 前端改造（7 文件）：api/ai.ts 增加 page_action 事件；aiAssistantStore 增加 mode(float/dock)/executing/panelTab/autoConfirm + AiMessage.actionResults/observation；AiAssistantOrb 重写（对话/用例页签、float/dock 双形态停靠、执行时自动收起成球+进度徽标、动作结果芯片、observation 占位行、多轮动作循环编排 ≤6 轮、ElMessageBox 危险确认、manifest 随请求上报）；PageRenderer 注册 VIEW 轨执行器（set-query/search/reset/refresh/sort/open-create/set-value 弹窗表单/validate/submit/delete-rows/read-table/get-state/expect + buildViewManifest）；PageRendererPage 注册 PAGE 轨执行器（set-filter/refresh/set-value/open-create/submit/get-values/delete-rows/read-table/open-container/close-container/get-state/expect + buildPageManifest 按 dataSourceId 聚合能力表）；FormRenderer 增加 setFormData（字段白名单过滤）；PageDataForm 增加 setValue/setValues/submit/getValues；AiConfigPage 作 L2 示范注册（set-value/click save-test/get-state/expect）
+- E2E 排障：①PageRendererPage onUnmounted(unregister) TDZ 引用错误致页面崩溃 → 调整声明顺序 ②PageControlTool schema 中 value 写成字符串 "any" 被 GLM 网关 400 拒绝（API 1210）→ 改为标准 object schema ③ChatContext.pageManifest 用 JsonNode 字段在本项目 ObjectMapper 下反序列化异常（Type definition error→前端侧表现为 401）→ 改 String 传输 + readTree 解析 ④L3 parseDomTarget 被无条件调用导致 get-state/expect 误报 → 移入 click/fill 分支
+- E2E 全绿（agent-browser）：L1 读表格（AI 回显真实行数据 admin/事假/1 天）、L2 模型配置改模型名保存+改回、L3 用户管理页 get-state 读回 5 个输入框 + fill admin + click 查询（错误反馈引导 LLM 自纠正 #ai-N）、多步链式（refresh→read-table 一次指令两动作）、停靠模式（body 让位 380px）、用例录制→回放→报告「全部通过 601ms」；控制台无 JS 错误；截图 backups/ai-page-action-e2e.png
+- 类型检查：本特性全部文件 0 错误（vue-tsc 56 个预存错误均非本次改动文件）；后端 mvn package 通过
+
+Stage Summary:
+- 全量方案六层能力全部落地：L1 结构化动作（VIEW/PAGE 双轨）+ L2 页面注册层（含示范页）+ L3 DOM 兜底 + get_state 回读 + 多步循环（≤6 轮防死循环）+ 危险动作确认 + 目标高亮 + 执行时浮窗自动收起 + 侧边栏停靠 + 测试用例录制/回放/AI 生成（[TESTGEN] 协议）
+- 设计者产出的新页面自动获得 AI 可操作性（动作层在运行时）；关键教训：GLM 网关对工具 schema 严格校验（属性值必须是 schema 对象）；本项目 record 内 JsonNode 字段反序列化异常，跨端结构化数据走 String
+- 遗留观察：L1 高亮目前 best-effort（VIEW 轨闪烁查询卡，组件级高亮需组件 expose $el）；L3 el-select 填值仅基础实现；L2 注册层其余管理页可按 AiConfigPage 模式增量铺开
+
+---
+Task ID: ai-l2-userrole-impl
+Agent: main
+Task: 用户确认「全量落地」后主会话收尾：L2 注册层铺开用户/角色管理页 + 竞态修复 + E2E 复验
+
+Work Log:
+- 现状盘点：webDevReview 巡检（454626）已在 5124072d 完成主体六层实现（后端 PageControlTool/pageManifest/SSE page_action 帧 + 前端三层执行器/多步循环/停靠/测试录制回放），jar 已含新功能且运行中；本轮补其遗留缺口
+- SearchTable.vue：defineExpose 扩展 resetQuery/getQuery/dialogState/setFormField/getFormValues/validateForm/submitDialog（弹窗 FormRenderer 驱动能力，惠及全部 SearchTable 系页面）；setQuery/handleReset 改为返回 fetchList() 的 Promise
+- UserPage/RolePage：registerPageActions 注册 L2 执行器（manifest=searchFields/columns/formFields/buttons；handlers=set-query/search/reset/open-create/open-edit/set-value/submit/get-state/read-table/expect；RolePage 额外 assign-menu/check-menu/submit-menu 菜单树勾选）
+- 【竞态缺陷修复】L2 set-query/search 未 await 异步 fetchList，read-table 读到过滤前旧列表（E2E 实际踩中：过滤后应 1 条却报 2 条）→ setQuery/handleReset 返回 Promise + 处理器全部 await；L1 轨道本有 waitForRows() 无此问题
+- 【笔误回滚】RolePage 编辑误删分配菜单弹窗模板，当即恢复
+- 【类型核对】FormRenderer.validate() 返回 true=通过（初版判断写反已修）；vue-tsc 本次改动文件 0 新增错误（SearchTable 2 错误为预存基线）
+- E2E（agent-browser）：用户页 set-query✓/search✓/read-table✗(未注册时错误反馈引导 LLM 自纠正改 get-state✓)→正确答出第一行昵称；角色页修复后 set-query✓/search✓/read-table✓ 全绿，答案 1 条 ROLE_ADMIN 与后端直连 API 一致；三页循环 console 零错误（仅预存 ElOption 警告）；截图 backups/ai-l2-userrole-e2e.png
+- 提交 d16d5593 已推送（0 jar 核验）
+
+Stage Summary:
+- L2 注册层三页落地（模型配置示范 + 用户 + 角色），「代替人工操作系统页」高频场景打通：查询/筛选/开弹窗/填表/提交/读表/断言全链可用
+- 关键教训：ref 转发的异步方法必须返回 Promise 供编排方 await，否则多步动作链存在读旧态竞态
+- cron 收尾：删除暂停标记 + webDevReview 重建（继续 L2 余下管理页铺开：菜单/组织/字典/岗位）
+
+---
+Task ID: cron-446961-r30
+Agent: main
+Task: 轻量运维巡检 r30（05:05 +08）——环境重供给事故恢复
+
+Work Log:
+- 04:05 与 05:05 两轮合并执行；dump-db 报「workflow dump 无效」，四链路 200 但 8080 真伪核验假绿（{"code":500,"msg":"no such table: SYS_USER"}），且 Java 进程消失、mariadbd 为重建空壳 → 判定环境已被重供给
+- 执行 recover-dplus.sh（10 分钟超时截断但已完成关键步骤）：MariaDB 重建、jar 缺失但 backend/target 存量 jar 可用、Java 拉起，t+80s 真绿；但 workflow 库为 Flyway 空壳（warn：无可用 dump）
+- 【数据丢失排查】backups/ 在 .gitignore（第 64 行）中，r28 快照 264K/128K 及 19:05/18:08 等 dump 随重供给全部丢失，git 树中仅有删除记录
+- 【数据找回】git 历史 3ad4ea0b（backup: db dump 20261012-061423）树内含强制添加的 db-workflow-full-20261012-061423.sql（261,545B）+ db-workflow_v6-20261012-061423.sql（130,215B）→ git show 还原后经 mariadb 客户端导入（需 LD_LIBRARY_PATH=$MDB/sysroot/usr/lib/x86_64-linux-gnu:$MDB/root/usr/lib/x86_64-linux-gnu，直接调用报 libncurses.so.6 缺失）
+- 导入成功：SYS_USER=2 行，数据回灌完成；收口 dump-db OK 20261012-211904 workflow=260K v6=128K（与事故前 264K/128K 量级一致，仅丢 06:14 UTC 后增量）
+- 复探：四链路 200×4，真绿（accessToken），内存 3.28G，oom 0
+
+Stage Summary:
+- 事故：环境重供给 → Java 进程丢失 + MariaDB 数据清空 + backups/ 磁盘 dump 全失（gitignore 盲区）
+- 恢复：recover-dplus.sh 重建链路 + git blob 历史找回 061423 数据快照回灌，终态真绿，数据量恢复至事故前水平
+- 教训：①backups/ 被 .gitignore 忽略导致 dump 不入 git，重供给即全失——建议 dump-db.sh 改为 git add -f 强制入库（保留最近 N 份）②recover-dplus.sh 的「无可用 dump」告警是数据丢失的关键前兆，应触发告警而非仅 warn
+
+---
+Task ID: manual-record-narrate
+Agent: main
+Task: 用户需求——录制用户手动操作（传统 UI 操作）并通过 LLM 转成中文测试用例
+
+Work Log:
+- 需求分析：原录制器仅捕获 AI 对话执行的 page_action；手动点击/输入/下拉完全不落账。方案：document 捕获阶段 DOM 事件监听 → 反向映射 page_action 协议 → 复用现有录制/回放管线 + 新增 LLM 中文转写端点
+- 前端新增 aiManualRecorder.ts：click/change/input 三事件捕获；el-select 展开记忆→选项点击转 set-value；switch 延迟读态；页签/分页语义化；按钮文本关键词映射语义 op（查询→search 等）；label→field 经 getActiveManifest 映射（兼容 L1 queryFields 与 L2 searchFields 键名，命中产 set-query/set-value 结构化动作，未命中产 fill 通用动作）；密码掩码 ******；输入防抖 700ms + 同动作 900ms 去重；排除 .ai-assistant-root/.el-message-box 等系统 UI；路由变化记 navigate；pause/resume 防回放二次录入
+- L3 执行器增强：resolveDomTarget 支持 #ai-N 之外的语义标签定位（按钮按 text/aria-label/title，输入控件按 labelOf），手动录制用例在无执行器页面也可回放
+- 后端新增 TestCaseNarrateService/Controller：POST /api/v1/ai/testcase/narrate，动作序列+页面路由 → LLM（json_object 模式，温度 0.2，词典式 system prompt）→ 严格 JSON {title,summary,steps[{text,expect}]}；```json 围栏剥离容错
+- AiTestPanel：录制开关同开同关手动捕获；来源标记 ai/manual/mixed 徽标；菜单新增「AI 转中文用例/查看中文用例」（弹窗展示摘要+步骤+预期，复制文本）；LLM 标题自动同步用例名
+- 【缺陷修复】SearchTable 图标按钮（查询/重置/导出）无文本导致点击不落账 → 补 aria-label+title（兼修无障碍）；捕获器与 L3 定位同步支持 aria-label/title
+- 【缺陷修复】mapFieldByManifest 类型自引用 never → 提取 ManifestWithSearch 命名类型
+- E2E（agent-browser）：用户管理页录制→手动输入 test+点查询→捕获 set-query:username=test + search:查询（src=manual 徽标）→AI 转写生成「按用户名查询用户列表」（摘要+2 步+预期）→回放 2/2 通过 91ms；控制台零错误
+- 构建：vue-tsc 本次文件 0 错误（SearchTable 2 错误为预存基线）；mvn 离线打包通过；Java 重启真绿（教训：nohup 日志路径必须用 /home/z/tools/，logs/ 目录不存在会导致启动静默失败）
+- 提交 1ffbebc2
+
+Stage Summary:
+- 录制器升级为「AI 动作 + 手动操作」双通道统一录制，同一用例可混合两种来源；手动动作经清单映射后可精确回放（L1/L2），无清单页面走 L3 语义标签兜底
+- LLM 中文转写让用例具备业务可读性（非技术人员可评审），且标题回写用例列表
+- 遗留：range 日期选择器捕获为原始字符串（L1 dateRange 需数组，回放可能失败）；el-cascader 等复杂控件暂未特化
+
+---
+Task ID: ai-case-manage-fix
+Agent: main
+Task: 用户反馈①「录制的用例应该管理：查看用例详细信息、删除用例」②「AI生成用例点击没有反应」——全量修复（用户确认全量不打折）
+
+Work Log:
+- 根因定位（AI 生成无反应 = 4 缺陷叠加）：①生成在后台 converse 跑，反馈全写「对话」页签，用户停在「用例」页签零感知，按钮无 loading 态 ②tryCaptureTestCases 要求回复以 `[` 开头，LLM 带 ```json 围栏/说明文字即解析失败且无提示 ③捕获成功后 AiTestPanel 不刷新（仅 mounted 读一次） ④无 manifest 页面无前置拦截
+- aiTestRecorder：新增 changeListeners 订阅机制（stop/add/remove/rename/saveNarrative/clearAll/importAll 全部 notifyChange + subscribe() 返回退订函数）+ clearAll()
+- AiTestPanel 重写：①详情弹窗（元信息来源/步骤/页面/创建时间 + 中文用例区 + 动作序列明细：op 中文语义映射 18 种 + target/field/value/params）②删除/清空均 ElMessageBox.confirm ③来源筛选 chips（全部/手动/AI/混合）带计数 ④时间格式化（MM-DD HH:mm）⑤generating prop 驱动按钮 loading + 生成中 tip 条 ⑥onMounted 订阅 recorder.subscribe 自动刷新 ⑦点用例行即开详情 ⑧复制文本输出中文用例+动作序列
+- AiAssistantOrb 修复：①onGenerateCases 前置 getActiveManifest 校验（null 时 ElMessage.warning 引导去业务页）②生成全程反馈（开始 info → 成功 success「已生成 N 条」→ 失败 warning 附最后一条助手消息摘要）③extractCasesJson 三级容错：剥 ```json 围栏 → 直接 parse（含 {cases:[...]} 包装）→ 截取首个[到末个]子串 ④捕获成功自动切用例页签 ⑤sending 状态传 prop
+- 后端 AiAgentService TESTGEN 提示词强化：只输出 JSON 数组本身，禁止 Markdown 围栏、禁止前后解释文字；mvn 离线打包 + start-services.sh 重启（15s 就绪）
+- 【编译事故】el-dialog 内 `<template #footer>` 嵌套在 `<template v-if>` 中触发 Vue 编译器「Codegen node is missing for element/if/for node」整页白屏 → 重构：v-if 移到普通 div（.atp-detail-body），footer 槽保持 el-dialog 直接子级
+- E2E（agent-browser）十项全绿：AI 生成 5 条语义化用例（正常查询/组织筛选/重置/必填校验/完整新增流程）自动入列表；详情弹窗元信息+动作序列（「1 打开新增」「2 表单赋值 username 值：newuser」）；删除确认 5→4；清空确认 4→0；dashboard L3 兜底生成 3 条 KPI/流程用例；手动录制 set-query(username=test)+search(查询) 捕获→保存→自动刷新→手动徽标；筛选计数「手动1/AI0/混合0」；手动详情 op 中文映射；手动用例回放 2/2 通过 137ms；刷新后 console 零错误
+- 类型检查：改动文件 0 错误；提交 93978dab
+
+Stage Summary:
+- 用例管理闭环补全：查看详情（动作级透明）/删除/清空（均带确认）/来源筛选/自动刷新/复制分享——「录制→管理→回放→转写」全生命周期可用
+- AI 生成用例从「点击无反应」修复为全流程强反馈（前置拦截/进行中提示/成功/失败均有感知），解析容错覆盖 LLM 输出形态不确定性
+- 教训：el-dialog 的具名插槽 template 不可嵌套在 v-if template 内（Vue 编译器限制）；LLM JSON 输出必须做围栏/前后缀容错；UI 列表依赖跨组件变更时用观察者订阅而非单次读取
+
+---
+Task ID: cron-446961-r34
+Agent: main
+Task: 轻量运维巡检 r34（10:05 +08）
+
+Work Log:
+- dump-db OK（workflow=260K v6=128K，含 0137 用例管理修复轮快照）
+- 四链路 200×4；真伪核验 accessToken 真绿
+- vite 单实例 RSS 514MB / Java 468MB 正常；mem 1.79GB；no postcss
+- oom_kill=3（非零但无新增迹象，本轮无 kill 事件，备案观察）
+
+Stage Summary:
+- r34 全绿无干预；oom_kill 基线自 r30 重供给后清零，现值 3 为供给以来累计（含 r33 前 vite 秒死事件），未再上涨
+
+---
+Task ID: cron-446961-r36
+Agent: main
+Task: 轻量运维巡检 r36（12:05 +08）——git 推送链路修复 + dump 补录
+
+Work Log:
+- dump-db 报 push FAILED：四链路 200×4 真绿不受影响，但数据防护链断裂，排查修复
+- 根因一（本地落后）：环境重供给后 .git/config 丢失 upstream，且远端已有其他会话推送的提交（b51d8bb9 等 5 个），本地 push rejected fetch-first
+- 根因二（新 dump 不入库）：dump-db.sh 用 `git add -A backups/`，backups/ 在 .gitignore——已 tracked 旧文件可更新提交，**新时间戳 dump（untracked+ignored）永远不被 add**，20261013-043553 两份 dump 仅存磁盘
+- 修复（运维操作不改代码）：git add -f 补录 043553 dump（提交 7c81d770）→ fetch → rebase origin/main（无冲突）→ push --set-upstream origin main 成功（b51d8bb9..7c81d770）
+- 内存巡检：vite 单实例 520MB / Java 439MB / mariadbd 121MB / mem 1.28GB 健康；no postcss
+- 【观察】oom_kill 4→1 计数回落（非重供给——四链路真绿+数据量 260K/128K 与上轮一致），疑 cgroup 统计重建，下轮继续观察
+
+Stage Summary:
+- 数据防护链修复：upstream 建立后后续轮次 push 恢复正常；043553 快照已推远端
+- 【遗留建议·需授权改代码】dump-db.sh 第 48 行 `git add -A backups/` 应改 `git add -f backups/*.sql`（或 gitignore 放行 backups/*.sql），否则每轮新 dump 都不入库，防护链名存实亡——r30 已提过此建议，本轮实锤其影响
+
+---
+Task ID: ai-orb-occlusion-fix
+Agent: main
+Task: 用户报障「AI助手窗口打开时会影响被操作的页面，致使页面数据填完了才显示」——遮挡问题全量修复
+
+Work Log:
+- 排查：longtask PerformanceObserver 实测四场景（窗口开/关空闲 3s、真实键入 10 字符、AI 流式回复期间键入）全部零 longtask；manifest 缓存与录制器防抖链路复查无每键重活——排除性能/渲染阻塞，定性为**视觉遮挡**（float 窗口挡住页面右侧数据区，数据已填入但被遮住，挪开才"显示"）
+- 修复①：float 窗口打开时点击 AI 窗口外页面区域自动收起成球（document capture click；排除 .ai-assistant-root 与 Element Plus 浮层 el-overlay/el-popper/el-message-box/el-dialog/el-drawer/el-select-dropdown/el-date-picker 等交互中场景；钉住/停靠/执行中豁免）
+- 修复②：header 新增图钉按钮（pinned 存 store），钉住后点击页面不收起——照顾「边看 AI 回复边操作」习惯
+- 修复③：收起状态下 AI 新回复 → 球上红色未读徽标（pop 动画，9+ 截断，打开即清零；observation 占位不计）
+- 修复④：录制开始自动收起窗口（store.requestCollapse 信号）+ 球上「REC」红标闪烁——收起后仍能看到录制状态
+- 【补缺陷】aiTestRecorder.start()/stop() 原不触发订阅通知 → REC 标识不刷新；start/stop 纳入 notifyChange 后全周期正常
+- E2E（agent-browser）全绿：点页面即收起 / 钉住豁免+取消后恢复收起 / 发消息后立即收起→回复到达球显徽标「1」→打开清零可见回复 / 录制开始收起+REC→重开仍在→停止消失；console 零错误；类型检查 0 新增；提交 118e7591；截图 backups/ai-orb-collapse-unread.png
+
+Stage Summary:
+- 遮挡让位交互闭环：点页面收起 → 操作不受挡 → AI 回完球上红点提示 → 点球回来继续；钉住满足双栏并行需求
+- 与既有「执行动作自动收起」「dock 停靠模式」形成三层让位体系
+
+---
+Task ID: cron-446961-r37
+Agent: main
+Task: 轻量运维巡检 r37（13:05 +08）
+
+Work Log:
+- dump-db OK（050513）且 push 正常（r36 修复 upstream 后恢复）；四链路 200×4；真伪核验真绿
+- vite 单实例 / Java 439MB 级正常驻留；no postcss；mem 与 oom 见摘要
+
+Stage Summary:
+- r37 全绿无干预；r36 的 git 推送修复持续生效（dump 自动入库推远端）
+- 【补充备案】oom_kill 1→4（+3）：本轮 vite/Java/chrome 均存活正常，mem 1.82GB 未触 3.5GB 阈值；被杀对象疑为临时短进程（无法从 oom_control 定位具体 pid）；r35→r36 曾 4→1（统计重建），本轮回升至 4——绝对值低且核心进程零影响，维持观察不动手

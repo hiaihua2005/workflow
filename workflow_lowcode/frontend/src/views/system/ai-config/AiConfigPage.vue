@@ -175,12 +175,14 @@
 <script setup lang="ts">
 defineOptions({ name: 'AiConfigManagement' })
 
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { Cpu, Connection } from '@element-plus/icons-vue'
 import { getAiConfig, saveAiConfig, testAiConfig } from '@/api/aiConfig'
 import type { AiConfigVO, AiConfigTestResult } from '@/types/aiConfig'
+import { registerPageActions } from '@/utils/aiPageExecutor'
+import { useRoute } from 'vue-router'
 
 const MODEL_PRESETS = ['glm-4-plus', 'deepseek-chat', 'qwen-max', 'moonshot-v1-32k', 'gpt-4o-mini']
 
@@ -308,4 +310,58 @@ async function onTest() {
 }
 
 onMounted(load)
+
+// ==================== AI 页面操作（L2 注册层示例：语义动作 + 组件清单） ====================
+const aiRoute = useRoute()
+const unregisterAi = registerPageActions({
+  routePath: aiRoute.path,
+  pageType: 'admin',
+  manifest: () => ({
+    pageType: 'admin',
+    title: '模型配置',
+    formFields: [
+      { field: 'enabled', title: '启用', type: 'switch' },
+      { field: 'baseUrl', title: '端点地址', type: 'input', required: true },
+      { field: 'apiKey', title: 'API Key', type: 'password', note: '留空保持不变' },
+      { field: 'model', title: '模型名称', type: 'input', required: true, options: MODEL_PRESETS },
+      { field: 'temperature', title: '温度', type: 'number' },
+      { field: 'maxTokens', title: '最大 Token', type: 'number' },
+    ],
+    buttons: ['save', 'test'],
+    layer: 'L2',
+  }),
+  handlers: {
+    'set-value': (a) => {
+      const f = a.field ?? a.target ?? ''
+      if (!(f in form)) return { ok: false, error: `字段不存在「${f}」（可用：enabled/baseUrl/apiKey/model/temperature/maxTokens）` }
+      ;(form as unknown as Record<string, unknown>)[f] = a.value
+      return { ok: true, data: `${f}=${JSON.stringify(a.value)}` }
+    },
+    click: (a) => {
+      if (a.target === 'save' || a.target === '保存') return onSave().then(() => ({ ok: true, data: '已保存' }))
+      if (a.target === 'test' || a.target === '测试') return onTest().then(() => ({ ok: true, data: '连通性测试完成' }))
+      return { ok: false, error: '可用按钮：save/test' }
+    },
+    'get-state': () => ({
+      ok: true,
+      data: {
+        form: { ...form, apiKey: form.apiKey ? '***' : '' },
+        source: vo.value?.source,
+        hasApiKey: vo.value?.hasApiKey,
+        test: testResult.value,
+      },
+    }),
+    expect: (a) => {
+      const p = (a.params ?? {}) as { type?: string; expected?: unknown; comparator?: string }
+      const actual = p.type === 'value' ? (form as unknown as Record<string, unknown>)[a.field ?? a.target ?? ''] : vo.value?.model
+      const pass = p.comparator === 'contains'
+        ? String(actual ?? '').includes(String(p.expected ?? ''))
+        : String(actual ?? '') === String(p.expected ?? '')
+      return pass
+        ? { ok: true, data: { actual, expected: p.expected, pass } }
+        : { ok: false, data: { actual, expected: p.expected, pass }, error: `断言失败：actual=${JSON.stringify(actual)}` }
+    },
+  },
+})
+onUnmounted(unregisterAi)
 </script>

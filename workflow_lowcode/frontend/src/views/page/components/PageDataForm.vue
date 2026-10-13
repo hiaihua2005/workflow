@@ -295,6 +295,14 @@ defineExpose({
   load,
   /** 同 load()（语义别名，供动作链 refresh 场景） */
   reload: () => load(),
+  /** AI 页面操作：表单赋值（合并写入，仅已定义字段） */
+  setValue: (field: string, value: unknown) => formRef.value?.setFormData({ [field]: value }),
+  /** AI 页面操作：批量赋值 */
+  setValues: (partial: Record<string, unknown>) => formRef.value?.setFormData(partial),
+  /** AI 页面操作：触发提交（等价点击提交按钮，含校验） */
+  submit: () => handleSubmit(),
+  /** AI 页面操作：读取当前表单值 */
+  getValues: () => (formRef.value ? { ...formRef.value.getFormData() } : { ...initialValues.value }),
 })
 </script>
 
