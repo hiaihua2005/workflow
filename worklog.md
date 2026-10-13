@@ -7587,3 +7587,20 @@ Work Log:
 
 Stage Summary:
 - r34 全绿无干预；oom_kill 基线自 r30 重供给后清零，现值 3 为供给以来累计（含 r33 前 vite 秒死事件），未再上涨
+
+---
+Task ID: cron-446961-r36
+Agent: main
+Task: 轻量运维巡检 r36（12:05 +08）——git 推送链路修复 + dump 补录
+
+Work Log:
+- dump-db 报 push FAILED：四链路 200×4 真绿不受影响，但数据防护链断裂，排查修复
+- 根因一（本地落后）：环境重供给后 .git/config 丢失 upstream，且远端已有其他会话推送的提交（b51d8bb9 等 5 个），本地 push rejected fetch-first
+- 根因二（新 dump 不入库）：dump-db.sh 用 `git add -A backups/`，backups/ 在 .gitignore——已 tracked 旧文件可更新提交，**新时间戳 dump（untracked+ignored）永远不被 add**，20261013-043553 两份 dump 仅存磁盘
+- 修复（运维操作不改代码）：git add -f 补录 043553 dump（提交 7c81d770）→ fetch → rebase origin/main（无冲突）→ push --set-upstream origin main 成功（b51d8bb9..7c81d770）
+- 内存巡检：vite 单实例 520MB / Java 439MB / mariadbd 121MB / mem 1.28GB 健康；no postcss
+- 【观察】oom_kill 4→1 计数回落（非重供给——四链路真绿+数据量 260K/128K 与上轮一致），疑 cgroup 统计重建，下轮继续观察
+
+Stage Summary:
+- 数据防护链修复：upstream 建立后后续轮次 push 恢复正常；043553 快照已推远端
+- 【遗留建议·需授权改代码】dump-db.sh 第 48 行 `git add -A backups/` 应改 `git add -f backups/*.sql`（或 gitignore 放行 backups/*.sql），否则每轮新 dump 都不入库，防护链名存实亡——r30 已提过此建议，本轮实锤其影响
