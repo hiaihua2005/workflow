@@ -36,6 +36,8 @@ export interface AiComponentMeta {
 interface RegisteredComponent {
   meta: AiComponentMeta
   instance: Record<string, any>
+  /** 动态清单：注册时元数据未就绪（页面异步加载），describePage 时再求值。 */
+  getMeta?: () => AiComponentMeta | null
 }
 
 const components = new Map<string, RegisteredComponent>()
@@ -52,6 +54,21 @@ export function registerAiComponent(meta: AiComponentMeta, instance: Record<stri
   }
 }
 
+/**
+ * 注册动态清单组件：元数据由 getMeta 在每次 describePage 时求值
+ * （返回 null 表示本轮未就绪，跳过）。适用于页面数据异步就绪后才可描述的场景。
+ */
+export function registerDynamicComponent(
+  getMeta: () => AiComponentMeta | null,
+  instance: Record<string, any> = {},
+): () => void {
+  const key = `__dyn_${Date.now()}_${Math.floor(Math.random() * 1e6)}`
+  components.set(key, { meta: null as unknown as AiComponentMeta, instance, getMeta })
+  return () => {
+    components.delete(key)
+  }
+}
+
 export function unregisterAiComponent(id: string): void {
   components.delete(id)
 }
@@ -61,9 +78,27 @@ function detectCapabilities(instance: Record<string, any>, candidates: string[])
   return candidates.filter((c) => typeof instance[c] === 'function')
 }
 
+/** L2 页面分发钩子（由 aiPageExecutor 适配器注入；返回 null 表示 componentId 非 L2 页面）。 */
+let l2Dispatcher: ((componentId: string, args: Record<string, any>) => Promise<ActionResult | null>) | null = null
+
+export function setL2PageDispatcher(
+  fn: (componentId: string, args: Record<string, any>) => Promise<ActionResult | null>,
+): void {
+  l2Dispatcher = fn
+}
+
 /** 当前页面可操作组件清单（随对话上下文上报给 LLM）。 */
 export function describePage(): { components: AiComponentMeta[] } {
-  return { components: [...components.values()].map((c) => ({ ...c.meta })) }
+  const out: AiComponentMeta[] = []
+  for (const entry of components.values()) {
+    try {
+      const meta = entry.getMeta ? entry.getMeta() : entry.meta
+      if (meta) out.push({ ...meta })
+    } catch {
+      /* 动态清单求值失败（页面未就绪）→ 本轮跳过 */
+    }
+  }
+  return { components: out }
 }
 
 // ==================== 结构化动作执行（page_action） ====================
@@ -102,6 +137,12 @@ export async function executePageAction(
 ): Promise<ActionResult> {
   const action = String(args?.action ?? '')
   const componentId = String(args?.componentId ?? '')
+
+  // L2 页面分发钩子优先：注册层页面（用户/角色/模型配置/搭建页等）的动作字典
+  if (l2Dispatcher) {
+    const l2 = await l2Dispatcher(componentId, args)
+    if (l2) return l2
+  }
 
   if (action === 'navigate') {
     const path = String(args?.path ?? '')
