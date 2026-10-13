@@ -7758,3 +7758,20 @@ Stage Summary:
 - r45+r46 = 三次重供给深度恢复成功：服务全绿、双库数据完整、双 dump 入库远端、origin 构建可用性修复
 - 【origin 质量风险】平行会话推进快但引入三类启动炸弹（Bean 冲突/迁移重号/已应用迁移改写）；建议其后续：PostController 类改名或包内唯一、新迁移用未占用版本号（V54+）、禁止改写已应用迁移（应新增 Vxx 修正迁移）
 - 【脚本修复授权申请持续】①dump-db.sh 第 48 行改 git add -f backups/*.sql（本轮 r44/r45-46 已两轮手动 add -f 补救）；②recover-dplus.sh 加 flock 并发锁（防 r44/r46 竞态重演）
+
+---
+Task ID: cron-446961-r47
+Agent: main (cron 轻量运维)
+Task: 轻量运维巡检 r47（23:05 +08）——第四次重供给恢复
+
+Work Log:
+- 23:05 探活：mariadb 不在线（dump 跳过）+ auth 假绿 + Java 消失 + 新出现 bun 进程 + oom 归零 → 判定第四次重供给
+- 检测到 1 套 recover + 2 套 start-services 并发（竞态风险）→ 全部击杀，单路径 recover-dplus.sh 恢复
+- 恢复耗时 >10min（重供给清空了 mariadb 二进制，recover 重新 apt 下载 16.1MB debs + install-db + 导入），前台超时但后台完成：Java PID 1521 真绿 accessToken
+- 终验：200×4 真绿；dump 151633 双库完整（260K/128K）；内存 3.37GB（启动瞬时，稳态回落中）；oom 0
+- dump 盲区 E 再现（151633 未自动入库）→ 手动 add -f 补录推送（55c34e5a，ls-tree 验证 2 份在远端）
+- r46 的 origin 构建修复（7f176af0）经受住本次考验：本次 recover 未再触发 Bean 冲突/Flyway 错误（jar 复用 target/ 现成品，即使重供给后重建也能过）
+
+Stage Summary:
+- r47 全绿：四次重供给恢复成功，冷启动恢复耗时约 12 分钟（deb 重下载为主因）
+- 【脚本修复授权申请（第四次）】①dump-db.sh 第 48 行 git add -f（本轮又手动补救）；②recover-dplus.sh 加 flock 锁；③建议 recover 优先复用 target/ 现成 jar（重供给时 deb 重下载可跳过 mariadb 二进制备份进 my-project 持久区以加速）
