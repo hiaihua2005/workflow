@@ -12,7 +12,7 @@
  *
  * 配色规则：全部走语义变量，随「青墨/经典 × 明暗」四态自动切换 ——
  *   · 主色/激活   : var(--el-color-primary)（每态已由 style.css 重定义）
- *   · 表面/文字/边: var(--el-bg-color)/--el-fill-color-*/--el-text-color-*/--el-border-color*
+ *   · 表面/文字/边: var(--el-bg-color)、--el-fill-color 系列、--el-text-color 系列、--el-border-color 系列
  *   · 品牌洗底    : color-mix(in srgb, var(--el-color-primary) N%, transparent)
  * ============================================================ */
 

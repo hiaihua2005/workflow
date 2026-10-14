@@ -202,6 +202,13 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '逻辑编排' }
       },
       {
+        // 模块管理：导出/导入模块包
+        path: 'module',
+        name: 'ModuleManagement',
+        component: () => import('@/views/module/ModuleListPage.vue'),
+        meta: { title: '模块管理' }
+      },
+      {
         path: '404',
         name: 'NotFound',
         component: () => import('@/views/error/NotFoundPage.vue'),

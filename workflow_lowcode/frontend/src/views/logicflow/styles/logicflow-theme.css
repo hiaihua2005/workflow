@@ -2,8 +2,8 @@
  * 逻辑流设计器主题（四态自适应）
  * 配色规则与 designer-theme.css 一致：全部走语义变量 ——
  *   · 主色/激活 : var(--el-color-primary)（青瓷，明暗双态由 style.css 重定义）
- *   · 表面/文字 : var(--el-bg-color)/--el-fill-color-*/--el-text-color-*
- *   · 类型色    : --lf-*（EP 语义色派生，color-mix 洗底）
+ *   · 表面/文字 : var(--el-bg-color)、--el-fill-color 系列、--el-text-color 系列
+ *   · 类型色    : --lf- 前缀变量（EP 语义色派生，color-mix 洗底）
  * ============================================================ */
 
 /* ===== 画布容器 ===== */
@@ -16,7 +16,7 @@
  * 节点类型色（青瓷/墨绿/橙/琥珀/中性）。
  * 注意：这些变量与画布容器合并声明 —— 实测仅含 custom property 的
  * 独立 .logic-flow-designer 规则偶发被解析丢弃（文本在 style 标签中、
- * CSSOM 缺失），导致 var(--lf-*) 引用链断裂 → stroke 变 initial(none)，
+ * CSSOM 缺失），导致 var(--lf-…) 引用链断裂 → stroke 变 initial(none)，
  * 循环虚线整体不可见（故障：patrol 会话用户反馈「循环虚线看不到」）。
  * 画布内元素（节点/边/marker）全在 .logic-flow-canvas 子树内，此规则
  * 稳定存在；下方 .logic-flow-designer 规则保留作面板侧双保险。
