@@ -7790,3 +7790,20 @@ Work Log:
 Stage Summary:
 - r48 环境第 5 次重供给，recover-dplus.sh 自动恢复成功（mvn 重建路径，约 9 分钟）；mvn repackage 曾报 "zip file is empty" 但最终 jar 可用、真绿
 - 遗留风险：backups/jar 仍为空，每次重供给都需 ~8 分钟 mvn 重建；建议后续将构建产物纳入持久备份（沿用 r47 脚本修复授权申请）
+
+---
+Task ID: r51-cron-202610141205
+Agent: main (cron ops)
+Task: 轻量巡检 r51（覆盖 11:05/12:05 两轮）
+
+Work Log:
+- 初探：a-d=200 但真伪核验=假绿（no such table: SYS_USER）→ 环境第 8 次重供给；dump-db 报 "workflow dump 无效"（重建中 DB 半就绪）
+- 发现冷启动钩子已自动触发 recover-dplus.sh（mvn 构建中），未并发重复拉起，轮询等待
+- 3 次轮询（~75s）后 8080 真绿；复核 a/b/c/d=200×4
+- 内存：恢复前 3.52GB（vite=713MB/mvn=172MB），恢复后 3.45GB（vite=674MB/java=457MB），oom_kill=0，postcss 无残留
+- dump-db 再遇 git push FAILED（远端仍领先同 2 提交，判断为重供给回滚了本地 repo 的 r50 pull）；ff-only pull 后重跑 dump-db OK，推送恢复
+
+Stage Summary:
+- r51 冷启动已自动恢复（后台 recover 全链路，mvn 增量构建明显快于前两轮）
+- git 备份链路两次被重供给回滚，均为 ff-only pull 修复；远端合并提交 50da4547 已收录全部 cron 备份提交
+- 本轮 mvn 构建耗时缩短（maven 缓存可能已持久化），jar 备份固化建议仍然有效
