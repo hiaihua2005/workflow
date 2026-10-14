@@ -107,6 +107,10 @@ class TaskCommentWriteTest {
         @Mock TenantProvider tenantProvider;
         @Mock WfTaskCommentRepository commentRepository;
         @Mock VariableMappingWriter variableMappingWriter;
+        @Mock com.workflow.engine.process.config.NodeOptionsService nodeOptionsService;
+        @Mock com.workflow.engine.process.repository.NodeConfigRepository nodeConfigRepository;
+        @Mock HistoryService historyService;
+        @Mock com.workflow.engine.logicflow.service.LogicFlowApprovalTrigger logicFlowApprovalTrigger;
 
         @InjectMocks RejectService rejectService;
 
@@ -124,6 +128,12 @@ class TaskCommentWriteTest {
             when(query.singleResult()).thenReturn(task);
 
             when(initiatorNodeResolver.resolve("pd-001")).thenReturn("initiatorTask");
+
+            // 无节点级/流程级配置 → 默认策略（退回门禁全开、意见非必填）
+            lenient().when(nodeOptionsService.find(anyString(), anyString()))
+                    .thenReturn(java.util.Optional.empty());
+            lenient().when(nodeConfigRepository.findByProcessDefinitionId(anyString()))
+                    .thenReturn(java.util.List.of());
 
             ChangeActivityStateBuilder builder = mock(ChangeActivityStateBuilder.class);
             when(runtimeService.createChangeActivityStateBuilder()).thenReturn(builder);

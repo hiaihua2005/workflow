@@ -169,8 +169,11 @@ function CustomContextPadProvider(
     const isEndEvent = bo && bo.$instanceOf && bo.$instanceOf('bpmn:EndEvent')
     const isStartEvent = bo && bo.$instanceOf && bo.$instanceOf('bpmn:StartEvent')
     const isCompensation = bo && bo.isForCompensation
+    // 边界事件（附着在任务/子流程上）：语义是"触发后走分支"，
+    // 没有"追加节点"语义（从附着事件上 autoPlace 追加不可用），仅保留连线/删除
+    const isBoundaryEvent = bo && bo.$instanceOf && bo.$instanceOf('bpmn:BoundaryEvent')
 
-    if (isFlowNode && !isEndEvent && !isCompensation) {
+    if (isFlowNode && !isEndEvent && !isCompensation && !isBoundaryEvent) {
       // 开始节点：只允许追加发起节点（且全局唯一）
       if (isStartEvent) {
         if (!hasInitiatorNode()) {

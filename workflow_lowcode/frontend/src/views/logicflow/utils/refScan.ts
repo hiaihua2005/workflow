@@ -179,11 +179,34 @@ export function scanFlowReferences(
         // Groovy 绑定集静态不可知：盲区，不扫
         break
       case 'CONDITION': {
+        // 多条件形态（conditions 非空时优先，与引擎 ConditionEvaluator 语义一致）
+        const conditions = Array.isArray(cfg.conditions) ? cfg.conditions : []
+        if (conditions.length > 0) {
+          conditions.forEach((item: unknown, i: number) => {
+            const cond = (item ?? {}) as Record<string, unknown>
+            const itemOp = str(cond.operator).toUpperCase()
+            check.bare(str(cond.variable).replace(/^\{\{\s*|\s*\}\}$/g, ''), `条件 #${i + 1} 判断变量`)
+            if (itemOp !== 'EMPTY' && itemOp !== 'NOT_EMPTY') {
+              check.placeholders(str(cond.value), `条件 #${i + 1} 比较值`, { dottedAllowed: false })
+            }
+          })
+          break
+        }
         const op = str(cfg.operator).toUpperCase()
         check.bare(str(cfg.variable).replace(/^\{\{\s*|\s*\}\}$/g, ''), '判断变量')
         if (op !== 'EMPTY' && op !== 'NOT_EMPTY') {
           check.placeholders(str(cfg.value), '比较值', { dottedAllowed: false })
         }
+        break
+      }
+      case 'SWITCH': {
+        // 分支变量裸名 + 每个 case 匹配值占位符（支持 {{var}} 动态路由值）
+        check.bare(str(cfg.variable).replace(/^\{\{\s*|\s*\}\}$/g, ''), '分支变量')
+        const cases = Array.isArray(cfg.cases) ? cfg.cases : []
+        cases.forEach((c: unknown, i: number) => {
+          const item = (c ?? {}) as Record<string, unknown>
+          check.placeholders(str(item.value), `case #${i + 1} 匹配值`, { dottedAllowed: false })
+        })
         break
       }
       case 'BATCH': {

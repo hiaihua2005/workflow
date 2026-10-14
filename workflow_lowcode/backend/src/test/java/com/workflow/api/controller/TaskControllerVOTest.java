@@ -90,7 +90,7 @@ class TaskControllerVOTest {
 
         // When
         R<PageResponse<TaskTodoVO>> result = controller.listTodo(
-                "user1", 0, 20, "请假", "42", null, null);
+                "user1", 0, 20, "请假", "42", null, null, null);
 
         // Then
         assertThat(result.getCode()).isEqualTo(200);
@@ -112,7 +112,7 @@ class TaskControllerVOTest {
 
         // When
         controller.listTodo("user1", 0, 10, "请假流程", "42",
-                "2025-01-01T00:00:00", "2025-12-31T23:59:59");
+                "2025-01-01T00:00:00", "2025-12-31T23:59:59", null);
 
         // Then: verify filter params passed to service
         verify(taskService).listTodoTasksVO(eq("user1"), any(), argThat(filters ->

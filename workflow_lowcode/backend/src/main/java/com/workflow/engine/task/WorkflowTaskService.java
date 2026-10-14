@@ -178,11 +178,16 @@ public class WorkflowTaskService {
      */
     public Page<TaskTodoVO> listTodoTasksVO(String assignee, Pageable pageable, TaskTodoFilter filter) {
         String tenantId = tenantProvider.getTenantId();
+        boolean byPriority = filter != null && "priority".equals(filter.orderBy());
         var query = flowableTaskService.createTaskQuery()
                 .taskTenantId(tenantId)
-                .taskAssignee(assignee)
-                .orderByTaskCreateTime()
-                .desc();
+                .taskAssignee(assignee);
+        if (byPriority) {
+            // 优先级降序为主序，创建时间降序为次序
+            query.orderByTaskPriority().desc().orderByTaskCreateTime().desc();
+        } else {
+            query.orderByTaskCreateTime().desc();
+        }
 
         // createTime 范围过滤（Flowable 原生支持 taskCreatedAfter/Before）
         if (filter != null) {
@@ -328,6 +333,10 @@ public class WorkflowTaskService {
             vo.setAssignee(task.getAssignee());
             if (task.getCreateTime() != null) {
                 vo.setCreateTime(formatDate(task.getCreateTime()));
+            }
+            vo.setPriority(task.getPriority());
+            if (task.getDueDate() != null) {
+                vo.setDueDate(formatDate(task.getDueDate()));
             }
 
             ProcessInstance pi = piMap.get(task.getProcessInstanceId());
@@ -1177,10 +1186,22 @@ public class WorkflowTaskService {
             flowableTaskService.resolveTask(taskId);
         }
 
+        // 2b. 流程变量映射写入（complete **之前**）：表单数据已由前端提交落库，
+        // 网关条件（如排他网关 ${amount > 10000}）在本任务 complete 时同步求值，
+        // 若在 complete 后才写变量，退回重填/重新提交场景会用到旧值走错分支。
+        // complete 后保留一次兜底写入（variable:* 源在流转后可能有新值）。
+        try {
+            if (currentTask.getProcessDefinitionId() != null) {
+                variableMappingWriter.write(currentTask.getProcessDefinitionId(), processInstanceId);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to write variable mappings before complete task [{}]: {}", taskId, e.getMessage());
+        }
+
         // 3. 完成任务
         flowableTaskService.complete(taskId, variables);
 
-        // 3b. 流程变量映射写入（form:* 源需在任务数据流转后读取）
+        // 3b. 流程变量映射兜底写入（variable:* 源需在任务数据流转后读取）
         try {
             if (currentTask.getProcessDefinitionId() != null) {
                 variableMappingWriter.write(currentTask.getProcessDefinitionId(), processInstanceId);
@@ -1218,9 +1239,16 @@ public class WorkflowTaskService {
         String nextTaskDefinitionKey = null;
 
         if (!processFinished) {
+            // 并行场景（会签/或签 MI、并行网关）完成当前任务后可能同时产生多个任务，
+            // singleResult 会抛 "Query return 2 results"——取最早创建的一个作为“下一任务”
             Task nextTask = flowableTaskService.createTaskQuery()
                     .processInstanceId(processInstanceId)
-                    .singleResult();
+                    .orderByTaskCreateTime()
+                    .asc()
+                    .listPage(0, 1)
+                    .stream()
+                    .findFirst()
+                    .orElse(null);
 
             if (nextTask != null) {
                 nextTaskId = nextTask.getId();

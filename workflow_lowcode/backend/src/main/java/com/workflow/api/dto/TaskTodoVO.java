@@ -19,6 +19,10 @@ public class TaskTodoVO {
     private String assignee;
     private String createTime;
     private boolean reminded;
+    /** 任务优先级（0-100；建议档位 普通 50 / 重要 75 / 加急 100）。 */
+    private Integer priority;
+    /** 办理时限（dueDate，格式化字符串；未配置为 null）。 */
+    private String dueDate;
 
     public String getTaskId() { return taskId; }
     public void setTaskId(String taskId) { this.taskId = taskId; }
@@ -52,4 +56,10 @@ public class TaskTodoVO {
 
     public boolean isReminded() { return reminded; }
     public void setReminded(boolean reminded) { this.reminded = reminded; }
+
+    public Integer getPriority() { return priority; }
+    public void setPriority(Integer priority) { this.priority = priority; }
+
+    public String getDueDate() { return dueDate; }
+    public void setDueDate(String dueDate) { this.dueDate = dueDate; }
 }

@@ -109,6 +109,7 @@ public final class LogicFlowRefChecker {
                 case HTTP -> checkHttp(ctx, node.getConfig());
                 case BEAN -> checkBean(ctx, node.getConfig());
                 case CONDITION -> checkCondition(ctx, node.getConfig());
+                case SWITCH -> checkSwitch(ctx, node.getConfig());
                 case BATCH -> checkBatch(ctx, node.getConfig(), available, nodeById, incoming, inputNames, 0);
                 case SUBFLOW -> checkSubflow(ctx, node.getConfig());
                 case DATA_UPDATE -> checkDataUpdate(ctx, node.getConfig());
@@ -228,14 +229,46 @@ public final class LogicFlowRefChecker {
 
     private static void checkCondition(Ctx ctx, JsonNode config) {
         if (config == null || config.isNull()) return;
+        // 多条件形态：conditions[] 逐条检查（variable 裸名 + value 占位符）
+        JsonNode conditions = config.get("conditions");
+        if (conditions != null && conditions.isArray() && !conditions.isEmpty()) {
+            for (int i = 0; i < conditions.size(); i++) {
+                JsonNode item = conditions.get(i);
+                if (item == null || item.isNull() || !item.isObject()) continue;
+                checkConditionItem(ctx, item, "conditions[" + i + "]");
+            }
+            return;
+        }
+        checkConditionItem(ctx, config, "condition");
+    }
+
+    /** 单条条件引用检查（多条件项与 legacy 顶层同构）。 */
+    private static void checkConditionItem(Ctx ctx, JsonNode config, String label) {
         String variable = text(config, "variable");
         if (variable != null && !variable.isBlank()) {
-            bare(ctx, variable.replaceAll("^\\{\\{\\s*|\\s*}}$", "").trim(), "判断变量");
+            bare(ctx, variable.replaceAll("^\\{\\{\\s*|\\s*}}$", "").trim(), label + " 判断变量");
         }
         String op = text(config, "operator");
         boolean noValue = op != null && (op.trim().equalsIgnoreCase("EMPTY") || op.trim().equalsIgnoreCase("NOT_EMPTY"));
         if (!noValue) {
-            placeholders(ctx, text(config, "value"), "比较值");
+            placeholders(ctx, text(config, "value"), label + " 比较值");
+        }
+    }
+
+    /** SWITCH 引用检查：variable 裸名 + cases[].value 占位符（支持 {{var}} 动态路由值）。 */
+    private static void checkSwitch(Ctx ctx, JsonNode config) {
+        if (config == null || config.isNull()) return;
+        String variable = text(config, "variable");
+        if (variable != null && !variable.isBlank()) {
+            bare(ctx, variable.replaceAll("^\\{\\{\\s*|\\s*}}$", "").trim(), "分支变量");
+        }
+        JsonNode cases = config.get("cases");
+        if (cases != null && cases.isArray()) {
+            for (int i = 0; i < cases.size(); i++) {
+                JsonNode item = cases.get(i);
+                if (item == null || item.isNull() || !item.isObject()) continue;
+                placeholders(ctx, text(item, "value"), "cases[" + i + "] 匹配值");
+            }
         }
     }
 
@@ -446,6 +479,7 @@ public final class LogicFlowRefChecker {
                 case HTTP -> collectHttp(node.getConfig(), names);
                 case BEAN -> collectBarePairs(node.getConfig() == null ? null : node.getConfig().get("params"), names);
                 case CONDITION -> collectCondition(node.getConfig(), names);
+                case SWITCH -> collectSwitch(node.getConfig(), names);
                 case BATCH -> collectBatch(node.getConfig(), names, 0);
                 case SUBFLOW -> collectBarePairs(node.getConfig() == null ? null : node.getConfig().get("varsMapping"), names);
                 case DATA_UPDATE -> collectDataUpdate(node.getConfig(), names);
@@ -472,9 +506,22 @@ public final class LogicFlowRefChecker {
         collectBarePairs(config.get("bodyParams"), names);
     }
 
-    /** CONDITION 引用收集：variable(strip) 裸名 + value 占位符（EMPTY/NOT_EMPTY 无 value，与 checkCondition 同构） */
+    /** CONDITION 引用收集：conditions[] 逐条（legacy 顶层同构）——variable(strip) 裸名 + value 占位符 */
     private static void collectCondition(JsonNode config, Set<String> names) {
         if (config == null || config.isNull()) return;
+        JsonNode conditions = config.get("conditions");
+        if (conditions != null && conditions.isArray() && !conditions.isEmpty()) {
+            for (int i = 0; i < conditions.size(); i++) {
+                JsonNode item = conditions.get(i);
+                if (item == null || item.isNull() || !item.isObject()) continue;
+                collectConditionItem(item, names);
+            }
+            return;
+        }
+        collectConditionItem(config, names);
+    }
+
+    private static void collectConditionItem(JsonNode config, Set<String> names) {
         String variable = text(config, "variable");
         if (variable != null && !variable.isBlank()) {
             collectBare(variable.replaceAll("^\\{\\{\\s*|\\s*}}$", "").trim(), names);
@@ -483,6 +530,23 @@ public final class LogicFlowRefChecker {
         boolean noValue = op != null && (op.trim().equalsIgnoreCase("EMPTY") || op.trim().equalsIgnoreCase("NOT_EMPTY"));
         if (!noValue) {
             collectPlaceholders(text(config, "value"), names);
+        }
+    }
+
+    /** SWITCH 引用收集：variable(strip) 裸名 + cases[].value 占位符（与 checkSwitch 同构）。 */
+    private static void collectSwitch(JsonNode config, Set<String> names) {
+        if (config == null || config.isNull()) return;
+        String variable = text(config, "variable");
+        if (variable != null && !variable.isBlank()) {
+            collectBare(variable.replaceAll("^\\{\\{\\s*|\\s*}}$", "").trim(), names);
+        }
+        JsonNode cases = config.get("cases");
+        if (cases != null && cases.isArray()) {
+            for (int i = 0; i < cases.size(); i++) {
+                JsonNode item = cases.get(i);
+                if (item == null || item.isNull() || !item.isObject()) continue;
+                collectPlaceholders(text(item, "value"), names);
+            }
         }
     }
 

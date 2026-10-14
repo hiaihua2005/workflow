@@ -96,6 +96,15 @@ public class HttpLogicExecutor {
         return List.copyOf(normalized);
     }
 
+    /**
+     * 发起 HTTP 调用（失败按 retryCount 在方法内重试，退避固定 200ms）。
+     *
+     * <p>调用方注意（避免双重重试）：本方法的内置重试与「调用方自己的重试」是相互独立的两层，
+     * 叠加后实际调用次数为 {@code (1+外层)×(1+retryCount)}。逻辑流 HTTP 节点的重试已统一收敛到
+     * 节点级 retryCount（{@code LogicFlowEngine#executeNodeBody} 包裹），因此逻辑流侧调用本方法时
+     * 传 0（仅当存量 DSL 尚未迁移、节点级缺失时才回退传 config 旧值）。其余调用方
+     * （后端逻辑 / 数据源适配器 / 元数据探测）无外层重试，可按各自配置传值。
+     */
     public Object execute(String url, String method, Map<String, String> headers,
                           List<ParamMapping> query, List<ParamMapping> body,
                           Map<String, Object> vars, int connectTimeoutMs, int readTimeoutMs, int retryCount) {
@@ -104,6 +113,13 @@ public class HttpLogicExecutor {
 
         if (connectTimeoutMs > 0 || readTimeoutMs > 0) {
             HttpClient.Builder httpClientBuilder = HttpClient.newBuilder();
+            // 直连出站：HttpClient 默认跟随系统代理，会把 localhost/127.0.0.1 回环也交给代理，
+            // 在本机编排（HTTP 节点回环调用 mock/本服务）场景造成读超时；显式 NO_PROXY，
+            // 如需出站代理后续以显式配置项提供。
+            httpClientBuilder.proxy(HttpClient.Builder.NO_PROXY);
+            // 强制 HTTP/1.1：默认 HTTP_2 会对明文 http 发 h2c upgrade，Vite/Node dev server
+            // 对 Upgrade 请求不响应导致读超时（实测 HTTP_2 挂起 5s，HTTP_1_1 63ms 返回 200）
+            httpClientBuilder.version(HttpClient.Version.HTTP_1_1);
             if (connectTimeoutMs > 0) {
                 httpClientBuilder.connectTimeout(Duration.ofMillis(connectTimeoutMs));
             }

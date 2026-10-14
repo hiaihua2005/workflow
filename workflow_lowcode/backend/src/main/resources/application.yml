@@ -17,7 +17,9 @@ spring:
 
 flowable:
   database-schema-update: true
-  async-executor-activate: false
+  # 异步执行器必须开启：定时边界事件（timer job 触发）、ServiceTask async/失败重试
+  # 均依赖 Job 执行器调度；关闭后定时边界事件永不触发（并行汇聚死锁）
+  async-executor-activate: true
 
 # DevTools 热部署配置
 spring.devtools.restart.enabled: true

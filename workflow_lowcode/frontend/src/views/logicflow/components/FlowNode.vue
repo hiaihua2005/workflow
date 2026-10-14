@@ -64,6 +64,29 @@
       <span class="branch-label label-true">真</span>
       <span class="branch-label label-false">假</span>
     </template>
+    <template v-else-if="data.nodeType === 'SWITCH'">
+      <Handle id="in" type="target" :position="Position.Top" />
+      <!-- case 出点：按 cases 配置沿底部均布，标签显示匹配值；default 出点固定右下 -->
+      <template v-for="(c, i) in switchCases" :key="`h-${i}-${c.value}`">
+        <Handle
+          :id="`case:${c.value}`"
+          type="source"
+          :position="Position.Bottom"
+          :style="{ left: caseLeft(i, switchCases.length) }"
+        />
+        <span class="branch-label" :style="{ left: caseLeft(i, switchCases.length) }" :title="c.value">
+          {{ c.value || '?' }}
+        </span>
+      </template>
+      <Handle
+        id="default"
+        type="source"
+        :position="Position.Bottom"
+        class="handle-branch branch-false"
+        :style="{ left: '92%' }"
+      />
+      <span class="branch-label label-false" :style="{ left: '92%' }">默认</span>
+    </template>
     <template v-else-if="data.nodeType === 'BATCH'">
       <Handle id="in" type="target" :position="Position.Top" />
       <Handle id="out" type="source" :position="Position.Bottom" :style="{ left: '30%' }" />
@@ -116,6 +139,18 @@ const badge = computed(() => meta.value.badge)
 
 /** 是否渲染失败路由（error）出点：全部执行型节点（引擎 onError 失败路由） */
 const hasErrorBranch = computed(() => supportsErrorBranch(props.data.nodeType))
+
+/** SWITCH cases 配置（底部均布出点 + 匹配值标签） */
+const switchCases = computed<{ value: string }[]>(() => {
+  const cfg = props.data.config as { cases?: { value: string }[] } | undefined
+  return Array.isArray(cfg?.cases) ? (cfg as { cases: { value: string }[] }).cases : []
+})
+
+/** SWITCH case 出点水平位置（%）：避开右侧 default 出点，区间 [2%, 84%] 均分 */
+function caseLeft(index: number, total: number): string {
+  if (total <= 0) return '50%'
+  return `${Math.round(((index + 1) * 82) / (total + 1) + 2)}%`
+}
 
 const typeColorStyle = computed(() => {
   const colorVar = NODE_COLOR_VAR[props.data.nodeType]
@@ -170,6 +205,12 @@ const summary = computed(() => {
       const showValue = op !== 'EMPTY' && op !== 'NOT_EMPTY' && value !== undefined && value !== ''
       return [variable, op, showValue ? String(value) : ''].filter(Boolean).join(' ') || '未配置条件'
     }
+    case 'SWITCH': {
+      const variable = String(cfg?.variable ?? '')
+      const cases = Array.isArray(cfg?.cases) ? (cfg.cases as { value: string }[]) : []
+      const values = cases.map((c) => String(c?.value ?? '')).filter(Boolean)
+      return [variable, `∈ {${values.join(', ')}}`].filter(Boolean).join(' ') || '未配置分支'
+    }
     case 'START':
       return '流程起点'
     case 'END':
@@ -209,6 +250,33 @@ const summary = computed(() => {
       const table = String(cfg?.table ?? '')
       const setOps = Array.isArray(cfg?.setOps) ? (cfg?.setOps as unknown[]) : []
       return table ? `更新 ${table} · ${setOps.length} 字段` : '未配置目标表'
+    }
+    case 'DATA_UPSERT': {
+      // 统一多表单形态（config.upserts）：单条目 = 单表写入；多条目 = 多表单单事务顺序写入
+      const upserts = Array.isArray(cfg?.upserts) ? (cfg?.upserts as unknown[]) : []
+      if (upserts.length === 1) {
+        const u = upserts[0] as { formKey?: unknown; conflictKey?: unknown; values?: unknown[] } | null
+        const uForm = String(u?.formKey ?? '')
+        if (uForm) {
+          const uFields = Array.isArray(u?.values) ? u!.values.length : 0
+          const uKey = String(u?.conflictKey ?? '').trim()
+          return `写入 ${uForm}${uKey ? ` · 按 ${uKey} 去重` : ''} · ${uFields} 字段`
+        }
+      }
+      if (upserts.length > 1) {
+        const fields = upserts.reduce((sum: number, u) => {
+          const vals = (u as { values?: unknown[] } | null)?.values
+          return sum + (Array.isArray(vals) ? vals.length : 0)
+        }, 0)
+        return `多表写入 ${upserts.length} 张表单 · ${fields} 字段`
+      }
+      // 存量单表形态（未迁移的顶层字段）兜底
+      const formKey = String(cfg?.formKey ?? '')
+      const values = Array.isArray(cfg?.values) ? (cfg?.values as unknown[]) : []
+      const conflictKey = String(cfg?.conflictKey ?? '').trim()
+      return formKey
+        ? `写入 ${formKey}${conflictKey ? ` · 按 ${conflictKey} 去重` : ''} · ${values.length} 字段`
+        : '未配置表单'
     }
     case 'SQL_SCRIPT': {
       const sqlText = String(cfg?.sql ?? '')

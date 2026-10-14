@@ -18,7 +18,8 @@ import java.util.List;
  *      "config":{"url":"https://api.example.com/risk","method":"GET",
  *                "headers":{"Authorization":"Bearer {{token}}"},
  *                "queryParams":[{"source":"orderId","target":"orderId"}],
- *                "connTimeoutMs":3000,"readTimeoutMs":5000,"retryCount":0},
+ *                "connTimeoutMs":3000,"readTimeoutMs":5000},
+ *      "retryCount":2,"backoffMs":500,"timeoutMs":10000,
  *      "results":[{"name":"risk","mode":"WHOLE"}],"errorAction":"FAIL_FLOW"},
  *     {"id":"cond1","type":"CONDITION","name":"是否通过","x":520,"y":160,
  *      "config":{"variable":"risk","operator":"EQ","value":"PASS"}},
@@ -36,7 +37,8 @@ import java.util.List;
  * <p>节点类型见 {@link NodeType}；config 结构按类型区分：
  * <ul>
  *   <li>HTTP：{@code BackendLogicHttpConfig} 字段（url/method/headers/queryParams/bodyParams/
- *       connTimeoutMs=3000/readTimeoutMs=5000/retryCount=0）；</li>
+ *       connTimeoutMs=3000/readTimeoutMs=5000）；重试统一用节点级 retryCount
+ *       （config.retryCount 已下线，仅存量 DSL 兼容读取）；</li>
  *   <li>BEAN：{@code {beanName, methodName, params:[{source,target}]}}；</li>
  *   <li>执行型节点（HTTP/BEAN/SCRIPT/DATA_UPDATE/SUBFLOW/BATCH 及 CONDITION）节点级 results（可选）
  *       统一输出声明：{@code results:[{name, mode: WHOLE|KEY, type: string|number|boolean|json, desc?}...]} ——
@@ -57,12 +59,19 @@ import java.util.List;
  * <p>顶层 {@code inputVars[]} 为入参声明（可选，纯契约描述，引擎不消费）：
  * {@code [{name, type: string|number|boolean|json, required, desc}]}。
  */
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
 public class LogicFlowDsl {
+
+    /** 事务策略：AUTO_COMMIT（缺省，逐节点提交）/ WHOLE_IN_TX（整流单事务，仅限本地数据/控制节点，发布期硬校验）。 */
+    public static final String TX_POLICY_AUTO_COMMIT = "AUTO_COMMIT";
+    public static final String TX_POLICY_WHOLE_IN_TX = "WHOLE_IN_TX";
 
     private List<NodeDef> nodes;
     private List<EdgeDef> edges;
     /** 入参声明（可选，设计器编辑 / 运行测试渲染表单用，引擎不消费）。 */
     private List<InputVarDef> inputVars;
+    /** 事务策略（可选，缺省 AUTO_COMMIT；非法值由发布校验拦截，解析期宽容）。 */
+    private String transactionPolicy;
 
     public List<NodeDef> getNodes() { return nodes; }
     public void setNodes(List<NodeDef> nodes) { this.nodes = nodes; }
@@ -72,6 +81,16 @@ public class LogicFlowDsl {
 
     public List<EdgeDef> getEdges() { return edges; }
     public void setEdges(List<EdgeDef> edges) { this.edges = edges; }
+
+    public String getTransactionPolicy() { return transactionPolicy; }
+    public void setTransactionPolicy(String transactionPolicy) { this.transactionPolicy = transactionPolicy; }
+
+    /** 是否整流单事务（大小写不敏感；缺省/空 = AUTO_COMMIT）。派生视图，不参与序列化。 */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public boolean isWholeInTx() {
+        return transactionPolicy != null && TX_POLICY_WHOLE_IN_TX.equalsIgnoreCase(transactionPolicy.trim());
+    }
+
 
     /** 从 JSON 反序列化；空串/空白视为空 DSL（节点边均为空列表，允许草稿半成品）。 */
     public static LogicFlowDsl parse(String json, ObjectMapper objectMapper) {
@@ -136,6 +155,15 @@ public class LogicFlowDsl {
         private List<ResultVarDef> results;
         /** 异常策略：FAIL_FLOW（默认，中断整个流）| IGNORE_CONTINUE（记失败轨迹后继续）。 */
         private String errorAction;
+        /** 节点级重试次数（0~10，缺省 0=不重试；失败后间隔 backoffMs 再试，全失败按 errorAction 收敛）。 */
+        private Integer retryCount;
+        /** 重试退避间隔毫秒（0~60000，缺省 0=立即重试）。 */
+        private Long backoffMs;
+        /**
+         * 节点级执行超时毫秒（0/缺省=不限）。&gt;0 时 dispatch 在虚拟线程中执行并限时等待，
+         * 超时即中断（尽力语义）并按失败走 errorAction/错误分支；被中断任务的迟到结果丢弃。
+         */
+        private Long timeoutMs;
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -160,6 +188,15 @@ public class LogicFlowDsl {
 
         public String getErrorAction() { return errorAction; }
         public void setErrorAction(String errorAction) { this.errorAction = errorAction; }
+
+        public Integer getRetryCount() { return retryCount; }
+        public void setRetryCount(Integer retryCount) { this.retryCount = retryCount; }
+
+        public Long getBackoffMs() { return backoffMs; }
+        public void setBackoffMs(Long backoffMs) { this.backoffMs = backoffMs; }
+
+        public Long getTimeoutMs() { return timeoutMs; }
+        public void setTimeoutMs(Long timeoutMs) { this.timeoutMs = timeoutMs; }
     }
 
     /**

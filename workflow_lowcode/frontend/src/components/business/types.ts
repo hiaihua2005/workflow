@@ -24,8 +24,6 @@ export interface DataSourceBindingContext {
   refId: string
   /** 搜索字段（可选） */
   searchFields?: string[]
-  /** 数据源级筛选条件（可选） */
-  filter?: LookupFilterConfig
 }
 
 
@@ -337,7 +335,7 @@ export interface LookupPickerProps {
   /** 搜索列（参与关键字搜索的列 key），新模式下用于 keywordColumn */
   searchColumns?: string[]
 
-  /** 组件级筛选条件（新模式：与数据源级 filter 以 AND 合并） */
+  /** 组件级筛选条件（筛选统一在组件上配置，不再与数据源绑定层叠加） */
   filter?: LookupFilterConfig
 
   /** 字段映射：选中行的 sourceField → 表单的 targetField */

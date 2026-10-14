@@ -19,7 +19,10 @@ import java.util.Map;
 class BpmnXmlValidationSpikeTest extends AbstractFlowableSpikeTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final MultiInstanceBpmnRewriter rewriter = new MultiInstanceBpmnRewriter(objectMapper);
+    private final MultiInstanceBpmnRewriter rewriter = new MultiInstanceBpmnRewriter(
+            objectMapper,
+            org.mockito.Mockito.mock(com.workflow.engine.logicflow.repository.LogicFlowDefRepository.class),
+            org.mockito.Mockito.mock(com.workflow.engine.tenant.TenantProvider.class));
 
     // 从数据库 wf_process_draft 取的真实 XML（请假流程，bb0bb7ae）
     // 保留 userTask 的 incoming/outgoing 子元素结构（bpmn-js 真实输出格式）

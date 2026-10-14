@@ -23,6 +23,8 @@ public enum NodeType {
     SCRIPT,
     /** 条件分叉（按 branch=true/false 选出边）。 */
     CONDITION,
+    /** 多路分支（按 variable 值匹配 cases 命中 branch=case:&lt;value&gt; 出边，未命中走 branch=default）。 */
+    SWITCH,
     /** 批处理循环（遍历集合并对每项执行内嵌动作，聚合结果列表）。 */
     BATCH,
     /** 子流程调用（调用另一条已发布的逻辑流，输出写回 resultVar）。 */

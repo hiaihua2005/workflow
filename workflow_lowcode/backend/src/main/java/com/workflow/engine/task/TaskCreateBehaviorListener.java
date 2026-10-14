@@ -136,6 +136,16 @@ public class TaskCreateBehaviorListener implements TaskListener {
         // Task 69：流程级策略（__PROCESS__ config_json；节点无配置块也参与合并口径）
         ProcessPolicy policy = loadProcessPolicy(processDefinitionId);
 
+        // 任务优先级 / 办理时限（priority/dueHours；自动通过路径的任务同样带值，便于统计）
+        if (opts != null && opts.getPriority() != null) {
+            task.setPriority(opts.getPriority());
+        }
+        if (opts != null && opts.getDueHours() != null) {
+            task.setDueDate(java.util.Date.from(LocalDateTime.now()
+                    .plusSeconds((long) (opts.getDueHours() * 3600))
+                    .atZone(java.time.ZoneId.systemDefault()).toInstant()));
+        }
+
         // ⚠️ 发起节点不参与退回免审/去重/同人跳过（对齐 NodeJS handleUserTask：
         //    isInitiator 分支先行返回，start 时自动完成、驳回后建待办等重新提交）
         boolean initiatorNode;

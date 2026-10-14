@@ -655,7 +655,7 @@ function handleConfirm() {
   display: block;
   margin-top: 4px;
   font-size: 12px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
 }
 /* 卡片顶部快捷配置：纵向两行容器。
    el-form 默认 label-width=100px，六项 label+控件合计超宽会触发 flex 换行。
@@ -747,7 +747,7 @@ function handleConfirm() {
 }
 .label-with-tip .tip-icon {
   margin-left: 4px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   cursor: help;
 }
 /* 数据容器配置：label 独占一行并左对齐，控件占满下一行 */

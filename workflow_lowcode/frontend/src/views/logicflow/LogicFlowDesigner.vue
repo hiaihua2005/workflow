@@ -40,8 +40,11 @@
           @click="redo"
         />
       </el-tooltip>
-      <el-tooltip content="自动整理布局（自上而下分层 · 节点垂直居中对齐 · 循环体纵向居中排列 · 嵌套批处理从左到右展开）" placement="bottom">
-        <el-button class="toolbar-btn" :icon="Sort" @click="handleAutoLayout">整理布局</el-button>
+      <el-tooltip content="横向布局：选中 ≥2 个节点时排成一行；未选中时整图排成一行（Ctrl+Z 可撤销）" placement="bottom">
+        <el-button class="toolbar-btn" :icon="ArrowRight" :disabled="!nodes.length" @click="handleArrange('horizontal')" />
+      </el-tooltip>
+      <el-tooltip content="纵向布局：选中 ≥2 个节点时排成一列；未选中时按流程分层自上而下整理（含循环体纵向排布）" placement="bottom">
+        <el-button class="toolbar-btn" :icon="ArrowDown" :disabled="!nodes.length" @click="handleArrange('vertical')" />
       </el-tooltip>
       <el-tooltip content="声明本流的输入参数（运行测试时按声明渲染表单）" placement="bottom">
         <el-button class="toolbar-btn" :icon="Tickets" @click="inputVarsDialogVisible = true">
@@ -65,7 +68,10 @@
           v-model:nodes="nodes"
           v-model:edges="edges"
           class="logic-flow-canvas"
-          :delete-key-code="['Delete', 'Backspace']"
+          :delete-key-code="null"
+          :selection-key-code="'Shift'"
+          :selection-mode="SelectionMode.Partial"
+          :multi-selection-key-code="['Control', 'Meta']"
           :auto-connect="false"
           :default-edge-options="defaultEdgeOptions"
           :snap-to-grid="true"
@@ -109,7 +115,7 @@
         <div v-if="!loading && nodes.length === 0" class="canvas-empty-hint">
           <el-icon class="empty-icon"><MagicStick /></el-icon>
           <div class="empty-title">从左侧拖入「开始」节点开始编排</div>
-          <div class="empty-desc">拖拽/点击添加 · 节点拖到连线（含循环虚线）自动接入 · 按住 Shift 拖动解绑 · 双击链上节点移出 · Delete 删除</div>
+          <div class="empty-desc">拖拽/点击添加 · 节点拖到连线（含循环虚线）自动接入 · 按住 Shift 拖动解绑 · 双击链上节点移出 · Shift+拖拽框选 / Ctrl+点击加选 · Ctrl+C / Ctrl+V 复制粘贴 · Delete 删除（弹窗确认）</div>
         </div>
       </div>
 
@@ -145,6 +151,18 @@
           tip="声明本流需要调用方传入的参数（保存在 DSL 中，仅作契约展示，引擎不强制校验）。也可不声明，运行测试时会自动扫描画布引用的变量给出建议；行尾上传图标为结构单一入口：可粘贴 JSON 实例导入字段结构，formData 参数还可从绑定表单一键导入，已导入后同一入口可查看结构树/清除。节点选择变量时即可展开选到具体字段"
         />
       </template>
+      <!-- P1-5 事务策略（DSL 顶层 transactionPolicy） -->
+      <div class="iv-policy-row">
+        <FieldLabel
+          label="事务策略"
+          tip="逐节点提交 = 每个数据节点独立提交（缺省，允许外部调用节点）；整流事务 = 全部数据操作单事务，任一失败整体回滚（发布校验仅允许 START/END/CONDITION/数据/SQL/转换/聚合节点，外部调用节点会被拒绝）"
+        />
+        <el-radio-group v-model="transactionPolicy" size="small">
+          <el-radio-button value="AUTO_COMMIT">逐节点提交</el-radio-button>
+          <el-radio-button value="WHOLE_IN_TX">整流事务</el-radio-button>
+        </el-radio-group>
+      </div>
+      <el-divider style="margin: 10px 0" />
       <div v-if="!inputVars.length" class="iv-empty">未声明入参</div>
       <div v-for="(v, i) in inputVars" :key="i" class="iv-row-wrap">
         <div class="iv-row" :class="{ 'is-json': v.type === 'json' }">
@@ -196,7 +214,7 @@
         </div>
       </div>
       <template #footer>
-        <el-button @click="inputVarsDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="inputVarsDialogVisible = false">完成</el-button>
       </template>
     </el-dialog>
   </div>
@@ -207,18 +225,19 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
+  ArrowDown,
   ArrowLeft,
+  ArrowRight,
   Delete,
   Finished,
   MagicStick,
   Promotion,
   RefreshLeft,
   RefreshRight,
-  Sort,
   Tickets,
   VideoPlay,
 } from '@element-plus/icons-vue'
-import { VueFlow, useVueFlow, MarkerType } from '@vue-flow/core'
+import { VueFlow, useVueFlow, MarkerType, SelectionMode } from '@vue-flow/core'
 import type { Connection, EdgeChange, EdgeMouseEvent, NodeChange, NodeMouseEvent } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { MiniMap } from '@vue-flow/minimap'
@@ -249,6 +268,13 @@ import {
 } from './utils/dsl'
 import type { FlowEdge, FlowNode as FlowNodeModel, InputVarDef, LogicNodeType } from './utils/dsl'
 import {
+  arrangePositions,
+  buildClipboard,
+  planPaste,
+  type ArrangeDirection,
+  type ClipboardPayload,
+} from './utils/canvasOps'
+import {
   collectAvailableVars,
   formFieldGroupsToFieldNodes,
   type FormFieldGroupLike,
@@ -276,6 +302,9 @@ const {
   removeNodes,
   removeEdges,
   fitView,
+  getSelectedNodes,
+  getSelectedEdges,
+  addSelectedNodes,
   edges: storeEdges,
   nodes: storeNodes,
 } = useVueFlow()
@@ -312,6 +341,9 @@ const defaultEdgeOptions = {
 // ===== 入参声明（保存在 DSL 顶层 inputVars） =====
 const inputVars = ref<InputVarDef[]>([])
 const inputVarsDialogVisible = ref(false)
+
+// ===== 事务策略（DSL 顶层 transactionPolicy；P1-5） =====
+const transactionPolicy = ref<'AUTO_COMMIT' | 'WHOLE_IN_TX'>('AUTO_COMMIT')
 
 function addInputVar() {
   inputVars.value.push({ name: '', type: 'string', required: false, desc: undefined })
@@ -394,7 +426,7 @@ const publishing = ref(false)
 const dirty = computed(() => {
   if (flowName.value !== savedName.value) return true
   if (!savedDsl.value) return false
-  return !isDslEqual(serializeDsl(allNodes(), allEdges(), inputVars.value), savedDsl.value)
+  return !isDslEqual(serializeDsl(allNodes(), allEdges(), inputVars.value, transactionPolicy.value), savedDsl.value)
 })
 
 // 说明：拖动/增删节点/边时 vue-flow 会把 store 快照回写到 v-model 数组（新引用），
@@ -481,6 +513,7 @@ onMounted(async () => {
         nodes.value = withNodeGuards(graph.nodes)
         edges.value = graph.edges
         inputVars.value = graph.inputVars || []
+        transactionPolicy.value = graph.transactionPolicy ?? 'AUTO_COMMIT'
       } catch (err) {
         ElMessage.error(err instanceof Error ? err.message : 'DSL 解析失败')
       }
@@ -965,13 +998,24 @@ function detachWithMessage(node: FlowNodeModel): void {
   }
 }
 
-function onNodeDragStop({ event, node }: { event: { shiftKey?: boolean }; node: FlowNodeModel }) {
+function onNodeDragStop({
+  event,
+  node,
+  nodes,
+}: {
+  event: { shiftKey?: boolean }
+  node: FlowNodeModel
+  /** 整体移动时被一起拖动的所有节点（多选 / 框选后拖拽，vue-flow 原生联动） */
+  nodes?: FlowNodeModel[]
+}) {
   if (!node?.id) return
   // 需求②：按住 Shift 移动节点即解绑连线（不按 shift 时不再做距离自动断开，避免误触）
   if (event?.shiftKey) {
     detachWithMessage(node)
     return
   }
+  // 多选整体移动：只做位置落位，不做吸附接入（吸附是单节点语义，多选时接入会破坏选中组结构）
+  if ((nodes?.length ?? 0) > 1) return
   const candidate = findSnapEdge(node)
   if (candidate) {
     snapInsertNode(node, candidate)
@@ -1103,7 +1147,7 @@ const canUndo = computed(() => historyIndex.value > 0)
 const canRedo = computed(() => historyIndex.value < historyStack.value.length - 1)
 
 watch(
-  () => serializeDsl(allNodes(), allEdges(), inputVars.value),
+  () => serializeDsl(allNodes(), allEdges(), inputVars.value, transactionPolicy.value),
   (dsl) => {
     if (applyingHistory.value) return
     if (historyTimer) clearTimeout(historyTimer)
@@ -1147,17 +1191,47 @@ function redo() {
   applySnapshot(historyStack.value[historyIndex.value])
 }
 
+/** 输入类元素中的按键不触发画布快捷键（属性面板里 Ctrl+C/V、Delete 仍是文本编辑） */
+function isEditableTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null
+  if (!el?.tagName) return false
+  return (
+    el.tagName === 'INPUT' ||
+    el.tagName === 'TEXTAREA' ||
+    el.tagName === 'SELECT' ||
+    el.isContentEditable === true
+  )
+}
+
 function onKeydown(event: KeyboardEvent) {
-  const isUndo = (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z'
-  const isRedo =
-    ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'z') ||
-    ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y')
+  if (isEditableTarget(event.target)) return
+  const ctrl = event.ctrlKey || event.metaKey
+  const key = event.key.toLowerCase()
+  const isUndo = ctrl && !event.shiftKey && key === 'z'
+  const isRedo = (ctrl && event.shiftKey && key === 'z') || (ctrl && key === 'y')
   if (isUndo) {
     event.preventDefault()
     undo()
-  } else if (isRedo) {
+    return
+  }
+  if (isRedo) {
     event.preventDefault()
     redo()
+    return
+  }
+  // 画布批量操作：复制 / 粘贴 / 删除（删除走带确认的 deleteSelection，非 vue-flow 原生删除）
+  if (ctrl && key === 'c') {
+    if (copySelection()) event.preventDefault()
+    return
+  }
+  if (ctrl && key === 'v') {
+    event.preventDefault()
+    pasteClipboard()
+    return
+  }
+  if (event.key === 'Delete' || event.key === 'Backspace') {
+    event.preventDefault()
+    void deleteSelection()
   }
 }
 
@@ -1435,6 +1509,154 @@ function handleAutoLayout() {
   setTimeout(() => fitView({ padding: 0.15, maxZoom: 1, duration: 300 }), 50)
 }
 
+// ===== 框选批量操作：Shift+拖拽矩形框选（Ctrl/⌘+点击加选）→ 整体移动 / 横向或纵向排列 / 复制粘贴 / 删除（确认） =====
+// 说明：多选后的整体拖拽由 vue-flow 原生支持（getDragItems 取所有 selected 节点一起位移）；
+// 本段只补齐「排列 / 复制粘贴 / 带确认的删除」三件画布级能力。
+
+/** 当前选中节点（store 真值：与 v-model 副本滞后同源问题，选中态一律读 store） */
+const selectedNodes = computed<FlowNodeModel[]>(
+  () => (getSelectedNodes.value ?? []) as unknown as FlowNodeModel[]
+)
+
+/** 当前选中连线（矩形框选时 vue-flow 会连带选中与选中节点相连的边） */
+const selectedEdges = computed<FlowEdge[]>(
+  () => (getSelectedEdges.value ?? []) as unknown as FlowEdge[]
+)
+
+/** 排列入参：id + 左上角 + 尺寸（尺寸取实测 dimensions，未测量回落常量，与分层整理同口径） */
+function arrangeBoxes(list: FlowNodeModel[]) {
+  return list.map((n) => ({ id: n.id, x: n.position.x, y: n.position.y, ...nodeSize(n) }))
+}
+
+/** 写回坐标：直改 store 节点 position（与 handleAutoLayout 同路径，序列化读 store 即刻生效） */
+function applyPositions(positions: Record<string, { x: number; y: number }>) {
+  for (const n of allNodes()) {
+    const next = positions[n.id]
+    if (next) n.position = { x: next.x, y: next.y }
+  }
+}
+
+/**
+ * 横向 / 纵向布局：
+ * - 选中 ≥2 个节点 → 只排列选中项（其余图元保持不动）；
+ * - 未选中（或仅 1 个）→ 整图排布：纵向复用分层整理（主流自上而下分层 + 循环体纵向居中），
+ *   横向把整图排成一行。
+ */
+function handleArrange(direction: ArrangeDirection) {
+  const picked = selectedNodes.value
+  if (picked.length >= 2) {
+    applyPositions(arrangePositions(arrangeBoxes(picked), direction))
+    ElMessage.success(
+      direction === 'horizontal'
+        ? `已把选中的 ${picked.length} 个节点横向排成一行`
+        : `已把选中的 ${picked.length} 个节点纵向排成一列`
+    )
+    return
+  }
+  if (direction === 'vertical') {
+    handleAutoLayout()
+    return
+  }
+  const all = allNodes()
+  if (all.length < 2) return
+  applyPositions(arrangePositions(arrangeBoxes(all), 'horizontal'))
+  ElMessage.success(`已把整图 ${all.length} 个节点横向排成一行`)
+  setTimeout(() => fitView({ padding: 0.15, maxZoom: 1, duration: 300 }), 50)
+}
+
+/** 设计器内剪贴板（组件实例级，不落系统剪贴板：节点 data 是本流 DSL 结构，跨流无意义） */
+const clipboard = ref<ClipboardPayload | null>(null)
+
+/**
+ * Ctrl+C：复制选中节点 + 其内部连线。START 不可复制（流程锚点全局唯一），
+ * 循环连线不复制（循环体由 BATCH 自动维护，粘贴后自愈缝合会与宿主错位）。
+ * @returns 是否已消费该按键（阻止默认复制行为）
+ */
+function copySelection(): boolean {
+  const picked = selectedNodes.value
+  if (!picked.length) return false
+  const payload = buildClipboard(
+    allNodes(),
+    allEdges().filter((e) => !isLoopEdge(e)),
+    picked.map((n) => n.id)
+  )
+  if (!payload) {
+    ElMessage.warning('开始节点是流程入口，不可复制')
+    return true
+  }
+  clipboard.value = payload
+  ElMessage.success(
+    `已复制 ${payload.nodes.length} 个节点${payload.edges.length ? ` · ${payload.edges.length} 条连线` : ''}（Ctrl+V 粘贴）`
+  )
+  return true
+}
+
+/** Ctrl+V：重生成 id 后粘贴（整体偏移，连续粘贴呈阶梯）；粘贴后自动选中，便于继续移动/排列 */
+function pasteClipboard() {
+  const payload = clipboard.value
+  if (!payload?.nodes.length) {
+    ElMessage.warning('剪贴板为空：请先框选/点选节点并按 Ctrl+C 复制')
+    return
+  }
+  const plan = planPaste(payload, allNodes().map((n) => n.id))
+  addNodes(plan.nodes as unknown as FlowNodeModel[])
+  if (plan.edges.length) addEdges(plan.edges as unknown as FlowEdge[])
+  // 选中粘贴产物：vue-flow 需节点已入 store，故 nextTick 后加选
+  nextTick(() =>
+    addSelectedNodes(plan.nodes as unknown as Parameters<typeof addSelectedNodes>[0])
+  )
+  ElMessage.success(
+    `已粘贴 ${plan.nodes.length} 个节点${plan.edges.length ? ` · ${plan.edges.length} 条连线` : ''}`
+  )
+}
+
+/**
+ * Delete / Backspace：删除选中图元，二次确认后执行。
+ * START（流程锚点）与循环连线豁免；删除节点时其连线随之删除（vue-flow 原生行为）。
+ * 注：画布已把 vue-flow 的 delete-key-code 置空，删除一律走这里，保证有确认且不误删。
+ */
+async function deleteSelection() {
+  const nodesToRemove = selectedNodes.value.filter((n) => n.data.nodeType !== 'START')
+  const edgesToRemove = selectedEdges.value.filter((e) => !isLoopEdge(e))
+  const skipped =
+    selectedNodes.value.length - nodesToRemove.length + (selectedEdges.value.length - edgesToRemove.length)
+  if (!nodesToRemove.length && !edgesToRemove.length) {
+    ElMessage.warning(
+      skipped
+        ? '选中的图元不可删除（开始节点 / 循环连线）'
+        : '请先选中要删除的节点或连线（Shift+拖拽框选 / Ctrl+点击加选）'
+    )
+    return
+  }
+  const parts = [
+    nodesToRemove.length ? `${nodesToRemove.length} 个节点` : '',
+    edgesToRemove.length ? `${edgesToRemove.length} 条连线` : '',
+  ].filter(Boolean)
+  try {
+    await ElMessageBox.confirm(
+      `确定删除选中的 ${parts.join('、')} 吗？${nodesToRemove.length ? '节点相关的连线会一并删除。' : ''}删除后可用 Ctrl+Z 撤销。`,
+      '删除确认',
+      {
+        type: 'warning',
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        confirmButtonClass: 'el-button--danger',
+      }
+    )
+  } catch {
+    return // 取消 / 关闭
+  }
+  if (nodesToRemove.length) {
+    const ids = nodesToRemove.map((n) => n.id)
+    removeNodes(ids)
+    if (selectedNodeId.value && ids.includes(selectedNodeId.value)) selectedNodeId.value = null
+  }
+  if (edgesToRemove.length) removeEdges(edgesToRemove.map((e) => e.id))
+  ElMessage.success(
+    `已删除 ${parts.join('、')}${skipped ? `（跳过 ${skipped} 个不可删除图元）` : ''}`
+  )
+}
+
 // ===== 运行状态徽标：轨迹 nodeId → 状态（批处理内层 id 如 b#0 跳过） =====
 const runStatusMap = ref<Record<string, string>>({})
 
@@ -1460,7 +1682,7 @@ async function handleSave(): Promise<boolean> {
   }
   saving.value = true
   try {
-    const dsl = serializeDsl(allNodes(), allEdges(), inputVars.value)
+    const dsl = serializeDsl(allNodes(), allEdges(), inputVars.value, transactionPolicy.value)
     await logicFlowApi.update(flowId, {
       name: flowName.value.trim() || defaultFlowName(),
       description: flowDescription.value,
@@ -1673,6 +1895,15 @@ if (import.meta.hot) {
   margin-left: 4px;
   vertical-align: middle;
 }
+/* P1-5 事务策略行 */
+.iv-policy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
 .iv-empty {
   font-size: 12px;
   color: var(--el-text-color-placeholder);

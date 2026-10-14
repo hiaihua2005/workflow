@@ -723,18 +723,18 @@ function handleConfirm() {
 <style scoped>
 .field-key {
   font-size: 12px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
 }
 .unsupported-field {
-  color: #f56c6c;
+  color: var(--el-color-danger);
   font-weight: bold;
 }
 .unsupported-text {
-  color: #f56c6c;
+  color: var(--el-color-danger);
 }
 .subtable-config {
   padding: 8px 16px;
-  background: #fafafa;
+  background: var(--el-fill-color-lighter);
 }
 .subtable-config-header {
   display: flex;
@@ -748,15 +748,15 @@ function handleConfirm() {
 }
 .subtable-config-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   margin-left: 16px;
 }
 .subtable-type {
-  color: #e6a23c;
+  color: var(--el-color-warning);
   font-weight: 600;
 }
 .subtable-empty {
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
   padding: 0 12px;
 }
 .uk-header-tip {

@@ -188,6 +188,23 @@
             <el-switch v-model="ui.signature.enabled" :disabled="readOnly" />
             <span class="switch-label">手写签名</span>
           </div>
+
+          <div class="section-title">任务优先级</div>
+          <el-radio-group v-model="ui.priority" :disabled="readOnly">
+            <el-radio-button :value="50">普通</el-radio-button>
+            <el-radio-button :value="75">重要</el-radio-button>
+            <el-radio-button :value="100">加急</el-radio-button>
+          </el-radio-group>
+
+          <div class="section-title">
+            <FormLabelTip tip="任务创建后 N 小时到达截止时间（dueDate），用于待办超期提醒；0 = 不设置">
+              办理时限（小时）
+            </FormLabelTip>
+          </div>
+          <div class="inline-row">
+            <el-input-number v-model="ui.dueHours" :min="0" :max="8760" :disabled="readOnly" />
+            <span class="inline-label">0 = 不设置</span>
+          </div>
         </div>
       </el-tab-pane>
 
@@ -268,6 +285,10 @@ const ui = reactive({
     enabled: false,
   },
   notifySms: false,
+  /** 任务优先级（普通 50 / 重要 75 / 加急 100） */
+  priority: 50,
+  /** 办理时限（小时，0 = 不设置 → dueDate） */
+  dueHours: 0,
 })
 
 /** 退回模式单选（Task 79b）：restartFromHere/chooseStartNode 互斥，映射到存储里的两个布尔键（格式不变，兼容旧数据） */
@@ -331,6 +352,8 @@ function loadConfig() {
   ui.timeout.action = 'remind'
   ui.signature.enabled = false
   ui.notifySms = false
+  ui.priority = 50
+  ui.dueHours = 0
 
   const existing = designerStore.getNodeConfig(designerStore.selectedNodeId!)
   if (existing) {
@@ -377,6 +400,8 @@ function loadConfig() {
     if (existing.notify) {
       ui.notifySms = existing.notify.sms ?? false
     }
+    ui.priority = existing.priority ?? 50
+    ui.dueHours = existing.dueHours ?? 0
   }
 
   setTimeout(() => { isLoading = false }, 0)
@@ -464,6 +489,8 @@ function saveConfig() {
     notify: {
       sms: ui.notifySms,
     },
+    priority: ui.priority,
+    dueHours: ui.dueHours > 0 ? ui.dueHours : undefined,
   }
 
   designerStore.setNodeConfig(designerStore.selectedNodeId, nodeConfig)

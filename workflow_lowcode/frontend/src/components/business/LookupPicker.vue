@@ -67,7 +67,6 @@ import { ElMessage } from 'element-plus'
 import type { LookupPickerProps, QueryParams, LookupFilterConfig, DataSourceBindingContext } from './types'
 import { readCellValue } from './lookupFetch'
 import { leafDisplayText } from '@/views/form/arrayValueLabel'
-import { mergeFilters } from '@/utils/filterMerge'
 import { resolveFilterFieldReferences } from '@/utils/filterResolve'
 import { dataSourceApi } from '@/api/data-source'
 import { activeDsBindings } from '@/utils/formDsBindingsStore'
@@ -177,16 +176,15 @@ const displayText = computed(() => {
   return ''
 })
 
-/** 合并后的 filter（数据源级 + 组件级） */
-const mergedFilter = computed<LookupFilterConfig | undefined>(() => {
+/** 生效的筛选条件：统一由组件级 filter 配置（数据源级 filter 已废弃） */
+const effectiveFilter = computed<LookupFilterConfig | undefined>(() => {
   if (!props.dataSourceId) return undefined
-  const dsFilter = currentBinding.value?.filter
-  return mergeFilters(dsFilter, props.filter)
+  return props.filter
 })
 
 /** 依赖字段（动态条件来源），供联动 watch */
 const filterDependFields = computed<string[]>(() => {
-  const mf = mergedFilter.value
+  const mf = effectiveFilter.value
   if (mf) {
     return mf.conditions.map((c: any) => c.field).filter((f: any): f is string => !!f)
   }
@@ -238,13 +236,13 @@ async function fetchData() {
         : (props.fetch?.keywordColumn || '').split(',').map(s => s.trim()).filter(Boolean)
       if (kwCols.length > 0) params.keywordColumn = kwCols.join(',')
     }
-    // 合并 + 解析 filter（数据源级 + 组件级）
+    // 解析 filter 中的动态字段引用（source=field → 当前表单字段值）
     const getValue = (field: string) => formCreateInject.value?.api?.getValue?.(field)
-    if (mergedFilter.value) {
+    if (effectiveFilter.value) {
       const resolved = resolveFilterFieldReferences(
-        mergedFilter.value,
+        effectiveFilter.value,
         Object.fromEntries(
-          (mergedFilter.value.conditions || [])
+          (effectiveFilter.value.conditions || [])
             .filter((c: any) => c.field)
             .map((c: any) => [c.field!, getValue(c.field!) ?? '']),
         ),

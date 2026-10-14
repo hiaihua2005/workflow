@@ -44,6 +44,16 @@ public class NodeOptions {
     private List<String> roleCodes;
     /** approval.multiMode。 */
     private String multiMode;
+    /** approval.passRatio（会签通过比例 1-99；缺省/100 = 全员通过）。 */
+    private Integer passRatio;
+    /** approval.votePassRatio（票签通过权重比例 1-100，缺省 50）。 */
+    private Integer votePassRatio;
+    /** approval.weights（票签权重表 userId → 权重，缺省权重 1）。 */
+    private Map<String, Long> voteWeights;
+    /** 任务优先级（root.priority，0-100；缺省 0=普通。建议档位：普通 50 / 重要 75 / 加急 100）。 */
+    private Integer priority;
+    /** 办理时限（root.dueHours，任务创建时刻 + N 小时 → task.dueDate；缺省不设）。 */
+    private Double dueHours;
     /** approval.formUserField（type=form_user 时从流程变量取该表单字段解析用户）。 */
     private String formUserField;
     /** approval.external.resolver（type=external 时业务系统注册的选人函数名）。 */
@@ -96,6 +106,16 @@ public class NodeOptions {
         }
         NodeOptions o = new NodeOptions();
 
+        // 任务优先级 / 办理时限（root 级：priority 0-100；dueHours > 0）
+        JsonNode priorityNode = root.get("priority");
+        if (priorityNode != null && priorityNode.isNumber()) {
+            o.priority = intInRange(priorityNode, 0, 100);
+        }
+        JsonNode dueHoursNode = root.get("dueHours");
+        if (dueHoursNode != null && dueHoursNode.isNumber() && dueHoursNode.asDouble() > 0) {
+            o.dueHours = dueHoursNode.asDouble();
+        }
+
         JsonNode tr = root.get("taskRole");
         if (tr != null && tr.isTextual()) {
             String v = tr.asText().trim();
@@ -125,8 +145,27 @@ public class NodeOptions {
             JsonNode mm = ap.get("multiMode");
             if (mm != null && mm.isTextual()) {
                 String v = mm.asText().trim();
-                if (Set.of("single", "countersign", "or_sign", "sequential").contains(v)) {
+                if (Set.of("single", "countersign", "or_sign", "sequential", "vote_sign").contains(v)) {
                     o.multiMode = v;
+                }
+            }
+            // 会签通过比例（1-99 生效；100/缺省保持全员通过语义）
+            o.passRatio = intInRange(ap.get("passRatio"), 1, 99);
+            // 票签通过权重比例（1-100，缺省 50）
+            o.votePassRatio = intInRange(ap.get("votePassRatio"), 1, 100);
+            // 票签权重表（userId → 正整数权重）
+            JsonNode ws = ap.get("weights");
+            if (ws != null && ws.isObject()) {
+                Map<String, Long> weights = new LinkedHashMap<>();
+                for (Iterator<Map.Entry<String, JsonNode>> it = ws.fields(); it.hasNext(); ) {
+                    Map.Entry<String, JsonNode> e = it.next();
+                    JsonNode v = e.getValue();
+                    if (v.isNumber() && v.asDouble() > 0) {
+                        weights.put(e.getKey(), Math.round(v.asDouble()));
+                    }
+                }
+                if (!weights.isEmpty()) {
+                    o.voteWeights = weights;
                 }
             }
             // 表单内用户字段名（type=form_user 时的审批人来源：流程变量中的表单字段）
@@ -273,6 +312,18 @@ public class NodeOptions {
         return node.asBoolean();
     }
 
+    /** 限幅整数解析：缺失/非数字/越界返回 null。 */
+    private static Integer intInRange(JsonNode node, int min, int max) {
+        if (node == null || !node.isNumber()) {
+            return null;
+        }
+        double v = node.asDouble();
+        if (v < min || v > max) {
+            return null;
+        }
+        return (int) Math.round(v);
+    }
+
     public String getTaskRole() { return taskRole; }
     public String getApprovalType() { return approvalType; }
     public String getApprovalTypeRaw() { return approvalTypeRaw; }
@@ -280,6 +331,11 @@ public class NodeOptions {
     public List<String> getUserIds() { return userIds; }
     public List<String> getRoleCodes() { return roleCodes; }
     public String getMultiMode() { return multiMode; }
+    public Integer getPassRatio() { return passRatio; }
+    public Integer getVotePassRatio() { return votePassRatio; }
+    public Map<String, Long> getVoteWeights() { return voteWeights; }
+    public Integer getPriority() { return priority; }
+    public Double getDueHours() { return dueHours; }
     public String getFormUserField() { return formUserField; }
     public String getExternalResolver() { return externalResolver; }
     public Map<String, Object> getExternalParams() { return externalParams; }

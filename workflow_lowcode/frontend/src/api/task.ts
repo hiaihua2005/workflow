@@ -19,6 +19,10 @@ export interface TaskTodoVO {
   assignee: string
   createTime: string
   reminded: boolean
+  /** 任务优先级（0-100；建议档位 普通 50 / 重要 75 / 加急 100） */
+  priority?: number
+  /** 办理时限（dueDate 格式化；未配置为空） */
+  dueDate?: string
 }
 
 /**
@@ -126,6 +130,8 @@ export interface TaskTodoQueryParams {
   initiator?: string
   createTimeStart?: string
   createTimeEnd?: string
+  /** 排序：priority（优先级降序）；缺省按接收时间降序 */
+  orderBy?: string
 }
 
 export interface TaskDoneQueryParams {
@@ -159,6 +165,14 @@ export interface CompleteTaskResponse {
 export interface RejectRequest {
   userId?: string
   reason?: string
+  /** 退回目标节点（chooseStartNode 退回模式）；空 = 退回发起人节点（默认）。 */
+  targetNodeId?: string
+}
+
+/** 可退回历史节点候选（chooseStartNode 退回模式）。 */
+export interface ReturnCandidateVO {
+  nodeId: string
+  nodeName: string
 }
 
 export interface TransferRequest {
@@ -213,9 +227,14 @@ export const taskApi = {
     return http.post(`/v1/tasks/${id}/complete`, data)
   },
 
-  /** 驳回任务（退回给发起人重新填写） */
+  /** 驳回任务（退回给发起人重新填写；targetNodeId 指定历史节点时为任意节点退回） */
   reject(id: string, data?: RejectRequest): Promise<R<void>> {
     return http.post(`/v1/tasks/${id}/reject`, data)
+  },
+
+  /** 可退回的历史节点候选（chooseStartNode 模式；空列表 = 回落「退回发起人」默认行为） */
+  returnCandidates(id: string): Promise<R<ReturnCandidateVO[]>> {
+    return http.get(`/v1/tasks/${id}/return-candidates`)
   },
 
   /** 拒绝任务（不同意并终止整个流程） */

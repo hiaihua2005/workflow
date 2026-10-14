@@ -15,6 +15,13 @@
             :action-column-width="68"
             @row-dblclick="handleProcessTask"
           >
+            <!-- 优先级列 -->
+            <template #priority="{ row }">
+              <el-tag v-if="(row.priority ?? 0) >= 100" type="danger" size="small">加急</el-tag>
+              <el-tag v-else-if="(row.priority ?? 0) >= 75" type="warning" size="small">重要</el-tag>
+              <span v-else class="priority-normal">普通</span>
+            </template>
+
             <!-- 催办徽标列 -->
             <template #reminded="{ row }">
               <el-badge v-if="row.reminded" is-dot type="warning">
@@ -109,10 +116,19 @@ const todoSearchFields: SearchField[] = [
   { type: 'input', label: '流程名称', prop: 'processName', placeholder: '流程名称', style: 'width: 200px' },
   { type: 'input', label: '发起人', prop: 'initiator', placeholder: '发起人', style: 'width: 160px' },
   { type: 'date-range', label: '接收时间', prop: 'createTime', time: true },
+  {
+    type: 'select',
+    label: '排序',
+    prop: 'orderBy',
+    placeholder: '按接收时间',
+    style: 'width: 140px',
+    options: [{ label: '按优先级', value: 'priority' }],
+  },
 ]
 
 const todoColumns: TableColumn[] = [
   { prop: 'processName', label: '流程名称', minWidth: 160, showOverflowTooltip: true },
+  { prop: 'priority', label: '优先级', width: 90, align: 'center', slotName: 'priority' },
   { prop: 'businessKey', label: '编号', width: 140, showOverflowTooltip: true },
   { prop: 'initiatorName', label: '发起人', width: 100 },
   { prop: 'currentNodeName', label: '当前节点', width: 120, showOverflowTooltip: true },
@@ -136,6 +152,7 @@ async function todoFetchApi(params: QueryParams): Promise<{ rows: TaskTodoVO[]; 
     p.createTimeStart = params.createTime[0]
     p.createTimeEnd = params.createTime[1]
   }
+  if (params.orderBy) p.orderBy = params.orderBy
   const res = await taskApi.listTodo(p)
   return { rows: res.data.content, total: res.data.totalElements }
 }
@@ -143,6 +160,9 @@ async function todoFetchApi(params: QueryParams): Promise<{ rows: TaskTodoVO[]; 
 function handleProcessTask(row: TaskTodoVO) {
   router.push(`/process/todo/${row.taskId}`)
 }
+
+/** 优先级列样式 */
+
 
 // ==================== 已办 ====================
 
@@ -394,5 +414,11 @@ function instanceStatusTagType(status: string): 'primary' | 'warning' | 'info' {
 }
 .process-todo-page :deep(.el-tab-pane) {
   height: 100%;
+}
+
+/* 普通优先级：弱化文字 */
+.priority-normal {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #8b91ab);
 }
 </style>

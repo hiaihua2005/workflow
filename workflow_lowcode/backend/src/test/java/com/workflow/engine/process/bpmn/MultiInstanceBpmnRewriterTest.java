@@ -27,7 +27,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class MultiInstanceBpmnRewriterTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final MultiInstanceBpmnRewriter rewriter = new MultiInstanceBpmnRewriter(objectMapper);
+    private final MultiInstanceBpmnRewriter rewriter = new MultiInstanceBpmnRewriter(
+            objectMapper,
+            org.mockito.Mockito.mock(com.workflow.engine.logicflow.repository.LogicFlowDefRepository.class),
+            org.mockito.Mockito.mock(com.workflow.engine.tenant.TenantProvider.class));
 
     private static final String PLAIN_BPMN = """
             <?xml version="1.0" encoding="UTF-8"?>

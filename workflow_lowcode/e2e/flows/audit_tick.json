@@ -1,0 +1,13 @@
+{
+  "nodes": [
+    { "id": "sC", "type": "START", "name": "开始", "x": 80, "y": 120 },
+    { "id": "bC", "type": "BEAN", "name": "记录时间戳", "x": 280, "y": 120,
+      "config": { "beanName": "scriptToolkit", "methodName": "now", "params": [] },
+      "results": [ { "name": "ts", "mode": "WHOLE" } ] },
+    { "id": "eC", "type": "END", "name": "结束", "x": 480, "y": 120 }
+  ],
+  "edges": [
+    { "id": "ec1", "source": "sC", "target": "bC" },
+    { "id": "ec2", "source": "bC", "target": "eC" }
+  ]
+}

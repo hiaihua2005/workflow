@@ -54,6 +54,7 @@ const CALL_ICON_COLOR = '#5755ee'
 const TYPE_MARKER_MAP: Record<string, string> = {
   'bpmn:StartEvent': 'start-event',
   'bpmn:EndEvent': 'end-event',
+  'bpmn:BoundaryEvent': 'boundary-event',
   'bpmn:IntermediateThrowEvent': 'intermediate-throw-event',
   'bpmn:IntermediateCatchEvent': 'intermediate-catch-event',
   'bpmn:UserTask': 'user-task',
@@ -108,6 +109,16 @@ function CustomRenderer(this: any, eventBus: any, bpmnRenderer: any, styles: any
         const role = e.businessObject && e.businessObject.get && e.businessObject.get('wf:nodeRole')
         if (role === 'initiator' || role === 'approver' || role === 'handler') {
           this.canvas.addMarker(e, `${role}-task`)
+        }
+      }
+      // 边界事件：按事件定义追加 marker（bpmn-canvas-theme.css 按类型着色，
+      // 定时=品牌青（对齐开始事件）、错误=红（对齐结束事件））
+      if (e.type === 'bpmn:BoundaryEvent') {
+        const defs = (e.businessObject && e.businessObject.eventDefinitions) || []
+        if (defs.some((d: any) => d.$type === 'bpmn:TimerEventDefinition')) {
+          this.canvas.addMarker(e, 'boundary-timer')
+        } else if (defs.some((d: any) => d.$type === 'bpmn:ErrorEventDefinition')) {
+          this.canvas.addMarker(e, 'boundary-error')
         }
       }
     })

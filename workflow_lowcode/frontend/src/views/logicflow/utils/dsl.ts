@@ -5,7 +5,8 @@
  * - nodes[]: { id, type: START|END|HTTP|BEAN|SCRIPT|CONDITION|BATCH|SUBFLOW|DATA_UPDATE, name, x, y,
  *              config{...}, results?, errorAction?: FAIL_FLOW|IGNORE_CONTINUE }
  *   - HTTP   config = { url, method, headers{...}, queryParams[{source,target}],
- *                       bodyParams[{source,target}], connTimeoutMs, readTimeoutMs, retryCount }
+ *                       bodyParams[{source,target}], connTimeoutMs, readTimeoutMs }
+ *                       （retryCount 已下线：重试统一走节点级 retryCount，旧值读取时自动迁移，见 migrateLegacyHttpRetry）
  *   - BEAN   config = { beanName, methodName, params[{source,target}] }
  *   - SCRIPT config = { language: 'groovy', source }
  *   - CONDITION config = { variable, operator: EQ|NE|GT|LT|GTE|LTE|EMPTY|NOT_EMPTY, value? }
@@ -47,6 +48,7 @@ export type LogicNodeType =
   | 'BEAN'
   | 'SCRIPT'
   | 'CONDITION'
+  | 'SWITCH'
   | 'BATCH'
   | 'SUBFLOW'
   | 'DATA_UPDATE'
@@ -63,7 +65,33 @@ export type LogicNodeType =
 
 export type ErrorAction = 'FAIL_FLOW' | 'IGNORE_CONTINUE'
 
-export type ConditionOperator = 'EQ' | 'NE' | 'GT' | 'LT' | 'GTE' | 'LTE' | 'EMPTY' | 'NOT_EMPTY'
+export type ConditionOperator =
+  | 'EQ'
+  | 'NE'
+  | 'GT'
+  | 'LT'
+  | 'GTE'
+  | 'LTE'
+  | 'EMPTY'
+  | 'NOT_EMPTY'
+  | 'CONTAINS'
+  | 'NOT_CONTAINS'
+  | 'STARTS_WITH'
+  | 'ENDS_WITH'
+  | 'IN'
+  | 'NOT_IN'
+  | 'REGEX'
+
+/** 多条件组合逻辑：ALL=全部满足（缺省），ANY=任一满足 */
+export type ConditionLogic = 'ALL' | 'ANY'
+
+/** 多条件形态的单条条件（与 legacy 单条件字段同构） */
+export interface ConditionItem {
+  variable: string
+  operator: ConditionOperator
+  /** EMPTY/NOT_EMPTY 时不需要；支持字面量或 {{var}}；IN/NOT_IN 为逗号分隔列表 */
+  value?: string
+}
 
 /** 变量映射对：source=变量名，target=参数名 */
 export interface ParamPair {
@@ -79,7 +107,6 @@ export interface HttpNodeConfig {
   bodyParams: ParamPair[]
   connTimeoutMs: number
   readTimeoutMs: number
-  retryCount: number
 }
 
 export interface BeanNodeConfig {
@@ -93,11 +120,23 @@ export interface ScriptNodeConfig {
   source: string
 }
 
+/** SWITCH 多路分支配置：variable 值与 cases[].value 逐一比对（EQ 语义），命中走 case:<value> 出边 */
+export interface SwitchNodeConfig {
+  variable: string
+  /** 每个 case 一条出边（branch=case:<value>）；value 支持字面量或 {{var}} */
+  cases: { value: string }[]
+}
+
 export interface ConditionNodeConfig {
+  /** legacy 单条件形态（conditions 非空时被忽略） */
   variable: string
   operator: ConditionOperator
   /** EMPTY/NOT_EMPTY 时不需要；支持字面量或 {{var}} */
   value?: string
+  /** 多条件形态：逐条 {variable, operator, value}，与 legacy 顶层字段同构 */
+  conditions?: ConditionItem[]
+  /** 多条件组合逻辑：ALL=全部满足（缺省），ANY=任一满足 */
+  logic?: ConditionLogic
 }
 
 /** 批处理节点内嵌动作类型（仅业务执行三型，legacy 配置用） */
@@ -136,6 +175,12 @@ export interface BatchBodyNode {
   /** 输出声明（全部步骤类型消费，统一 results 单表模型） */
   results?: ResultVarDef[]
   errorAction?: ErrorAction
+  /** 节点级重试次数（0~10，缺省 0）；失败退避 backoffMs 后再试 */
+  retryCount?: number
+  /** 重试退避间隔毫秒（0~60000） */
+  backoffMs?: number
+  /** 节点级执行超时毫秒（0/缺省不限；超时中断判失败，走错误分支/errorAction） */
+  timeoutMs?: number
   /** 画布绝对坐标（可选）：仅当节点被拖离「批处理下方居中」默认排布位时持久化，
    *  缺省 = 回显时按批处理位置自动居中排布——保证旧 DSL / 未移动场景往返稳定 */
   x?: number
@@ -361,6 +406,7 @@ export type NodeConfig =
   | BeanNodeConfig
   | ScriptNodeConfig
   | ConditionNodeConfig
+  | SwitchNodeConfig
   | BatchNodeConfig
   | SubflowNodeConfig
   | DataUpdateNodeConfig
@@ -463,20 +509,28 @@ export interface DslNode {
   /** 输出声明（执行型节点统一 results 单表，WHOLE 整包 / KEY 拆包） */
   results?: ResultVarDef[]
   errorAction?: ErrorAction
+  /** 节点级重试次数（0~10，缺省 0=不重试） */
+  retryCount?: number
+  /** 重试退避间隔毫秒（0~60000） */
+  backoffMs?: number
+  /** 节点级执行超时毫秒（0/缺省=不限） */
+  timeoutMs?: number
 }
 
-/** DSL 契约边（branch：CONDITION 真/假出边 + 执行节点失败路由 error 边） */
+/** DSL 契约边（branch：CONDITION 真/假出边 + 执行节点失败路由 error 边 + SWITCH case:<值>/default） */
 export interface DslEdge {
   id?: string
   source: string
   target: string
-  branch?: 'true' | 'false' | 'error'
+  branch?: 'true' | 'false' | 'error' | 'default' | (string & {})
 }
 
 export interface LogicFlowDsl {
   nodes: DslNode[]
   edges: DslEdge[]
   inputVars?: InputVarDef[]
+  /** 事务策略（缺省 AUTO_COMMIT；WHOLE_IN_TX 仅限本地数据/控制节点，发布期后端硬校验） */
+  transactionPolicy?: 'AUTO_COMMIT' | 'WHOLE_IN_TX'
 }
 
 // ==================== vue-flow 画布类型 ====================
@@ -489,6 +543,10 @@ export interface FlowNodeData {
   /** 输出声明（执行型节点编辑/序列化） */
   results?: ResultVarDef[]
   errorAction?: ErrorAction
+  /** 节点级重试/退避/超时（执行型节点编辑/序列化） */
+  retryCount?: number
+  backoffMs?: number
+  timeoutMs?: number
 }
 
 /** vue-flow 节点（本设计器使用的最小形状） */
@@ -512,13 +570,15 @@ export interface FlowEdge {
   markerEnd?: string
   deletable?: boolean
   class?: string
-  data?: { branch?: 'true' | 'false' | 'error'; loop?: boolean }
+  data?: { branch?: 'true' | 'false' | 'error' | 'default' | `case:${string}`; loop?: boolean }
 }
 
 export interface FlowGraph {
   nodes: FlowNode[]
   edges: FlowEdge[]
   inputVars: InputVarDef[]
+  /** 顶层事务策略（未配置 = AUTO_COMMIT） */
+  transactionPolicy?: 'AUTO_COMMIT' | 'WHOLE_IN_TX'
 }
 
 // ==================== 常量 ====================
@@ -586,6 +646,7 @@ export function isLogicNodeType(type: unknown): type is LogicNodeType {
   return (
     type === 'START' || type === 'END' || type === 'HTTP' ||
     type === 'BEAN' || type === 'SCRIPT' || type === 'CONDITION' ||
+    type === 'SWITCH' ||
     type === 'BATCH' || type === 'SUBFLOW' || type === 'DATA_UPDATE' ||
     type === 'SQL_SCRIPT' || type === 'DATA_UPSERT' || type === 'DATA_QUERY' || type === 'DATA_INSERT' ||
     type === 'DATA_DELETE' || type === 'NOTIFY' || type === 'DELAY' ||
@@ -602,6 +663,7 @@ export function defaultNodeName(type: LogicNodeType): string {
     BEAN: 'Bean 方法',
     SCRIPT: 'Groovy 脚本',
     CONDITION: '条件判断',
+    SWITCH: '多路分支',
     BATCH: '批处理',
     SUBFLOW: '子流程',
     DATA_UPDATE: '数据更新',
@@ -631,7 +693,6 @@ export function defaultConfig(type: LogicNodeType): NodeConfig | undefined {
         bodyParams: [],
         connTimeoutMs: 3000,
         readTimeoutMs: 5000,
-        retryCount: 0,
       }
     case 'BEAN':
       return { beanName: '', methodName: '', params: [] }
@@ -681,6 +742,8 @@ export function defaultConfig(type: LogicNodeType): NodeConfig | undefined {
       return { template: '' }
     case 'AGGREGATE':
       return { collection: '', field: '', ops: ['COUNT'], groupBy: '' }
+    case 'SWITCH':
+      return { variable: '', cases: [{ value: '' }] }
     case 'LLM':
       return { prompt: '', system: '', temperature: undefined }
     default:
@@ -782,6 +845,7 @@ function synthesizeBatchLoops(nodes: FlowNode[], edges: FlowEdge[]): void {
           config: bn.config,
           results: sanitizeResults(bn.results),
           errorAction: bn.errorAction || undefined,
+          ...withMigratedRetry(bn.config, bn as unknown as Record<string, unknown>),
         },
       }))
       nodes.push(...bodyNodes)
@@ -809,7 +873,7 @@ export function parseDsl(dsl: string): FlowGraph {
   if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('DSL 结构不符：顶层应为对象（含 nodes/edges）')
   }
-  const obj = raw as { nodes?: unknown; edges?: unknown; inputVars?: unknown }
+  const obj = raw as { nodes?: unknown; edges?: unknown; inputVars?: unknown; transactionPolicy?: unknown }
   const rawNodes = Array.isArray(obj.nodes) ? obj.nodes : []
   const rawEdges = Array.isArray(obj.edges) ? obj.edges : []
   const rawInputVars = Array.isArray(obj.inputVars) ? obj.inputVars : []
@@ -835,6 +899,7 @@ export function parseDsl(dsl: string): FlowGraph {
   const nodes: FlowNode[] = rawNodes.map((item) => {
     const n = (item ?? {}) as Record<string, unknown>
     const type = normalizeType(n.type)
+    const config = (n.config ?? undefined) as NodeConfig | undefined
     return {
       id: String(n.id ?? '') || createNodeId(type, []),
       type: FLOW_NODE_TYPE,
@@ -842,10 +907,12 @@ export function parseDsl(dsl: string): FlowGraph {
       data: {
         nodeType: type,
         name: String(n.name ?? '') || defaultNodeName(type),
-        config: (n.config ?? undefined) as NodeConfig | undefined,
+        config,
         // resultVar 已下线：解析不再读取；results 全执行型节点统一回显
         results: sanitizeResults(n.results as ResultVarDef[] | undefined),
         errorAction: n.errorAction ? (String(n.errorAction) as ErrorAction) : undefined,
+        // 旧 DSL 的 HTTP config.retryCount 在此迁移到节点级（并抹除遗留键）
+        ...withMigratedRetry(config, n),
       },
     }
   })
@@ -857,7 +924,9 @@ export function parseDsl(dsl: string): FlowGraph {
       const branch =
         branchRaw === 'true' || branchRaw === 'false' || branchRaw === 'error'
           ? (branchRaw as 'true' | 'false' | 'error')
-          : undefined
+          : typeof branchRaw === 'string' && (branchRaw === 'default' || branchRaw.startsWith('case:'))
+            ? (branchRaw as 'default' | `case:${string}`)
+            : undefined
       return {
         id: e.id != null ? String(e.id) : `e_${index}_${shortCode()}`,
         source: String(e.source ?? ''),
@@ -874,13 +943,28 @@ export function parseDsl(dsl: string): FlowGraph {
 
   synthesizeBatchLoops(nodes, edges)
 
-  return { nodes, edges, inputVars }
+  return {
+    nodes,
+    edges,
+    inputVars,
+    transactionPolicy:
+      obj.transactionPolicy === 'WHOLE_IN_TX' || obj.transactionPolicy === 'AUTO_COMMIT'
+        ? (obj.transactionPolicy as 'WHOLE_IN_TX' | 'AUTO_COMMIT')
+        : undefined,
+  }
 }
 
 // ==================== 序列化：画布 → DSL 字符串 ====================
 
-/** START/END/CONDITION 不含执行元信息（errorAction/results 仅业务执行型） */
-function hasExecutionMeta(type: LogicNodeType): boolean {
+/**
+ * 执行型节点（含执行元信息 errorAction/results/重试超时）。
+ * START/END/CONDITION/SWITCH 不含（CONDITION/SWITCH 为纯内存求值，无重试/超时语义）。
+ *
+ * 单一来源：序列化（toDslNode/toDslBodyNode）、error 分支能力（supportsErrorBranch）、
+ * PropertyPanel 的「异常处理 / 重试与超时」区块均引用本函数 —— 新增执行型节点类型
+ * 只需在此登记一次，避免名单多处硬编码漂移。
+ */
+export function hasExecutionMeta(type: LogicNodeType): boolean {
   return (
     type === 'HTTP' ||
     type === 'BEAN' ||
@@ -906,6 +990,67 @@ export function supportsErrorBranch(type: LogicNodeType): boolean {
   return hasExecutionMeta(type)
 }
 
+/** 节点级重试/退避/超时回显：仅取正数（0/负/非法值一律忽略为未配置） */
+function pickRetryMeta(source: Record<string, unknown>): {
+  retryCount?: number
+  backoffMs?: number
+  timeoutMs?: number
+} {
+  const posNum = (v: unknown): number | undefined => {
+    const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN
+    return Number.isFinite(n) && n > 0 ? n : undefined
+  }
+  const out: { retryCount?: number; backoffMs?: number; timeoutMs?: number } = {}
+  const rc = posNum(source.retryCount)
+  if (rc !== undefined) out.retryCount = rc
+  const bm = posNum(source.backoffMs)
+  if (bm !== undefined) out.backoffMs = bm
+  const tm = posNum(source.timeoutMs)
+  if (tm !== undefined) out.timeoutMs = tm
+  return out
+}
+
+/**
+ * 存量兼容迁移：旧 DSL 把 HTTP 重试次数写在 config.retryCount，与节点级 retryCount 并存时会
+ * 造成双重重试（实际次数 =(1+节点级)×(1+config)）。统一收敛到节点级：
+ * - 节点级已配置 → 丢弃 config 遗留值（以节点级为准）；
+ * - 节点级未配置 → 接管 config 遗留值（>0 才接管，保证旧流程行为不降级）；
+ * 无论哪种情况都从 config 抹除该键，用户下次保存即完成迁移（后端对未迁移的存量 DSL 仍有兜底）。
+ */
+function migrateLegacyHttpRetry(config: unknown, nodeRetry?: number): number | undefined {
+  if (!config || typeof config !== 'object' || !('retryCount' in config)) return nodeRetry
+  const legacy = Number((config as Record<string, unknown>).retryCount)
+  delete config.retryCount
+  if (nodeRetry == null && Number.isFinite(legacy) && legacy > 0) return Math.round(legacy)
+  return nodeRetry
+}
+
+/** pickRetryMeta + 存量 HTTP config.retryCount 迁移：返回可直接展开进画布 data 的重试元信息 */
+function withMigratedRetry(
+  config: unknown,
+  source: Record<string, unknown>
+): { retryCount?: number; backoffMs?: number; timeoutMs?: number } {
+  const meta = pickRetryMeta(source)
+  const migrated = migrateLegacyHttpRetry(config, meta.retryCount)
+  if (migrated !== undefined) meta.retryCount = migrated
+  return meta
+}
+
+/** 序列化方向：>0 才写入（缺省省略，保持 DSL 精简、旧 DSL 往返稳定） */
+function buildRetryMeta(data: FlowNodeData): { retryCount?: number; backoffMs?: number; timeoutMs?: number } {
+  const out: { retryCount?: number; backoffMs?: number; timeoutMs?: number } = {}
+  if (Number.isFinite(data.retryCount) && (data.retryCount as number) > 0) {
+    out.retryCount = Math.round(data.retryCount as number)
+  }
+  if (Number.isFinite(data.backoffMs) && (data.backoffMs as number) > 0) {
+    out.backoffMs = Math.round(data.backoffMs as number)
+  }
+  if (Number.isFinite(data.timeoutMs) && (data.timeoutMs as number) > 0) {
+    out.timeoutMs = Math.round(data.timeoutMs as number)
+  }
+  return out
+}
+
 /** 画布节点 → 契约节点（剥离 vue-flow 内部字段） */
 function toDslNode(node: FlowNode): DslNode | null {
   const data = node?.data
@@ -926,6 +1071,7 @@ function toDslNode(node: FlowNode): DslNode | null {
     const results = sanitizeResults(data.results)
     if (results) out.results = results
     out.errorAction = data.errorAction === 'IGNORE_CONTINUE' ? 'IGNORE_CONTINUE' : 'FAIL_FLOW'
+    Object.assign(out, buildRetryMeta(data))
   }
   return out
 }
@@ -941,9 +1087,14 @@ function toDslEdge(edge: FlowEdge): DslEdge | null {
   const branch =
     fromHandle === 'true' || fromHandle === 'false' || fromHandle === 'error'
       ? fromHandle
-      : edge.data?.branch === 'true' || edge.data?.branch === 'false' || edge.data?.branch === 'error'
-        ? edge.data.branch
-        : undefined
+      : typeof fromHandle === 'string' && (fromHandle === 'default' || fromHandle.startsWith('case:'))
+        ? fromHandle
+        : edge.data?.branch === 'true' || edge.data?.branch === 'false' || edge.data?.branch === 'error'
+          ? edge.data.branch
+          : typeof edge.data?.branch === 'string' &&
+              (edge.data.branch === 'default' || edge.data.branch.startsWith('case:'))
+            ? edge.data.branch
+            : undefined
   if (branch) out.branch = branch
   return out
 }
@@ -966,6 +1117,7 @@ function toDslBodyNode(node: FlowNode): BatchBodyNode | null {
   const results = sanitizeResults(data.results)
   if (results) out.results = results
   out.errorAction = data.errorAction === 'IGNORE_CONTINUE' ? 'IGNORE_CONTINUE' : 'FAIL_FLOW'
+  Object.assign(out, buildRetryMeta(data))
   return out
 }
 
@@ -1024,11 +1176,12 @@ function extractBatchBody(
   return { body, chainNodeIds }
 }
 
-/** 序列化画布为 DSL JSON 字符串（空画布 → 空节点/空边结构；inputVars 非空时带上） */
+/** 序列化画布为 DSL JSON 字符串（空画布 → 空节点/空边结构；inputVars 非空时带上；事务策略非缺省时带上） */
 export function serializeDsl(
   nodes: FlowNode[],
   edges: FlowEdge[],
-  inputVars?: InputVarDef[]
+  inputVars?: InputVarDef[],
+  transactionPolicy?: string
 ): string {
   const safeNodes = nodes || []
   const safeEdges = edges || []
@@ -1077,6 +1230,9 @@ export function serializeDsl(
 
   const declared = (inputVars || []).filter((v) => v.name && v.name.trim())
   if (declared.length) dsl.inputVars = declared
+  if (transactionPolicy && transactionPolicy.trim() && transactionPolicy.trim() !== 'AUTO_COMMIT') {
+    dsl.transactionPolicy = transactionPolicy.trim() as LogicFlowDsl['transactionPolicy']
+  }
   return JSON.stringify(dsl)
 }
 

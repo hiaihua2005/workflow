@@ -59,6 +59,13 @@ const NODE_TYPE_LABELS: Record<string, string> = {
   boundaryEvent: '边界事件',
 }
 
+/** 引擎不支持的历史审批人类型（存量兼容；运行时按「找不到办理人」策略兜底）。 */
+const LEGACY_APPROVAL_TYPES = new Set([
+  'post', 'member_group', 'dept_head', 'multi_level', 'report_superior',
+  'approval_role', 'matrix', 'form_dept_leader', 'form_dept_approval_role',
+  'approver_designate', 'external_push',
+])
+
 /** userTask 的展示名：按 wf:nodeRole 细分发起/办理/审批（缺省归审批）。 */
 function userTaskRoleLabel(el: Element): string {
   const role = el.getAttribute('wf:nodeRole') ?? el.getAttribute('nodeRole')
@@ -117,7 +124,8 @@ export function validateFlowConnectivity(xml: string): string[] {
     if (local !== 'endEvent' && !(outgoing.get(id) ?? 0)) {
       errors.push(`节点「${label}」没有出边，流程会走死，请连线到下游节点或结束事件`)
     }
-    if (local !== 'startEvent' && !(incoming.get(id) ?? 0)) {
+    // 边界事件无入边（附着在活动上），不参与入边校验
+    if (local !== 'startEvent' && local !== 'boundaryEvent' && !(incoming.get(id) ?? 0)) {
       errors.push(`节点「${label}」没有入边，永远无法到达，请从上游节点连线`)
     }
     if (local === 'exclusiveGateway') {
@@ -239,6 +247,13 @@ export function validateProcessXml(
         if (!approval || !approval.type) {
           return { error: `${typeLabel}「${taskName}」未配置${personLabel}，请设置类型。`, warnings }
         }
+        // 历史审批人类型：引擎不支持，运行时按「找不到办理人」策略兜底（T2 清理项）
+        if (LEGACY_APPROVAL_TYPES.has(approval.type)) {
+          warnings.push(
+            `${typeLabel}「${taskName}」使用了历史${personLabel}类型「${approval.type}」，引擎不支持，`
+            + `运行时将按「找不到${personLabel}」策略处理，请改为指定用户/角色/表达式等受支持类型`,
+          )
+        }
         if (approval.type === 'user' && (!approval.userIds || approval.userIds.length === 0)) {
           const policy = config.assigneeOptions?.noAssigneePolicy || ''
           if (policy === 'auto_pass' || policy === 'to_admin' || policy === 'to_user' || policy === 'skip' || policy === 'supervisor') {
@@ -263,5 +278,55 @@ export function validateProcessXml(
   const subErrors = validateSubProcessBoundaries(xml)
   if (subErrors.length) return { error: subErrors.join('；'), warnings }
 
+  // 9. 边界事件：必须附着在活动上；必须有出边；定时/错误定义必须完整
+  const boundaryErrors = validateBoundaryEvents(
+    doc,
+    Array.from(doc.querySelectorAll('bpmn\\:sequenceFlow, sequenceFlow')),
+  )
+  if (boundaryErrors.length) return { error: boundaryErrors.join('\n'), warnings }
+
   return { error: null, warnings }
+}
+
+/** 边界事件校验（附着目标/出边/事件定义完整性）。 */
+function validateBoundaryEvents(
+  doc: Document,
+  flows: Element[],
+): string[] {
+  const errors: string[] = []
+  doc.querySelectorAll('bpmn\\:boundaryEvent, boundaryEvent').forEach((el) => {
+    const id = el.getAttribute('id') || ''
+    const name = el.getAttribute('name') || id
+    const hostId = el.getAttribute('attachedToRef')
+    if (!hostId) {
+      errors.push(`边界事件「${name}」未附着到任何节点，请删除后拖到任务/子流程上方重新创建`)
+      return
+    }
+    const host = doc.querySelector(`[id="${hostId}"]`)
+    if (!host) {
+      errors.push(`边界事件「${name}」附着的节点（${hostId}）不存在`)
+      return
+    }
+
+    // 必须有出边（触发后走分支）
+    const hasOutgoing = flows.some((f) => f.getAttribute('sourceRef') === id)
+    if (!hasOutgoing) {
+      errors.push(`边界事件「${name}」没有出边，触发后无分支可走，请连线下游节点`)
+    }
+
+    // 事件定义完整性
+    const timer = el.querySelector('bpmn\\:timerEventDefinition, timerEventDefinition')
+    const errorDef = el.querySelector('bpmn\\:errorEventDefinition, errorEventDefinition')
+    if (!timer && !errorDef) {
+      errors.push(`边界事件「${name}」缺少事件定义（定时/错误），请删除后从节点面板重新拖入`)
+      return
+    }
+    if (timer) {
+      const text = (timer.querySelector('bpmn\\:timeDuration, timeDuration')?.textContent || '').trim()
+      if (!/^P(?:T?\d+[SMHD]|(?:\d+[YMDW])*)$/.test(text)) {
+        errors.push(`边界事件「${name}」未设置超时时长，请在属性面板填写`)
+      }
+    }
+  })
+  return errors
 }

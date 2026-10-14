@@ -1,5 +1,7 @@
 package com.workflow.engine.logicflow.dsl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.workflow.common.exception.BusinessException;
 import com.workflow.engine.logic.parse.VariableResolver;
 import org.junit.jupiter.api.Test;
@@ -12,6 +14,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class ConditionEvaluatorTest {
 
     private final VariableResolver resolver = new VariableResolver();
+
+    /** JSON config → JsonNode（测试辅助）。 */
+    private static JsonNode config(String json) {
+        try {
+            return new ObjectMapper().readTree(json);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
 
     // ------------------------------------------------------------------
     // EQ / NE：数值可解析优先，否则字符串
@@ -134,5 +145,113 @@ class ConditionEvaluatorTest {
     void booleanVariableComparesAsString() {
         assertThat(ConditionEvaluator.evaluate("flag", "EQ", "true", Map.of("flag", true), resolver)).isTrue();
         assertThat(ConditionEvaluator.evaluate("flag", "EQ", "false", Map.of("flag", true), resolver)).isFalse();
+    }
+
+    // ------------------------------------------------------------------
+    // 扩展算子：CONTAINS / NOT_CONTAINS / STARTS_WITH / ENDS_WITH / IN / NOT_IN / REGEX
+    // ------------------------------------------------------------------
+
+    @Test
+    void containsOperators() {
+        assertThat(ConditionEvaluator.evaluate("memo", "CONTAINS", "紧急", Map.of("memo", "非常紧急事项"), resolver)).isTrue();
+        assertThat(ConditionEvaluator.evaluate("memo", "CONTAINS", "普通", Map.of("memo", "非常紧急事项"), resolver)).isFalse();
+        assertThat(ConditionEvaluator.evaluate("memo", "NOT_CONTAINS", "普通", Map.of("memo", "非常紧急事项"), resolver)).isTrue();
+        assertThat(ConditionEvaluator.evaluate("memo", "NOT_CONTAINS", "紧急", Map.of("memo", "非常紧急事项"), resolver)).isFalse();
+        // 数值左值按字符串形态包含
+        assertThat(ConditionEvaluator.evaluate("code", "CONTAINS", "10", Map.of("code", 1102), resolver)).isTrue();
+    }
+
+    @Test
+    void startsEndsWithOperators() {
+        assertThat(ConditionEvaluator.evaluate("name", "STARTS_WITH", "wf_", Map.of("name", "wf_order"), resolver)).isTrue();
+        assertThat(ConditionEvaluator.evaluate("name", "STARTS_WITH", "order", Map.of("name", "wf_order"), resolver)).isFalse();
+        assertThat(ConditionEvaluator.evaluate("name", "ENDS_WITH", "order", Map.of("name", "wf_order"), resolver)).isTrue();
+        assertThat(ConditionEvaluator.evaluate("name", "ENDS_WITH", "wf_", Map.of("name", "wf_order"), resolver)).isFalse();
+        // 右值支持 {{var}} 展开
+        assertThat(ConditionEvaluator.evaluate("name", "STARTS_WITH", "{{prefix}}", Map.of("name", "wf_order", "prefix", "wf_"), resolver)).isTrue();
+    }
+
+    @Test
+    void inAndNotInOperators() {
+        assertThat(ConditionEvaluator.evaluate("status", "IN", "PASS,SUCCESS,OK", Map.of("status", "OK"), resolver)).isTrue();
+        assertThat(ConditionEvaluator.evaluate("status", "IN", "PASS,SUCCESS", Map.of("status", "FAIL"), resolver)).isFalse();
+        assertThat(ConditionEvaluator.evaluate("status", "NOT_IN", "PASS,SUCCESS", Map.of("status", "FAIL"), resolver)).isTrue();
+        // 元素支持 {{var}} 展开 + 数值 EQ 语义（"100" 与 "100.0" 相等）
+        assertThat(ConditionEvaluator.evaluate("level", "IN", "{{high}},{{mid}}", Map.of("level", 100, "high", "100", "mid", "50"), resolver)).isTrue();
+    }
+
+    @Test
+    void regexOperator() {
+        assertThat(ConditionEvaluator.evaluate("phone", "REGEX", "1\\d{10}", Map.of("phone", "13800138000"), resolver)).isTrue();
+        assertThat(ConditionEvaluator.evaluate("phone", "REGEX", "1\\d{10}", Map.of("phone", "23800138000"), resolver)).isFalse();
+        assertThatThrownBy(() -> ConditionEvaluator.evaluate("v", "REGEX", "([unclosed", Map.of("v", "x"), resolver))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("CONDITION_REGEX_INVALID");
+    }
+
+    // ------------------------------------------------------------------
+    // 多条件形态：conditions[] + logic=ALL|ANY（缺省 ALL）；conditions 优先于 legacy
+    // ------------------------------------------------------------------
+
+    @Test
+    void multiConditionAllLogic() {
+        assertThat(ConditionEvaluator.evaluate(config(
+                        "{\"conditions\":[{\"variable\":\"a\",\"operator\":\"EQ\",\"value\":\"1\"},"
+                                + "{\"variable\":\"b\",\"operator\":\"NOT_EMPTY\"}],\"logic\":\"ALL\"}"),
+                Map.of("a", 1, "b", "x"), resolver)).isTrue();
+        assertThat(ConditionEvaluator.evaluate(config(
+                        "{\"conditions\":[{\"variable\":\"a\",\"operator\":\"EQ\",\"value\":\"1\"},"
+                                + "{\"variable\":\"b\",\"operator\":\"EQ\",\"value\":\"2\"}],\"logic\":\"ALL\"}"),
+                Map.of("a", 1, "b", "x"), resolver)).isFalse();
+    }
+
+    @Test
+    void multiConditionAnyLogic() {
+        assertThat(ConditionEvaluator.evaluate(config(
+                        "{\"conditions\":[{\"variable\":\"a\",\"operator\":\"GT\",\"value\":\"10\"},"
+                                + "{\"variable\":\"b\",\"operator\":\"EQ\",\"value\":\"VIP\"}],\"logic\":\"ANY\"}"),
+                Map.of("a", 5, "b", "VIP"), resolver)).isTrue();
+        assertThat(ConditionEvaluator.evaluate(config(
+                        "{\"conditions\":[{\"variable\":\"a\",\"operator\":\"GT\",\"value\":\"10\"},"
+                                + "{\"variable\":\"b\",\"operator\":\"EQ\",\"value\":\"VIP\"}],\"logic\":\"ANY\"}"),
+                Map.of("a", 5, "b", "STD"), resolver)).isFalse();
+    }
+
+    @Test
+    void multiConditionDefaultsToAll() {
+        assertThat(ConditionEvaluator.evaluate(config(
+                        "{\"conditions\":[{\"variable\":\"a\",\"operator\":\"NOT_EMPTY\"},"
+                                + "{\"variable\":\"b\",\"operator\":\"NOT_EMPTY\"}]}"),
+                Map.of("a", "x"), resolver)).isFalse();
+    }
+
+    @Test
+    void multiConditionTakesPrecedenceOverLegacy() {
+        // conditions 非空时忽略 legacy variable/operator/value
+        assertThat(ConditionEvaluator.evaluate(config(
+                        "{\"variable\":\"legacy\",\"operator\":\"EQ\",\"value\":\"no\","
+                                + "\"conditions\":[{\"variable\":\"a\",\"operator\":\"EQ\",\"value\":\"yes\"}]}"),
+                Map.of("a", "yes", "legacy", "no"), resolver)).isTrue();
+    }
+
+    @Test
+    void multiConditionInvalidLogicThrows() {
+        assertThatThrownBy(() -> ConditionEvaluator.evaluate(config(
+                        "{\"conditions\":[{\"variable\":\"a\",\"operator\":\"NOT_EMPTY\"}],\"logic\":\"XOR\"}"),
+                Map.of("a", "x"), resolver))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("UNKNOWN_CONDITION_LOGIC");
+    }
+
+    // ------------------------------------------------------------------
+    // 扩展算子非法值
+    // ------------------------------------------------------------------
+
+    @Test
+    void extendedOperatorCaseInsensitiveAndUnknownStillThrows() {
+        assertThat(ConditionEvaluator.evaluate("name", "starts_with", "wf_", Map.of("name", "wf_x"), resolver)).isTrue();
+        assertThatThrownBy(() -> ConditionEvaluator.evaluate("v", "SOUNDEX", "x", Map.of("v", "x"), resolver))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("UNKNOWN_CONDITION_OPERATOR");
     }
 }

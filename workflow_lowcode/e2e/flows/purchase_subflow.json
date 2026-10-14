@@ -1,0 +1,21 @@
+{
+  "nodes": [
+    { "id": "sB", "type": "START", "name": "开始", "x": 80, "y": 160 },
+    { "id": "insB", "type": "DATA_INSERT", "name": "审计落库", "x": 280, "y": 160,
+      "config": { "formKey": "audit_log",
+        "data": [
+          { "column": "req_id", "value": "{{reqId}}" },
+          { "column": "action", "value": "SUB_AUDIT" },
+          { "column": "note", "value": "子流程审计完成" } ] } },
+    { "id": "nB", "type": "NOTIFY", "name": "通知审批人", "x": 480, "y": 160,
+      "config": { "templateCode": "E2E_UNCONFIGURED", "recipientIds": [ "1" ],
+        "messageType": "PRIVATE", "channels": [ "IN_APP" ] },
+      "errorAction": "IGNORE_CONTINUE" },
+    { "id": "eB", "type": "END", "name": "结束", "x": 680, "y": 160 }
+  ],
+  "edges": [
+    { "id": "eb1", "source": "sB", "target": "insB" },
+    { "id": "eb2", "source": "insB", "target": "nB" },
+    { "id": "eb3", "source": "nB", "target": "eB" }
+  ]
+}

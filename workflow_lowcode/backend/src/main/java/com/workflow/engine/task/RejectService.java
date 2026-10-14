@@ -23,10 +23,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 流程驳回服务。
@@ -76,14 +79,68 @@ public class RejectService {
     }
 
     /**
-     * 驳回任务到发起人节点。
-     *
-     * @param taskId      当前任务 ID
-     * @param userId      操作人
-     * @param reason      驳回原因
+     * 驳回任务（退回到发起人节点，兼容旧调用）。
      */
     @Transactional
     public void reject(String taskId, String userId, String reason) {
+        reject(taskId, userId, reason, null);
+    }
+
+    /**
+     * 查询可退回的历史节点候选（chooseStartNode 退回模式用）。
+     *
+     * <p>候选 = 本实例历史已产生任务的节点（去重，排除当前节点），
+     * 按最后办理时间倒序。仅当当前节点的 returnOptions.chooseStartNode=true 时返回非空列表，
+     * 否则返回空列表（前端据此回落「退回发起人」默认行为）。
+     */
+    @Transactional(readOnly = true)
+    public List<Map<String, String>> returnCandidates(String taskId) {
+        Task task = flowableTaskService.createTaskQuery()
+                .taskId(taskId)
+                .singleResult();
+        if (task == null) {
+            throw new IllegalStateException("Task not found: " + taskId);
+        }
+        String processDefinitionId = task.getProcessDefinitionId();
+        NodeOptions nodeOpts = nodeOptionsService
+                .find(processDefinitionId, task.getTaskDefinitionKey()).orElse(null);
+        if (nodeOpts == null || !Boolean.TRUE.equals(nodeOpts.getChooseStartNode())) {
+            return List.of();
+        }
+
+        // 历史节点：本实例全部已办结任务，按节点去重，排除当前节点
+        Map<String, String> candidates = new LinkedHashMap<>();
+        for (HistoricTaskInstance t : historyService.createHistoricTaskInstanceQuery()
+                .processInstanceId(task.getProcessInstanceId())
+                .finished()
+                .orderByHistoricTaskInstanceEndTime()
+                .desc()
+                .list()) {
+            String key = t.getTaskDefinitionKey();
+            if (key == null || key.isBlank() || candidates.containsKey(key)
+                    || key.equals(task.getTaskDefinitionKey())) {
+                continue;
+            }
+            String name = t.getName() == null || t.getName().isBlank() ? key : t.getName();
+            candidates.put(key, name);
+        }
+        return candidates.entrySet().stream()
+                .map(e -> Map.of("nodeId", e.getKey(), "nodeName", e.getValue()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 驳回任务到指定节点。
+     *
+     * @param taskId       当前任务 ID
+     * @param userId       操作人
+     * @param reason       驳回原因
+     * @param targetNodeId 退回目标节点；null = 发起人节点（旧行为）。
+     *                     非 null 时要求当前节点开启 returnOptions.chooseStartNode，
+     *                     且目标必须是本实例历史中出现过的节点。
+     */
+    @Transactional
+    public void reject(String taskId, String userId, String reason, String targetNodeId) {
         Task task = flowableTaskService.createTaskQuery()
                 .taskId(taskId)
                 .singleResult();
@@ -94,17 +151,9 @@ public class RejectService {
 
         String processDefinitionId = task.getProcessDefinitionId();
         String currentActivityId = task.getTaskDefinitionKey();
-        String initiatorNodeId = initiatorNodeResolver.resolve(processDefinitionId);
 
-        if (initiatorNodeId == null) {
-            throw new IllegalStateException(
-                    "Initiator node not found for process definition: " + processDefinitionId);
-        }
-
-        if (currentActivityId.equals(initiatorNodeId)) {
-            throw new IllegalStateException(
-                    "Cannot reject: current node is already the initiator node");
-        }
+        // 退回目标：指定历史节点（chooseStartNode 模式）或发起人节点（默认）
+        String resolvedTarget = resolveTargetNodeId(task, processDefinitionId, currentActivityId, targetNodeId);
 
         // Task 61/65 退回门禁（对齐 NodeJS returnTask）：allowReturn/allowReject 权限
         // + 意见必填节点退回理由也必填
@@ -127,24 +176,26 @@ public class RejectService {
         }
 
         log.info("驳回任务 taskId={} userId={} reason={} 从 {} → {}",
-                taskId, userId, reason, currentActivityId, initiatorNodeId);
+                taskId, userId, reason, currentActivityId, resolvedTarget);
 
-        // 设置拒绝标记，触发 multi-instance completionCondition 终止多实例
+        // 设置拒绝标记，触发 multi-instance completionCondition 终止多实例；
+        // 同时写 approved=false，供配置了通过比例/票签的下游网关按拒绝分支流转
         runtimeService.setVariable(task.getProcessInstanceId(), "rejected", true);
+        runtimeService.setVariable(task.getProcessInstanceId(), "approved", false);
 
-        // Task 69 退回免审（retakeSkipApproved）：收集本实例已通过任务的节点 ID（去重、排除发起节点），
+        // Task 69 退回免审（retakeSkipApproved）：收集本实例已通过任务的节点 ID（去重、排除退回目标节点），
         // 写入 __retakeApprovedNodes（对齐 NodeJS EngineRuntime.reject）；
         // ⚠️ 必须在 changeState **之前**写入，重走节点的 create 监听器才能读到；
         // 退回时点前已完成才算「已通过」，changeState 撤销中的任务此刻还未 finish，天然不会误收。
         if (policy.isRetakeSkipApproved()) {
             runtimeService.setVariable(task.getProcessInstanceId(),
                     WorkflowTaskService.VAR_RETAKE_APPROVED_NODES,
-                    collectApprovedNodes(processDefinitionId, initiatorNodeId));
+                    collectApprovedNodes(processDefinitionId, resolvedTarget));
         }
 
         runtimeService.createChangeActivityStateBuilder()
                 .processInstanceId(task.getProcessInstanceId())
-                .moveActivityIdTo(currentActivityId, initiatorNodeId)
+                .moveActivityIdTo(currentActivityId, resolvedTarget)
                 .changeState();
 
         // 写入审批意见
@@ -172,13 +223,54 @@ public class RejectService {
     }
 
     /**
-     * 收集本实例已通过任务的节点 ID（去重、排除发起节点；对齐 NodeJS reject() 的
+     * 解析退回目标节点。
+     *
+     * <p>targetNodeId 为空 → 发起人节点（旧行为）；非空 → 校验
+     * chooseStartNode 门禁 + 目标必须是本实例历史中出现过的节点。
+     */
+    private String resolveTargetNodeId(Task task, String processDefinitionId,
+                                       String currentActivityId, String targetNodeId) {
+        if (targetNodeId == null || targetNodeId.isBlank()) {
+            String initiatorNodeId = initiatorNodeResolver.resolve(processDefinitionId);
+            if (initiatorNodeId == null) {
+                throw new IllegalStateException(
+                        "Initiator node not found for process definition: " + processDefinitionId);
+            }
+            if (currentActivityId.equals(initiatorNodeId)) {
+                throw new IllegalStateException(
+                        "Cannot reject: current node is already the initiator node");
+            }
+            return initiatorNodeId;
+        }
+
+        String target = targetNodeId.trim();
+        if (currentActivityId.equals(target)) {
+            throw new BusinessException(400, "退回目标不能是当前节点");
+        }
+        NodeOptions nodeOpts = nodeOptionsService
+                .find(processDefinitionId, currentActivityId).orElse(null);
+        if (nodeOpts == null || !Boolean.TRUE.equals(nodeOpts.getChooseStartNode())) {
+            throw new BusinessException(400, "该节点未开启「由审批人选择重审的起始节点」");
+        }
+        // 目标必须在本实例历史中出现过（已产生过任务）
+        long count = historyService.createHistoricTaskInstanceQuery()
+                .processInstanceId(task.getProcessInstanceId())
+                .taskDefinitionKey(target)
+                .count();
+        if (count <= 0) {
+            throw new BusinessException(400, "退回目标节点不在本流程实例的历史节点中");
+        }
+        return target;
+    }
+
+    /**
+     * 收集本实例已通过任务的节点 ID（去重、排除退回目标节点；对齐 NodeJS reject() 的
      * __retakeApprovedNodes 收集口径）。
      *
      * <p>⚠️ 只认正常办结的任务（deleteReason 为空）——被驳回/撤回撤销的任务虽然
      * 在历史里也带 end_time，但不算「已通过」。
      */
-    private List<String> collectApprovedNodes(String processDefinitionId, String initiatorNodeId) {
+    private List<String> collectApprovedNodes(String processDefinitionId, String excludeNodeId) {
         Set<String> nodeIds = new LinkedHashSet<>();
         for (HistoricTaskInstance t : historyService.createHistoricTaskInstanceQuery()
                 .processDefinitionId(processDefinitionId)
@@ -191,7 +283,7 @@ public class RejectService {
                 nodeIds.add(t.getTaskDefinitionKey());
             }
         }
-        nodeIds.remove(initiatorNodeId);
+        nodeIds.remove(excludeNodeId);
         return new ArrayList<>(nodeIds);
     }
 

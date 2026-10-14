@@ -3,7 +3,7 @@
  *
  * 适用范围（三处筛选列名下拉保持一致）：
  *  - UniDataSourceBinding（组件级数据筛选，标杆）
- *  - DataSourceConfigPanel（数据源绑定 tab 的数据源级筛选 + 动作总线 set-filter 过滤字段）
+ *  - 各数据组件配置弹窗（DataPicker / LookupPicker / 数据表格等）内的筛选列下拉
  *  - 其他引用数据源 metadata 的筛选/列配置入口
  *
  * 规则：有中文名且不同于字段名 → `中文名(字段名)`；否则仅显示字段名。

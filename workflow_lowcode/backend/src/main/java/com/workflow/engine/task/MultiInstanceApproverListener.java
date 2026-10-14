@@ -120,7 +120,7 @@ public class MultiInstanceApproverListener implements JavaDelegate {
             if (filtered && approverList.isEmpty()) {
                 log.info("MultiInstanceApproverListener: 去重后列表为空，节点跳过 nodeId={}", activityId);
                 execution.setVariable("approverList", approverList);
-                ensureRejectedVariable(execution);
+                execution.setVariable("rejected", false);
                 return;
             }
 
@@ -135,8 +135,17 @@ public class MultiInstanceApproverListener implements JavaDelegate {
             }
 
             execution.setVariable("approverList", approverList);
-            // 初始化 rejected=false，确保 completionCondition 表达式 ${rejected || ...} 不会因变量不存在而报错
-            ensureRejectedVariable(execution);
+            // 重置 rejected=false（每次进入多实例节点都重置）：
+            // 1) 确保 completionCondition 表达式 ${rejected || ...} 不会因变量不存在而报错；
+            // 2) 修复退回重走后 rejected 残留为 true 导致后续多实例节点被短路完成的隐患
+            //    （此前仅变量不存在时初始化，驳回-重填后变量残留 true）。
+            // 该监听器在 MI 子实例创建前执行（collection 依赖 approverList），重置安全。
+            execution.setVariable("rejected", false);
+
+            // 比例通过（会签 passRatio / 票签 vote_sign）：初始化权重变量。
+            // 同理在子实例创建前执行，重置累加器安全（并行 MI 全部子实例此时尚未完成）。
+            initWeightPassVariables(root, approval, approverList, execution);
+
             log.info("MultiInstanceApproverListener: 设置 approverList={} nodeId={}", approverList, activityId);
 
         } catch (Exception e) {
@@ -144,10 +153,62 @@ public class MultiInstanceApproverListener implements JavaDelegate {
         }
     }
 
-    private void ensureRejectedVariable(DelegateExecution execution) {
-        if (!execution.hasVariable("rejected")) {
-            execution.setVariable("rejected", false);
+    /**
+     * 初始化「权重达标通过」变量（会签 passRatio / 票签 vote_sign）：
+     * <ul>
+     *   <li>voteTotalWeight：总权重（票签按 approval.weights 逐人权重，缺省 1；会签 = 人数）</li>
+     *   <li>votePassWeight：通过门槛 = ceil(总权重 × passRatio / 100)</li>
+     *   <li>voteApprovedWeight：同意权重累加器，进入节点时清零</li>
+     *   <li>approved：结果变量（由 VoteSignCompleteListener 在 MI 结束时写入，
+     *       下游排他网关可按 ${approved == true/false} 分支）</li>
+     * </ul>
+     */
+    private void initWeightPassVariables(JsonNode root, JsonNode approval, List<String> approverList,
+                                         DelegateExecution execution) {
+        String multiMode = textAt(approval, "multiMode");
+        Integer ratio = null;
+        Map<String, Long> weights = null;
+        if ("vote_sign".equals(multiMode)) {
+            JsonNode r = approval.path("votePassRatio");
+            ratio = r.isNumber() && r.asDouble() >= 1 && r.asDouble() <= 100
+                    ? (int) Math.round(r.asDouble()) : 50;
+            weights = parseWeights(approval.path("weights"));
+        } else if ("countersign".equals(multiMode)) {
+            JsonNode r = approval.path("passRatio");
+            ratio = r.isNumber() && r.asDouble() >= 1 && r.asDouble() <= 99
+                    ? (int) Math.round(r.asDouble()) : null;
         }
+        if (ratio == null) {
+            return;
+        }
+        long totalWeight = 0;
+        for (String user : approverList) {
+            totalWeight += (weights != null && weights.containsKey(user) && weights.get(user) > 0)
+                    ? weights.get(user) : 1L;
+        }
+        // 门槛 = ceil(total × ratio / 100)：ratio=50、3 人 → 2 票；ratio=100 → 全部
+        long passWeight = (long) Math.ceil(totalWeight * ratio / 100.0 - 1e-9);
+        execution.setVariable("voteTotalWeight", totalWeight);
+        execution.setVariable("votePassWeight", passWeight);
+        execution.setVariable("voteApprovedWeight", 0L);
+        log.info("MultiInstanceApproverListener: 权重通过模式 nodeId={} totalWeight={} ratio={}% passWeight={}",
+                execution.getCurrentActivityId(), totalWeight, ratio, passWeight);
+    }
+
+    /** approval.weights（userId → 权重）解析，仅保留正数。 */
+    private Map<String, Long> parseWeights(JsonNode weightsNode) {
+        if (weightsNode == null || !weightsNode.isObject()) {
+            return null;
+        }
+        Map<String, Long> out = new java.util.LinkedHashMap<>();
+        for (java.util.Iterator<Map.Entry<String, JsonNode>> it = weightsNode.fields(); it.hasNext(); ) {
+            java.util.Map.Entry<String, JsonNode> e = it.next();
+            JsonNode v = e.getValue();
+            if (v.isNumber() && v.asDouble() > 0) {
+                out.put(e.getKey(), Math.round(v.asDouble()));
+            }
+        }
+        return out.isEmpty() ? null : out;
     }
 
     /**

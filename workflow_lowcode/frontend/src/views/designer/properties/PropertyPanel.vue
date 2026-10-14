@@ -44,7 +44,13 @@
 
         <!-- 开始/结束事件 -->
         <event-property
-          v-else-if="isEventNode"
+          v-else-if="isEventNode && !isBoundaryEvent"
+          :read-only="readOnly"
+        />
+
+        <!-- 边界事件（定时/错误） -->
+        <boundary-event-property
+          v-else-if="isBoundaryEvent"
           :read-only="readOnly"
         />
 
@@ -112,6 +118,7 @@ import { useDesignerStore } from '@/stores/designerStore'
 import { getModeler } from '../utils/bpmnModeler'
 import ProcessProperty from './ProcessProperty.vue'
 import EventProperty from './EventProperty.vue'
+import BoundaryEventProperty from './BoundaryEventProperty.vue'
 import UserTaskProperty from './UserTaskProperty.vue'
 import InitiatorTaskProperty from './InitiatorTaskProperty.vue'
 import HandlerTaskProperty from './HandlerTaskProperty.vue'
@@ -140,6 +147,9 @@ const isEventNode = computed(() => {
   const type = selectedNodeType.value || ''
   return type.includes('Event')
 })
+
+/** 边界事件（定时/错误）：与开始/结束事件同属 Event 后缀，需单独分发 */
+const isBoundaryEvent = computed(() => selectedNodeType.value === 'BoundaryEvent')
 
 const isGatewayNode = computed(() => {
   const type = selectedNodeType.value || ''
@@ -195,6 +205,7 @@ const nodeTypeLabel = computed(() => {
     Process: '流程',
     StartEvent: '开始事件',
     EndEvent: '结束事件',
+    BoundaryEvent: '边界事件',
     UserTask: '用户任务',
     ServiceTask: '服务任务',
     ExclusiveGateway: '排他网关',

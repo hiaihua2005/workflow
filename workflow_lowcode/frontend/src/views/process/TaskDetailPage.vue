@@ -100,6 +100,15 @@
           >
             {{ taskDetail?.isInitiatorTask ? '保存草稿' : '暂存' }}
           </el-button>
+          <!-- 发起节点：退回重填后重新提交推进流程 -->
+          <el-button
+            v-if="taskDetail?.isInitiatorTask"
+            type="primary"
+            :loading="actionLoading === 'approve'"
+            @click="handleResubmit"
+          >
+            重新提交
+          </el-button>
           <template v-if="!taskDetail?.isInitiatorTask">
             <!-- 办理节点（taskRole=handler）：主按钮提交，更多操作：转办/退回/加签，不显示通过/拒绝 -->
             <template v-if="isHandlerTask">
@@ -181,6 +190,22 @@
       placeholder="选择多个用户"
       @change="onAddSignUsersSelected"
     />
+
+    <!-- 退回目标节点选择（chooseStartNode 退回模式）：候选 = 本实例历史节点 -->
+    <el-dialog v-model="returnDialog.visible" title="选择重审起始节点" width="420px">
+      <div class="return-target-tip">流程将退回到所选节点重新审批</div>
+      <el-radio-group v-model="returnDialog.targetNodeId" class="return-target-list">
+        <el-radio v-for="c in returnDialog.candidates" :key="c.nodeId" :value="c.nodeId">
+          {{ c.nodeName }}
+        </el-radio>
+      </el-radio-group>
+      <template #footer>
+        <el-button @click="returnDialog.visible = false">取消</el-button>
+        <el-button type="danger" :loading="actionLoading === 'reject'" @click="confirmReject">
+          确认退回
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -207,6 +232,13 @@ const taskDetail = ref<TaskDetailVO | null>(null)
 const comment = ref('')
 const actionLoading = ref<string | null>(null)
 const formRendererRef = ref<InstanceType<typeof FormRenderer>>()
+
+/** 退回目标节点选择弹窗（chooseStartNode 退回模式） */
+const returnDialog = ref<{
+  visible: boolean
+  candidates: { nodeId: string; nodeName: string }[]
+  targetNodeId: string
+}>({ visible: false, candidates: [], targetNodeId: '' })
 
 /** 节点操作权限配置，未配置时后端返回全默认值对象 */
 const operations = computed<OperationsConfig | undefined>(() => taskDetail.value?.operations)
@@ -367,6 +399,32 @@ async function handleSaveDraft() {
 }
 
 /**
+ * 重新提交（发起节点）：保存表单数据后完成任务，推进流程。
+ * 退回到发起人修改后重新走流程的唯一入口。
+ */
+async function handleResubmit() {
+  if (!formRendererRef.value) {
+    ElMessage.warning('当前节点无表单')
+    return
+  }
+  actionLoading.value = 'approve'
+  try {
+    const ok = await formRendererRef.value.submit()
+    if (!ok) {
+      ElMessage.warning('表单校验未通过，请检查必填项')
+      return
+    }
+    await taskApi.complete(taskId, {})
+    ElMessage.success('重新提交成功')
+    router.push('/process/todo')
+  } catch {
+    ElMessage.error('操作失败')
+  } finally {
+    actionLoading.value = null
+  }
+}
+
+/**
  * 通过（审批节点）/ 提交（办理节点）：完成任务。
  * commentRequired 时意见必填；signatureRequired 时未签名阻断。
  */
@@ -400,8 +458,40 @@ async function handleComplete() {
   }
 }
 
-/** 退回（原「驳回」改名）：退回给发起人重新填写，意见必填 */
+/**
+ * 退回：先查可退回历史节点候选（chooseStartNode 退回模式）。
+ * 有候选 → 弹窗选择重审起始节点；无候选 → 退回发起人（默认行为）。意见必填。
+ */
 async function handleReject() {
+  if (!validateComment()) return
+  actionLoading.value = 'reject'
+  let candidates: Awaited<ReturnType<typeof taskApi.returnCandidates>>['data'] = []
+  try {
+    const res = await taskApi.returnCandidates(taskId)
+    candidates = res.data ?? []
+  } catch {
+    candidates = []
+  } finally {
+    actionLoading.value = null
+  }
+  if (candidates.length > 0) {
+    returnDialog.value = {
+      visible: true,
+      candidates,
+      targetNodeId: candidates[0].nodeId,
+    }
+    return
+  }
+  await doReject(undefined)
+}
+
+/** 确认退回弹窗：按所选历史节点退回 */
+async function confirmReject() {
+  await doReject(returnDialog.value.targetNodeId)
+}
+
+/** 执行退回（targetNodeId 为空 = 退回发起人节点） */
+async function doReject(targetNodeId?: string) {
   if (!validateComment()) return
   actionLoading.value = 'reject'
   try {
@@ -410,8 +500,9 @@ async function handleReject() {
       await formRendererRef.value.submit()
       await formRendererRef.value.saveSnapshot()
     }
-    await taskApi.reject(taskId, { reason: comment.value })
+    await taskApi.reject(taskId, { reason: comment.value, targetNodeId })
     ElMessage.success('已退回')
+    returnDialog.value.visible = false
     router.push('/process/todo')
   } catch {
     ElMessage.error('操作失败')
@@ -530,5 +621,26 @@ onMounted(async () => {
 .last-sign-hint {
   font-size: 12px;
   color: var(--el-color-success);
+}
+
+/* 退回目标节点选择弹窗 */
+.return-target-tip {
+  font-size: 12px;
+  color: var(--el-text-color-secondary, #8b91ab);
+  margin-bottom: 8px;
+}
+
+.return-target-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.return-target-list .el-radio {
+  height: 28px;
+  margin-right: 0;
 }
 </style>

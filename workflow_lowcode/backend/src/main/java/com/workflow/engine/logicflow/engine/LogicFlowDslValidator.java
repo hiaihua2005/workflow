@@ -3,6 +3,7 @@ package com.workflow.engine.logicflow.engine;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.workflow.engine.logic.config.BackendDataUpdateConfig;
 import com.workflow.engine.logic.config.BackendDataUpsertConfig;
+import com.workflow.engine.logicflow.dsl.ConditionEvaluator;
 import com.workflow.engine.logicflow.dsl.LogicFlowDsl;
 import com.workflow.engine.logicflow.dsl.NodeType;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -102,6 +104,33 @@ public class LogicFlowDslValidator {
                         errors.add("CONDITION 节点 " + node.getId() + " 缺少 branch=false 出边");
                     }
                 }
+                case SWITCH -> {
+                    // 每个 case 值 + default 都必须有出边；出边 branch 必须可被 case/default 匹配
+                    List<String> branches = outBranches.getOrDefault(node.getId(), List.of());
+                    Set<String> required = new LinkedHashSet<>();
+                    JsonNode switchConfig = node.getConfig();
+                    if (switchConfig != null && !switchConfig.isNull()
+                            && switchConfig.has("cases") && switchConfig.get("cases").isArray()) {
+                        for (JsonNode item : switchConfig.get("cases")) {
+                            if (item != null && !item.isNull() && item.hasNonNull("value")
+                                    && !item.get("value").asText().isBlank()) {
+                                required.add("case:" + item.get("value").asText().trim());
+                            }
+                        }
+                    }
+                    required.add("default");
+                    for (String want : required) {
+                        if (!branches.contains(want)) {
+                            errors.add("SWITCH 节点 " + node.getId() + " 缺少 branch=" + want + " 出边");
+                        }
+                    }
+                    for (String branch : branches) {
+                        if (!required.contains(branch)) {
+                            errors.add("SWITCH 节点 " + node.getId() + " 存在无法匹配的出边 branch=" + branch
+                                    + "（须为 case:<值> 或 default）");
+                        }
+                    }
+                }
                 case END -> {
                     // 终点允许无出边
                 }
@@ -112,6 +141,8 @@ public class LogicFlowDslValidator {
                 }
             }
             switch (type) {
+                case CONDITION -> validateConditionConfig(node, errors);
+                case SWITCH -> validateSwitchConfig(node, errors);
                 case HTTP -> {
                     JsonNode config = node.getConfig();
                     if (config == null || isBlankText(config, "url")) {
@@ -147,14 +178,52 @@ public class LogicFlowDslValidator {
                     // 其余类型无 config 硬要求
                 }
             }
+            // 节点级重试/退避/超时范围校验（公共属性；START/END 不适用）
+            if (type != NodeType.START && type != NodeType.END) {
+                Integer retryCount = node.getRetryCount();
+                if (retryCount != null && (retryCount < 0 || retryCount > LogicFlowEngine.MAX_RETRY_COUNT)) {
+                    errors.add("节点 " + node.getId() + " retryCount 非法（0~" + LogicFlowEngine.MAX_RETRY_COUNT + "）: " + retryCount);
+                }
+                Long backoffMs = node.getBackoffMs();
+                if (backoffMs != null && (backoffMs < 0 || backoffMs > LogicFlowEngine.MAX_BACKOFF_MS)) {
+                    errors.add("节点 " + node.getId() + " backoffMs 非法（0~" + LogicFlowEngine.MAX_BACKOFF_MS + "）: " + backoffMs);
+                }
+                Long timeoutMs = node.getTimeoutMs();
+                if (timeoutMs != null && (timeoutMs < 0 || timeoutMs > LogicFlowEngine.MAX_TIMEOUT_MS)) {
+                    errors.add("节点 " + node.getId() + " timeoutMs 非法（0~" + LogicFlowEngine.MAX_TIMEOUT_MS + "）: " + timeoutMs);
+                }
+            }
             // 输出声明校验：全部执行型节点统一 results 单表（WHOLE/KEY）；resultVar 已下线
             List<LogicFlowDsl.ResultVarDef> results = node.getResults();
             if (results != null && !results.isEmpty()) {
                 validateResults(results, "节点 " + node.getId() + " (" + type + ")", errors);
             }
         }
+
+        // 4) 事务策略校验（P1-5）：非法值拦截；WHOLE_IN_TX 仅允许本地数据/控制节点——
+        //    外部副作用（HTTP/SUBFLOW/NOTIFY/LLM/BATCH/DELAY/BEAN/SCRIPT）不可随事务回滚，禁止入整流事务
+        String policy = dsl.getTransactionPolicy();
+        if (policy != null && !policy.isBlank()
+                && !LogicFlowDsl.TX_POLICY_AUTO_COMMIT.equalsIgnoreCase(policy.trim())
+                && !LogicFlowDsl.TX_POLICY_WHOLE_IN_TX.equalsIgnoreCase(policy.trim())) {
+            errors.add("transactionPolicy 非法（须 AUTO_COMMIT|WHOLE_IN_TX）: " + policy);
+        } else if (dsl.isWholeInTx()) {
+            for (LogicFlowDsl.NodeDef node : dsl.getNodes()) {
+                if (node.getType() != null && !TX_ALLOWED_TYPES.contains(node.getType())) {
+                    errors.add("节点 " + node.getId() + "(" + node.getType()
+                            + ") 不允许出现在 WHOLE_IN_TX 事务流中（仅允许 START/END/CONDITION/"
+                            + "DATA_QUERY/DATA_INSERT/DATA_UPDATE/DATA_UPSERT/DATA_DELETE/SQL_SCRIPT/TRANSFORM/AGGREGATE）");
+                }
+            }
+        }
         return errors;
     }
+
+    /** WHOLE_IN_TX 事务流节点白名单：START/END/CONDITION + 本地数据 + 纯计算。 */
+    private static final Set<NodeType> TX_ALLOWED_TYPES = Set.of(
+            NodeType.START, NodeType.END, NodeType.CONDITION,
+            NodeType.DATA_QUERY, NodeType.DATA_INSERT, NodeType.DATA_UPDATE, NodeType.DATA_UPSERT,
+            NodeType.DATA_DELETE, NodeType.SQL_SCRIPT, NodeType.TRANSFORM, NodeType.AGGREGATE);
 
     /**
      * results 声明硬校验：非空/合法标识符（\\w+，与 VariableResolver 占位符同域）、
@@ -184,6 +253,93 @@ public class LogicFlowDslValidator {
             } else if (!Set.of("WHOLE", "KEY").contains(mode)) {
                 errors.add(label + " 输出 '" + name + "' mode 非法(须 WHOLE/KEY): " + def.getMode());
             }
+        }
+    }
+
+    /**
+     * CONDITION 节点 config 硬校验（多条件形态 conditions[]+logic 与 legacy 单条件二选一，conditions 非空时优先）：
+     * 每条 variable 非空、operator ∈ {@link ConditionEvaluator#SUPPORTED_OPERATORS}、
+     * EMPTY/NOT_EMPTY 外必须带 value；logic ∈ ALL|ANY（缺省 ALL）。
+     */
+    private void validateConditionConfig(LogicFlowDsl.NodeDef node, List<String> errors) {
+        JsonNode config = node.getConfig();
+        if (config == null || config.isNull()) {
+            errors.add("CONDITION 节点 " + node.getId() + " 缺少 config");
+            return;
+        }
+        JsonNode conditions = config.get("conditions");
+        if (conditions != null && conditions.isArray() && !conditions.isEmpty()) {
+            for (int i = 0; i < conditions.size(); i++) {
+                JsonNode item = conditions.get(i);
+                String label = "CONDITION 节点 " + node.getId() + " conditions[" + i + "]";
+                if (item == null || item.isNull() || !item.isObject()) {
+                    errors.add(label + " 须为对象");
+                    continue;
+                }
+                validateConditionItem(item, label, errors);
+            }
+            String logic = textOrNull(config, "logic");
+            if (logic != null && !logic.isBlank()
+                    && !"ALL".equalsIgnoreCase(logic.trim()) && !"ANY".equalsIgnoreCase(logic.trim())) {
+                errors.add("CONDITION 节点 " + node.getId() + " logic 非法（须 ALL|ANY）: " + logic);
+            }
+            return;
+        }
+        // legacy 单条件形态
+        validateConditionItem(config, "CONDITION 节点 " + node.getId(), errors);
+    }
+
+    /** 单条条件校验（多条件项与 legacy 顶层同构）。 */
+    /**
+     * SWITCH 节点 config 硬校验：variable 非空；cases 为非空数组且每项 value 非空、trim 后唯一。
+     * 出边完备性（每 case + default 均有出边、branch 可匹配）由出边校验段负责。
+     */
+    private void validateSwitchConfig(LogicFlowDsl.NodeDef node, List<String> errors) {
+        JsonNode config = node.getConfig();
+        if (config == null || config.isNull()) {
+            errors.add("SWITCH 节点 " + node.getId() + " 缺少 config");
+            return;
+        }
+        if (isBlankText(config, "variable")) {
+            errors.add("SWITCH 节点 " + node.getId() + " 缺少 variable");
+        }
+        JsonNode cases = config.get("cases");
+        if (cases == null || !cases.isArray() || cases.isEmpty()) {
+            errors.add("SWITCH 节点 " + node.getId() + " 缺少 cases（非空数组）");
+            return;
+        }
+        Set<String> seen = new HashSet<>();
+        for (int i = 0; i < cases.size(); i++) {
+            JsonNode item = cases.get(i);
+            String label = "SWITCH 节点 " + node.getId() + " cases[" + i + "]";
+            if (item == null || item.isNull() || !item.isObject() || isBlankText(item, "value")) {
+                errors.add(label + " 缺少 value");
+                continue;
+            }
+            String value = item.get("value").asText().trim();
+            if (!seen.add(value)) {
+                errors.add(label + " value 重复: " + value);
+            }
+        }
+    }
+
+    /** 单条条件校验（多条件项与 legacy 顶层同构）。 */
+    private void validateConditionItem(JsonNode item, String label, List<String> errors) {
+        if (isBlankText(item, "variable")) {
+            errors.add(label + " 缺少 variable");
+        }
+        String operator = textOrNull(item, "operator");
+        if (operator == null || operator.isBlank()) {
+            errors.add(label + " 缺少 operator");
+            return;
+        }
+        String op = operator.trim().toUpperCase(Locale.ROOT);
+        if (!ConditionEvaluator.SUPPORTED_OPERATORS.contains(op)) {
+            errors.add(label + " operator 非法: " + operator);
+            return;
+        }
+        if (!"EMPTY".equals(op) && !"NOT_EMPTY".equals(op) && isBlankText(item, "value")) {
+            errors.add(label + " 缺少 value（operator=" + op + "）");
         }
     }
 

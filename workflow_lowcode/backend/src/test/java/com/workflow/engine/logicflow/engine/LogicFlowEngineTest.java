@@ -260,6 +260,104 @@ class LogicFlowEngineTest {
         assertThat(outcome.errorMessage()).contains("branch=true");
     }
 
+    // ------------------------------------------------------------------
+    // SWITCH 多路分支
+    // ------------------------------------------------------------------
+
+    private LogicFlowDsl.NodeDef switchNode(String id, String variable, String... caseValues) {
+        LogicFlowDsl.NodeDef node = node(id, NodeType.SWITCH, id);
+        ObjectNode config = objectMapper.createObjectNode();
+        config.put("variable", variable);
+        ArrayNode cases = config.putArray("cases");
+        for (String value : caseValues) {
+            ObjectNode item = cases.addObject();
+            item.put("value", value);
+        }
+        node.setConfig(config);
+        return node;
+    }
+
+    @Test
+    void switchRoutesToMatchedCase() {
+        when(groovyScriptLogic.execute(eq("'gold'"), isNull(), anyMap())).thenReturn("gold");
+        when(groovyScriptLogic.execute(eq("'silver'"), isNull(), anyMap())).thenReturn("silver");
+        when(groovyScriptLogic.execute(eq("'bronze'"), isNull(), anyMap())).thenReturn("bronze");
+
+        LogicFlowDsl flow = dsl(
+                List.of(node("s", NodeType.START, "开始"), switchNode("sw", "level", "gold", "silver"),
+                        scriptNode("g", "'gold'", "lane", null),
+                        scriptNode("sv", "'silver'", "lane", null),
+                        scriptNode("bz", "'bronze'", "lane", null),
+                        node("e", NodeType.END, "结束")),
+                List.of(edge("s", "sw"),
+                        edge("sw", "g", "case:gold"),
+                        edge("sw", "sv", "case:silver"),
+                        edge("sw", "bz", "default"),
+                        edge("g", "e"), edge("sv", "e"), edge("bz", "e")));
+
+        LogicFlowEngine.RunOutcome silver = engine.run(flow, Map.of("level", "silver"));
+        assertThat(silver.status()).isEqualTo("SUCCESS");
+        assertThat(silver.outputVars()).containsEntry("lane", "silver");
+        assertThat(silver.traces().get(1).type()).isEqualTo("SWITCH");
+        assertThat(silver.traces().get(1).result()).isEqualTo("case:silver");
+
+        LogicFlowEngine.RunOutcome bronze = engine.run(flow, Map.of("level", "bronze"));
+        assertThat(bronze.status()).isEqualTo("SUCCESS");
+        assertThat(bronze.outputVars()).containsEntry("lane", "bronze");
+        assertThat(bronze.traces().get(1).result()).isEqualTo("default(未命中)");
+    }
+
+    @Test
+    void switchMatchesNumerically() {
+        when(groovyScriptLogic.execute(eq("'p0'"), isNull(), anyMap())).thenReturn("p0");
+        when(groovyScriptLogic.execute(eq("'p1'"), isNull(), anyMap())).thenReturn("p1");
+
+        LogicFlowDsl flow = dsl(
+                List.of(node("s", NodeType.START, "开始"), switchNode("sw", "level", "0", "100"),
+                        scriptNode("p0", "'p0'", "lane", null),
+                        scriptNode("p1", "'p1'", "lane", null),
+                        node("e", NodeType.END, "结束")),
+                List.of(edge("s", "sw"),
+                        edge("sw", "p0", "case:0"),
+                        edge("sw", "p1", "case:100"),
+                        edge("p0", "e"), edge("p1", "e")));
+
+        // 数值优先语义："100.0" 与 case "100" 相等
+        LogicFlowEngine.RunOutcome outcome = engine.run(flow, Map.of("level", "100.0"));
+        assertThat(outcome.status()).isEqualTo("SUCCESS");
+        assertThat(outcome.outputVars()).containsEntry("lane", "p1");
+    }
+
+    @Test
+    void switchWithoutDefaultFailsOnNoMatch() {
+        LogicFlowDsl flow = dsl(
+                List.of(node("s", NodeType.START, "开始"), switchNode("sw", "level", "gold"),
+                        node("e", NodeType.END, "结束")),
+                List.of(edge("s", "sw"), edge("sw", "e", "case:gold")));
+
+        LogicFlowEngine.RunOutcome outcome = engine.run(flow, Map.of("level", "bronze"));
+
+        assertThat(outcome.status()).isEqualTo("FAILED");
+        assertThat(outcome.errorMessage()).contains("SWITCH 节点无匹配出边");
+    }
+
+    @Test
+    void switchMissingCasesConfigFails() {
+        LogicFlowDsl.NodeDef sw = node("sw", NodeType.SWITCH, "缺 cases");
+        ObjectNode config = objectMapper.createObjectNode();
+        config.put("variable", "level");
+        sw.setConfig(config);
+
+        LogicFlowDsl flow = dsl(
+                List.of(node("s", NodeType.START, "开始"), sw, node("e", NodeType.END, "结束")),
+                List.of(edge("s", "sw"), edge("sw", "e")));
+
+        LogicFlowEngine.RunOutcome outcome = engine.run(flow, Map.of("level", "x"));
+
+        assertThat(outcome.status()).isEqualTo("FAILED");
+        assertThat(outcome.errorMessage()).contains("缺少 cases");
+    }
+
     @Test
     void failFlowStopsOnError() {
         when(groovyScriptLogic.execute(eq("boom"), isNull(), anyMap()))

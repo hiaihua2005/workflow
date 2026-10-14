@@ -18,6 +18,11 @@ public class BackendLogicHttpConfig {
     private List<ParamMapping> bodyParams;
     private int connTimeoutMs = 3000;
     private int readTimeoutMs = 5000;
+    /**
+     * HTTP 内置重试次数。逻辑流（LogicFlow）节点已统一使用节点级 retryCount
+     * （由 LogicFlowEngine 的 executeNodeBody 包裹），此字段在逻辑流侧仅作存量 DSL 兼容回退，
+     * 不再由设计器写入；后端逻辑（BackendLogic）/数据源适配器等无外层重试的调用方仍正常使用。
+     */
     private int retryCount = 0;
 
     public String getUrl() { return url; }

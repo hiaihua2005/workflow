@@ -276,6 +276,18 @@ function walkGraph(
         )
         break
       }
+      case 'SWITCH': {
+        rewr(n, 'cond', '分支变量', str(cfg.variable), (t) => {
+          cfg.variable = t
+        })
+        const cases = Array.isArray(cfg.cases) ? cfg.cases : []
+        cases.forEach((c: { value?: string }, i: number) => {
+          rewr(n, 'ph', `case #${i + 1} 匹配值`, str(c?.value), (t) => {
+            if (c) c.value = t
+          })
+        })
+        break
+      }
       case 'CONDITION': {
         rewr(n, 'cond', '判断变量', str(cfg.variable), (t) => {
           cfg.variable = t

@@ -289,7 +289,11 @@ public class LogicFlowEngine {
                             TRACE_SUCCESS, null, null, 0L));
                     return new RunOutcome(STATUS_SUCCESS, snapshot(vars), List.copyOf(traces), null);
                 }
+                // CONDITION/SWITCH 走独立入口：二者是「纯内存求值 + 选边」而非外部调用，
+                // 求值确定性且无 IO，重试/超时对其无意义（重试只会得到同一结果），故不经
+                // executeNodeBody 包裹；失败回落链与执行节点共用 applyFailurePolicy。
                 case CONDITION -> current = executeCondition(current, nodeById, outEdges, vars, traces);
+                case SWITCH -> current = executeSwitch(current, nodeById, outEdges, vars, traces);
                 default -> current = executeLogicNode(current, nodeById, outEdges, vars, traces);
             }
         }
@@ -331,6 +335,41 @@ public class LogicFlowEngine {
     }
 
     /**
+     * 失败回落链统一实现（各节点分支共用，消除重复判定）：
+     * <ol>
+     *   <li>存在 branch=error 出边 → 返回该目标节点（调用方直接跳转）；</li>
+     *   <li>errorAction=IGNORE_CONTINUE → 返回 null，调用方按各自容错语义继续
+     *       （执行节点走主边 / CONDITION 走 false 分支 / SWITCH 走 default）；</li>
+     *   <li>FAIL_FLOW（默认）→ 抛 {@link FlowAbortedException} 中断流程。</li>
+     * </ol>
+     * 三条路径前均先写入 {@code __lastError}（见 {@link #recordLastError}）。
+     *
+     * @param abortMessage 中断文案前缀（各节点类型不同，便于定位）
+     */
+    private LogicFlowDsl.NodeDef applyFailurePolicy(LogicFlowDsl.NodeDef node, String error,
+                                                    Map<String, LogicFlowDsl.NodeDef> nodeById,
+                                                    Map<String, List<LogicFlowDsl.EdgeDef>> outEdges,
+                                                    Map<String, Object> vars,
+                                                    String abortMessage) {
+        recordLastError(node, error, vars);
+        LogicFlowDsl.NodeDef errorTarget = resolveErrorTarget(node, nodeById, outEdges.get(node.getId()));
+        if (errorTarget != null) {
+            log.debug("Logic flow node '{}' failed, route to error branch: {}", node.getId(), error);
+            return errorTarget;
+        }
+        if (!isIgnoreContinue(node.getErrorAction())) {
+            throw new FlowAbortedException(abortMessage + ": " + node.getId() + ": " + error);
+        }
+        log.debug("Logic flow node '{}' failed but continues (IGNORE_CONTINUE): {}", node.getId(), error);
+        return null;
+    }
+
+    /** errorAction 是否为「忽略继续」（容错继续语义）。 */
+    private boolean isIgnoreContinue(String errorAction) {
+        return ACTION_IGNORE_CONTINUE.equalsIgnoreCase(errorAction);
+    }
+
+    /**
      * 执行 HTTP/BEAN/SCRIPT/数据/通知等逻辑节点，返回下一节点。
      * 失败按顺序尝试：① 存在 branch=error 出边 → 路由到失败分支（trace 记 FAILED，输出不写入）；
      * ② errorAction=IGNORE_CONTINUE → trace 记 FAILED 后继续主边；
@@ -344,7 +383,8 @@ public class LogicFlowEngine {
                                                   List<NodeTrace> traces) {
         long begin = System.currentTimeMillis();
         try {
-            Object result = dispatch(node, vars, traces);
+            // 节点级重试 + 超时包裹（P0-2：retryCount/backoffMs/timeoutMs 公共属性）
+            Object result = executeNodeBody(node, vars, traces);
             long duration = System.currentTimeMillis() - begin;
             // 输出统一由 results 声明驱动（全部执行型节点；SCRIPT 严格 / 其余宽松；无声明则隐式整体输出为 <节点id>）
             writeResults(node, result, vars);
@@ -355,19 +395,93 @@ public class LogicFlowEngine {
             String error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             traces.add(new NodeTrace(node.getId(), node.getName(), node.getType().name(),
                     TRACE_FAILED, null, error, duration));
-            // 三级回落链任一路径前先写失败详情（error 分支目标 / IGNORE_CONTINUE 下游 / FAIL_FLOW 快照均可引用）
-            recordLastError(node, error, vars);
-            LogicFlowDsl.NodeDef errorTarget = resolveErrorTarget(node, nodeById, outEdges.get(node.getId()));
+            LogicFlowDsl.NodeDef errorTarget =
+                    applyFailurePolicy(node, error, nodeById, outEdges, vars, "节点执行失败");
             if (errorTarget != null) {
-                log.debug("Logic flow node '{}' failed, route to error branch: {}", node.getId(), error);
                 return errorTarget;
             }
-            if (!ACTION_IGNORE_CONTINUE.equalsIgnoreCase(node.getErrorAction())) {
-                throw new FlowAbortedException("节点执行失败: " + node.getId() + ": " + error);
-            }
-            log.debug("Logic flow node '{}' failed but continues (IGNORE_CONTINUE): {}", node.getId(), error);
         }
         return requireNext(nodeById, outEdges, node.getId());
+    }
+
+    /** 节点级超时看护执行器（Java 21 虚拟线程：每任务一线程，专为限时等待设计，无池容量焦虑）。 */
+    private static final java.util.concurrent.ExecutorService TIMEOUT_EXECUTOR =
+            java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
+
+    /** retryCount 合法上限。 */
+    public static final int MAX_RETRY_COUNT = 10;
+    /** backoffMs 合法上限（毫秒）。 */
+    public static final long MAX_BACKOFF_MS = 60_000L;
+    /** timeoutMs 合法上限（毫秒）。 */
+    public static final long MAX_TIMEOUT_MS = 600_000L;
+
+    /**
+     * 节点执行体：失败重试 + 限时执行。
+     * <ul>
+     *   <li>重试：attempt ∈ [0, retryCount]，每次失败后退避 backoffMs 再试；
+     *       全部失败抛最后一次异常（交由调用方三级回落链收敛）；</li>
+     *   <li>超时：timeoutMs &gt; 0 时 dispatch 在虚拟线程执行并限时等待；
+     *       超时 cancel(true) 下达中断，判节点失败。尽力语义：阻塞 IO/脚本循环响应中断退出，
+     *       非阻塞段可能仍在后台完成但迟到结果被丢弃（输出不写回）。</li>
+     * </ul>
+     */
+    private Object executeNodeBody(LogicFlowDsl.NodeDef node, Map<String, Object> vars, List<NodeTrace> traces)
+            throws Exception {
+        int retries = node.getRetryCount() == null ? 0 : Math.max(0, Math.min(node.getRetryCount(), MAX_RETRY_COUNT));
+        long backoffMs = node.getBackoffMs() == null ? 0 : Math.max(0, Math.min(node.getBackoffMs(), MAX_BACKOFF_MS));
+        long timeoutMs = node.getTimeoutMs() == null ? 0 : Math.max(0, Math.min(node.getTimeoutMs(), MAX_TIMEOUT_MS));
+
+        Exception last = null;
+        for (int attempt = 0; attempt <= retries; attempt++) {
+            if (attempt > 0) {
+                if (backoffMs > 0) {
+                    Thread.sleep(backoffMs);
+                }
+                log.debug("Logic flow node '{}' retry attempt {}/{}", node.getId(), attempt, retries);
+            }
+            try {
+                return dispatchWithTimeout(node, vars, traces, timeoutMs);
+            } catch (Exception e) {
+                last = e;
+                log.debug("Logic flow node '{}' attempt {} failed: {}", node.getId(), attempt, e.getMessage());
+            }
+        }
+        throw last;
+    }
+
+    /** dispatch 限时包裹：timeoutMs &lt;= 0 直呼；&gt;0 快照线程上下文（租户/安全上下文）交虚拟线程执行。 */
+    private Object dispatchWithTimeout(LogicFlowDsl.NodeDef node, Map<String, Object> vars,
+                                       List<NodeTrace> traces, long timeoutMs) throws Exception {
+        if (timeoutMs <= 0) {
+            return dispatch(node, vars, traces);
+        }
+        String tenantId = tenantProvider != null && tenantProvider.hasTenantId() ? tenantProvider.getTenantId() : null;
+        var securityContext = org.springframework.security.core.context.SecurityContextHolder.getContext();
+        java.util.concurrent.Future<Object> future = TIMEOUT_EXECUTOR.submit(() -> {
+            if (tenantId != null) {
+                com.workflow.engine.tenant.TenantContext.setTenantId(tenantId);
+            }
+            var previous = org.springframework.security.core.context.SecurityContextHolder.getContext();
+            org.springframework.security.core.context.SecurityContextHolder.setContext(securityContext);
+            try {
+                return dispatch(node, vars, traces);
+            } finally {
+                org.springframework.security.core.context.SecurityContextHolder.setContext(previous);
+                com.workflow.engine.tenant.TenantContext.clear();
+            }
+        });
+        try {
+            return future.get(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException te) {
+            future.cancel(true);
+            throw new IllegalStateException("节点执行超时(>" + timeoutMs + "ms): " + node.getId());
+        } catch (java.util.concurrent.ExecutionException ee) {
+            Throwable cause = ee.getCause();
+            if (cause instanceof Exception ex) {
+                throw ex;
+            }
+            throw ee;
+        }
     }
 
     /** 执行 CONDITION 节点：求值 → 按 branch=true/false 选边；返回下一节点。 */
@@ -383,23 +497,18 @@ public class LogicFlowEngine {
             if (config == null || config.isNull()) {
                 throw new IllegalArgumentException("CONDITION 节点缺少 config: " + node.getId());
             }
-            String variable = textOrNull(config, "variable");
-            String operator = textOrNull(config, "operator");
-            String value = textOrNull(config, "value");
-            branch = ConditionEvaluator.evaluate(variable, operator, value, vars, variableResolver);
+            // 多条件（conditions[]+logic）与 legacy 单条件统一由求值器分发
+            branch = ConditionEvaluator.evaluate(config, vars, variableResolver);
         } catch (Exception e) {
             long duration = System.currentTimeMillis() - begin;
             String error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             traces.add(new NodeTrace(node.getId(), node.getName(), NodeType.CONDITION.name(),
                     TRACE_FAILED, null, error, duration));
             // 与执行节点同语义：失败详情先写 __lastError 再走三级回落链
-            recordLastError(node, error, vars);
-            LogicFlowDsl.NodeDef errorTarget = resolveErrorTarget(node, nodeById, outEdges.get(node.getId()));
+            LogicFlowDsl.NodeDef errorTarget =
+                    applyFailurePolicy(node, error, nodeById, outEdges, vars, "条件评估失败");
             if (errorTarget != null) {
                 return errorTarget;
-            }
-            if (!ACTION_IGNORE_CONTINUE.equalsIgnoreCase(node.getErrorAction())) {
-                throw new FlowAbortedException("条件评估失败: " + node.getId() + ": " + error);
             }
             // 容错继续：条件失败默认走 false 分支
             branch = false;
@@ -410,6 +519,91 @@ public class LogicFlowEngine {
         traces.add(new NodeTrace(node.getId(), node.getName(), NodeType.CONDITION.name(),
                 TRACE_SUCCESS, String.valueOf(branch), null, duration));
         return resolveBranchTarget(node, nodeById, outEdges.get(node.getId()), branch);
+    }
+
+    /** SWITCH 命中分支出边前缀（EdgeDef.branch = "case:<匹配值>"）。 */
+    public static final String SWITCH_BRANCH_CASE_PREFIX = "case:";
+    /** SWITCH 未命中默认出边标记（EdgeDef.branch = "default"）。 */
+    public static final String SWITCH_BRANCH_DEFAULT = "default";
+
+    /**
+     * 执行 SWITCH 多路分支节点：variable 值逐个与 cases[].value 做 EQ 语义比对
+     * （数值可解析优先，值支持 {{var}} 展开），命中即路由 branch=case:&lt;value&gt; 出边；
+     * 未命中走 branch=default；无 default 出边 → FAILED。
+     * 失败回落链与 CONDITION 同构：error 边 → IGNORE_CONTINUE（走 default/首条出边）→ FAIL_FLOW。
+     */
+    private LogicFlowDsl.NodeDef executeSwitch(LogicFlowDsl.NodeDef node,
+                                               Map<String, LogicFlowDsl.NodeDef> nodeById,
+                                               Map<String, List<LogicFlowDsl.EdgeDef>> outEdges,
+                                               Map<String, Object> vars,
+                                               List<NodeTrace> traces) {
+        long begin = System.currentTimeMillis();
+        String matched;
+        try {
+            JsonNode config = node.getConfig();
+            if (config == null || config.isNull()) {
+                throw new IllegalArgumentException("SWITCH 节点缺少 config: " + node.getId());
+            }
+            String variable = textOrNull(config, "variable");
+            if (variable == null || variable.isBlank()) {
+                throw new IllegalArgumentException("SWITCH 节点缺少 variable: " + node.getId());
+            }
+            JsonNode cases = config.get("cases");
+            if (cases == null || !cases.isArray() || cases.isEmpty()) {
+                throw new IllegalArgumentException("SWITCH 节点缺少 cases（非空数组）: " + node.getId());
+            }
+            matched = null;
+            for (JsonNode item : cases) {
+                String value = item == null || item.isNull() || !item.hasNonNull("value")
+                        ? null : item.get("value").asText();
+                if (value == null || value.isBlank()) {
+                    continue;
+                }
+                if (ConditionEvaluator.evaluate(variable, "EQ", value.trim(), vars, variableResolver)) {
+                    matched = value.trim();
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            long duration = System.currentTimeMillis() - begin;
+            String error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            traces.add(new NodeTrace(node.getId(), node.getName(), NodeType.SWITCH.name(),
+                    TRACE_FAILED, null, error, duration));
+            LogicFlowDsl.NodeDef errorTarget =
+                    applyFailurePolicy(node, error, nodeById, outEdges, vars, "多路分支评估失败");
+            if (errorTarget != null) {
+                return errorTarget;
+            }
+            matched = null; // 容错继续：按未命中走 default
+        }
+        String want = matched != null ? SWITCH_BRANCH_CASE_PREFIX + matched : SWITCH_BRANCH_DEFAULT;
+        LogicFlowDsl.NodeDef target = resolveSwitchTarget(node, nodeById, outEdges.get(node.getId()), want);
+        long duration = System.currentTimeMillis() - begin;
+        writeResults(node, matched, vars);
+        traces.add(new NodeTrace(node.getId(), node.getName(), NodeType.SWITCH.name(),
+                TRACE_SUCCESS, matched != null ? want : "default(未命中)", null, duration));
+        return target;
+    }
+
+    /** SWITCH 出边解析：按 branch 精确匹配（case:<value> / default）；缺匹配出边 → FAILED。 */
+    private LogicFlowDsl.NodeDef resolveSwitchTarget(LogicFlowDsl.NodeDef node,
+                                                     Map<String, LogicFlowDsl.NodeDef> nodeById,
+                                                     List<LogicFlowDsl.EdgeDef> edges,
+                                                     String want) {
+        if (edges != null) {
+            for (LogicFlowDsl.EdgeDef edge : edges) {
+                String branch = edge.getBranch() == null ? "" : edge.getBranch().trim();
+                if (!branch.equalsIgnoreCase(want)) {
+                    continue;
+                }
+                LogicFlowDsl.NodeDef next = edge.getTarget() != null ? nodeById.get(edge.getTarget()) : null;
+                if (next == null) {
+                    throw new FlowAbortedException("边引用不存在的节点: " + edge.getTarget());
+                }
+                return next;
+            }
+        }
+        throw new FlowAbortedException("SWITCH 节点无匹配出边: " + node.getId() + " (" + want + ")");
     }
 
     /** 四型逻辑 + 批处理/子流程/数据/通知/延时/转换/聚合/LLM 分发。 */
@@ -446,8 +640,12 @@ public class LogicFlowEngine {
         List<ParamMapping> query = config.getQueryParams() != null ? config.getQueryParams() : List.of();
         List<ParamMapping> body = config.getBodyParams() != null ? config.getBodyParams() : List.of();
         // url/headers 的 {{var}} 展开由 HttpLogicExecutor 内部完成（占位符替换后、发请求前做白名单校验）
+        // 重试统一由节点级 retryCount 包裹（executeNodeBody）：此处不再叠加 config.retryCount，
+        // 否则二者并存会形成双重重试（实际调用次数 =(1+节点级)×(1+config)）。
+        // 存量 DSL 兼容：仅当节点级未配置时回退到 config.retryCount 旧值，保证旧流程行为不降级。
+        int legacyRetry = node.getRetryCount() != null ? 0 : Math.max(0, config.getRetryCount());
         return httpExecutor.execute(config.getUrl(), method, headers, query, body, vars,
-                config.getConnTimeoutMs(), config.getReadTimeoutMs(), Math.max(0, config.getRetryCount()));
+                config.getConnTimeoutMs(), config.getReadTimeoutMs(), legacyRetry);
     }
 
     private Object executeBean(LogicFlowDsl.NodeDef node, Map<String, Object> vars) {
@@ -2577,7 +2775,7 @@ public class LogicFlowEngine {
      */
     private Object executeBatchBodyStep(LogicFlowDsl.NodeDef batchNode, LogicFlowDsl.NodeDef step,
                                         int iteration, int stepIndex,
-                                        Map<String, Object> childVars, List<NodeTrace> traces) {
+                                        Map<String, Object> childVars, List<NodeTrace> traces) throws Exception {
         String stepId = step.getId() != null && !step.getId().isBlank()
                 ? step.getId() : batchNode.getId() + "#b" + stepIndex;
         LogicFlowDsl.NodeDef inner = new LogicFlowDsl.NodeDef();
@@ -2587,10 +2785,13 @@ public class LogicFlowEngine {
         inner.setConfig(step.getConfig());
         inner.setResults(step.getResults());
         inner.setErrorAction(step.getErrorAction());
+        inner.setRetryCount(step.getRetryCount());
+        inner.setBackoffMs(step.getBackoffMs());
+        inner.setTimeoutMs(step.getTimeoutMs());
         boolean traceable = iteration < BATCH_BODY_TRACE_ITERATIONS;
         long begin = System.currentTimeMillis();
         try {
-            Object result = dispatch(inner, childVars, traces);
+            Object result = executeNodeBody(inner, childVars, traces);
             // 统一结果写回：results 声明驱动（SCRIPT 严格 / 其余宽松；无声明则隐式整体输出为 <步骤id>）
             writeResults(inner, result, childVars);
             if (traceable && traces != null) {
@@ -2600,7 +2801,7 @@ public class LogicFlowEngine {
             return result;
         } catch (Exception e) {
             String error = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            if (ACTION_IGNORE_CONTINUE.equalsIgnoreCase(inner.getErrorAction())) {
+            if (isIgnoreContinue(inner.getErrorAction())) {
                 if (traces != null) {
                     traces.add(new NodeTrace(stepId, inner.getName(), inner.getType().name(),
                             TRACE_FAILED, null, error, System.currentTimeMillis() - begin));
@@ -2644,6 +2845,9 @@ public class LogicFlowEngine {
             step.setConfig(entry.get("config"));
             step.setResults(parseResultsList(entry.get("results")));
             step.setErrorAction(textOrNull(entry, "errorAction"));
+            step.setRetryCount(intOrNull(entry, "retryCount"));
+            step.setBackoffMs(longOrNull(entry, "backoffMs"));
+            step.setTimeoutMs(longOrNull(entry, "timeoutMs"));
             steps.add(step);
         }
         return steps;
@@ -2662,6 +2866,18 @@ public class LogicFlowEngine {
             }
         }
         return results.isEmpty() ? null : results;
+    }
+
+    /** JSON 字段 → Integer（null/非数值安全）。 */
+    private Integer intOrNull(JsonNode node, String field) {
+        JsonNode v = node == null ? null : node.get(field);
+        return v == null || v.isNull() || !v.canConvertToInt() ? null : v.asInt();
+    }
+
+    /** JSON 字段 → Long（null/非数值安全）。 */
+    private Long longOrNull(JsonNode node, String field) {
+        JsonNode v = node == null ? null : node.get(field);
+        return v == null || v.isNull() || !v.canConvertToLong() ? null : v.asLong();
     }
 
     /** maxItems 归一化：缺省 100，钳位 1~1000。 */

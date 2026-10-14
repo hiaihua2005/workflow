@@ -133,13 +133,8 @@
                 </template>
                 <el-input-number v-model="httpCfg.readTimeoutMs" :min="0" :step="500" controls-position="right" style="width: 100%" />
               </el-form-item>
-              <el-form-item>
-                <template #label>
-                  <FieldLabel label="重试次数" tip="请求失败后的自动重试次数，0 表示不重试" />
-                </template>
-                <el-input-number v-model="httpCfg.retryCount" :min="0" :max="10" controls-position="right" style="width: 100%" />
-              </el-form-item>
             </div>
+            <!-- 重试次数已统一到下方「重试与超时」节点级配置（旧的 HTTP config.retryCount 会在打开时自动迁移） -->
           </template>
 
           <!-- ===== BEAN ===== -->
@@ -239,34 +234,136 @@
 
           <!-- ===== CONDITION ===== -->
           <template v-else-if="node.data.nodeType === 'CONDITION'">
+            <!-- 多条件形态：conditions[] + logic -->
+            <template v-if="isMultiCondition">
+              <el-form-item label="组合逻辑">
+                <el-radio-group v-model="conditionCfg.logic" size="small">
+                  <el-radio-button value="ALL">全部满足（且）</el-radio-button>
+                  <el-radio-button value="ANY">任一满足（或）</el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+              <el-form-item v-for="(row, i) in conditionCfg.conditions" :key="i" required>
+                <template #label>
+                  <FieldLabel :label="`条件 #${i + 1}`" tip="变量名支持 {{ var }}；比较值支持字面量或 {{ var }}" />
+                </template>
+                <div class="condition-row">
+                  <VarInput
+                    v-model="row.variable"
+                    :variables="variables"
+                    mode="bare"
+                    replace
+                    class="condition-row-var"
+                    placeholder="变量名"
+                  />
+                  <el-select v-model="row.operator" class="condition-row-op" size="small">
+                    <el-option v-for="op in OPERATORS" :key="op.value" :label="op.label" :value="op.value" />
+                  </el-select>
+                  <VarInput
+                    v-if="row.operator !== 'EMPTY' && row.operator !== 'NOT_EMPTY'"
+                    v-model="row.value"
+                    :variables="variables"
+                    mode="placeholder"
+                    class="condition-row-value"
+                    placeholder="字面量或 {{var}}"
+                  />
+                  <el-button
+                    text
+                    type="danger"
+                    size="small"
+                    :disabled="conditionCfg.conditions.length <= 1"
+                    @click="removeConditionRow(i)"
+                  >删除</el-button>
+                </div>
+              </el-form-item>
+              <el-form-item>
+                <el-button text type="primary" @click="addConditionRow">+ 添加条件</el-button>
+                <el-button text @click="backToSingleCondition">退回单条件</el-button>
+              </el-form-item>
+            </template>
+            <!-- legacy 单条件形态 -->
+            <template v-else>
+              <el-form-item required>
+                <template #label>
+                  <FieldLabel label="判断变量" tip="参与比较的上下文变量，支持 {{ var }} 写法" />
+                </template>
+                <VarInput
+                  v-model="conditionCfg.variable"
+                  :variables="variables"
+                  mode="bare"
+                  replace
+                  placeholder="变量名，如 risk"
+                />
+              </el-form-item>
+              <el-form-item label="运算符">
+                <el-select v-model="conditionCfg.operator" style="width: 100%">
+                  <el-option v-for="op in OPERATORS" :key="op.value" :label="op.label" :value="op.value" />
+                </el-select>
+              </el-form-item>
+              <el-form-item v-if="!isEmptyOperator">
+                <template #label>
+                  <FieldLabel label="比较值" tip="比较的字面量或 {{ var }}；为空/不为空运算符时无需填写" />
+                </template>
+                <VarInput
+                  v-model="conditionCfg.value"
+                  :variables="variables"
+                  mode="placeholder"
+                  placeholder="字面量或 {{var}}"
+                />
+              </el-form-item>
+              <el-form-item>
+                <el-button text type="primary" @click="upgradeToMultiCondition">+ 多条件组合（且/或）</el-button>
+              </el-form-item>
+            </template>
+          </template>
+
+          <!-- ===== SWITCH ===== -->
+          <template v-else-if="node.data.nodeType === 'SWITCH'">
             <el-form-item required>
               <template #label>
-                <FieldLabel label="判断变量" tip="参与比较的上下文变量，支持 {{ var }} 写法" />
+                <FieldLabel
+                  label="分支变量"
+                  tip="取该上下文变量的值与各 case 匹配（数值可解析优先数值比对；case 匹配值支持 {{ var }} 展开）"
+                />
               </template>
               <VarInput
-                v-model="conditionCfg.variable"
+                v-model="switchCfg.variable"
                 :variables="variables"
                 mode="bare"
                 replace
-                placeholder="变量名，如 risk"
+                placeholder="变量名，如 status"
               />
             </el-form-item>
-            <el-form-item label="运算符">
-              <el-select v-model="conditionCfg.operator" style="width: 100%">
-                <el-option v-for="op in OPERATORS" :key="op.value" :label="op.label" :value="op.value" />
-              </el-select>
-            </el-form-item>
-            <el-form-item v-if="!isEmptyOperator">
+            <el-form-item v-for="(c, i) in switchCfg.cases" :key="i" required>
               <template #label>
-                <FieldLabel label="比较值" tip="比较的字面量或 {{ var }}；为空/不为空运算符时无需填写" />
+                <FieldLabel :label="`case #${i + 1}`" tip="匹配值：字面量或 {{ var }}；命中后走该 case 出边（出点标签即匹配值），未命中走默认出边" />
               </template>
-              <VarInput
-                v-model="conditionCfg.value"
-                :variables="variables"
-                mode="placeholder"
-                placeholder="字面量或 {{var}}"
-              />
+              <div class="switch-row">
+                <VarInput
+                  v-model="c.value"
+                  :variables="variables"
+                  mode="placeholder"
+                  class="switch-row-value"
+                  placeholder="匹配值"
+                />
+                <el-button
+                  text
+                  type="danger"
+                  size="small"
+                  :disabled="switchCfg.cases.length <= 1"
+                  @click="switchCfg.cases.splice(i, 1)"
+                >删除</el-button>
+              </div>
             </el-form-item>
+            <el-form-item>
+              <el-button text type="primary" @click="switchCfg.cases.push({ value: '' })">+ 添加 case</el-button>
+            </el-form-item>
+            <el-alert
+              type="info"
+              :closable="false"
+              show-icon
+              class="panel-alert"
+              title="每个 case 与默认分支都需从节点底部出点连线；发布校验要求 case 值唯一且全部有出边。修改 case 值后请重连对应出边（出点标签随之更新）"
+            />
           </template>
 
           <!-- ===== BATCH ===== -->
@@ -627,37 +724,40 @@
                     <el-button size="small" text type="primary" @click="u.values.push({ column: '', value: '' })">添加</el-button>
                   </div>
                   <div v-if="!u.values.length" class="rows-empty">暂无写入字段</div>
-                  <div v-for="(op, i) in u.values" :key="i" class="du-row">
-                    <el-select
-                      v-model="op.column"
-                      size="small"
-                      filterable
-                      allow-create
-                      default-first-option
-                      :loading="upsertEntryLoading(u.formKey)"
-                      :disabled="!u.formKey"
-                      :title="u.formKey ? undefined : '先选择业务表单'"
-                      placeholder="字段"
-                      class="du-col"
-                    >
-                      <el-option v-for="c in upsertColumnOptions(u.formKey, op.column)" :key="c.key" :label="c.label || c.key" :value="c.key">
-                        <span class="du-col-opt">
-                          <span>{{ c.label || c.key }}</span>
-                          <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
-                        </span>
-                      </el-option>
-                    </el-select>
+                  <!-- 两行式：首行 字段下拉 + 删除，次行 值表达式（长表达式可完整显示） -->
+                  <div v-for="(op, i) in u.values" :key="i" class="du-row du-row-stack">
+                    <div class="du-row-line">
+                      <el-select
+                        v-model="op.column"
+                        size="small"
+                        filterable
+                        allow-create
+                        default-first-option
+                        :loading="upsertEntryLoading(u.formKey)"
+                        :disabled="!u.formKey"
+                        :title="u.formKey ? undefined : '先选择业务表单'"
+                        placeholder="字段"
+                        class="du-col"
+                      >
+                        <el-option v-for="c in upsertColumnOptions(u.formKey, op.column)" :key="c.key" :label="c.label || c.key" :value="c.key">
+                          <span class="du-col-opt">
+                            <span>{{ c.label || c.key }}</span>
+                            <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
+                          </span>
+                        </el-option>
+                      </el-select>
+                      <el-button size="small" text type="danger" @click="u.values.splice(i, 1)">
+                        <el-icon><Delete /></el-icon>
+                      </el-button>
+                    </div>
                     <VarInput
                       v-model="op.value"
                       :variables="variables"
                       mode="placeholder"
                       size="small"
-                      class="du-value"
+                      class="du-value du-value-line"
                       placeholder="值或 {{formData.xxx}}"
                     />
-                    <el-button size="small" text type="danger" @click="u.values.splice(i, 1)">
-                      <el-icon><Delete /></el-icon>
-                    </el-button>
                   </div>
                 </div>
 
@@ -667,37 +767,39 @@
                     <el-button size="small" text type="primary" @click="u.onUpdate?.push({ column: '', value: '' })">添加</el-button>
                   </div>
                   <div v-if="!u.onUpdate?.length" class="rows-empty">未配置 · 更新路径默认覆盖全部写入字段</div>
-                  <div v-for="(op, i) in u.onUpdate ?? []" :key="'o' + i" class="du-row">
-                    <el-select
-                      v-model="op.column"
-                      size="small"
-                      filterable
-                      allow-create
-                      default-first-option
-                      :loading="upsertEntryLoading(u.formKey)"
-                      :disabled="!u.formKey"
-                      :title="u.formKey ? undefined : '先选择业务表单'"
-                      placeholder="字段"
-                      class="du-col"
-                    >
-                      <el-option v-for="c in upsertColumnOptions(u.formKey, op.column)" :key="c.key" :label="c.label || c.key" :value="c.key">
-                        <span class="du-col-opt">
-                          <span>{{ c.label || c.key }}</span>
-                          <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
-                        </span>
-                      </el-option>
-                    </el-select>
+                  <div v-for="(op, i) in u.onUpdate ?? []" :key="'o' + i" class="du-row du-row-stack">
+                    <div class="du-row-line">
+                      <el-select
+                        v-model="op.column"
+                        size="small"
+                        filterable
+                        allow-create
+                        default-first-option
+                        :loading="upsertEntryLoading(u.formKey)"
+                        :disabled="!u.formKey"
+                        :title="u.formKey ? undefined : '先选择业务表单'"
+                        placeholder="字段"
+                        class="du-col"
+                      >
+                        <el-option v-for="c in upsertColumnOptions(u.formKey, op.column)" :key="c.key" :label="c.label || c.key" :value="c.key">
+                          <span class="du-col-opt">
+                            <span>{{ c.label || c.key }}</span>
+                            <span v-if="c.type" class="du-col-type">{{ c.type }}</span>
+                          </span>
+                        </el-option>
+                      </el-select>
+                      <el-button size="small" text type="danger" @click="u.onUpdate?.splice(i, 1)">
+                        <el-icon><Delete /></el-icon>
+                      </el-button>
+                    </div>
                     <VarInput
                       v-model="op.value"
                       :variables="variables"
                       mode="placeholder"
                       size="small"
-                      class="du-value"
+                      class="du-value du-value-line"
                       placeholder="值或 {{formData.xxx}}"
                     />
-                    <el-button size="small" text type="danger" @click="u.onUpdate?.splice(i, 1)">
-                      <el-icon><Delete /></el-icon>
-                    </el-button>
                   </div>
                 </div>
               </div>
@@ -1331,6 +1433,52 @@
               class="panel-alert"
               :title="errorActionHint.text"
             />
+            <!-- 节点级重试/退避/超时（P0-2 公共属性）：重试耗尽后才按异常处理收敛 -->
+            <el-form-item>
+              <template #label>
+                <FieldLabel
+                  label="重试与超时"
+                  tip="失败自动重试（退避间隔后再试），重试耗尽后才按上方异常处理收敛；超时到点中断本节点并按失败处理（尽力语义，阻塞型调用会响应中断）。0 或留空 = 关闭"
+                />
+              </template>
+              <div class="retry-grid">
+                <div class="retry-cell">
+                  <span class="retry-cap">重试次数(0-10)</span>
+                  <el-input-number
+                    v-model="node.data.retryCount"
+                    :min="0"
+                    :max="10"
+                    size="small"
+                    controls-position="right"
+                    placeholder="0"
+                  />
+                </div>
+                <div class="retry-cell">
+                  <span class="retry-cap">退避ms(≤60000)</span>
+                  <el-input-number
+                    v-model="node.data.backoffMs"
+                    :min="0"
+                    :max="60000"
+                    :step="500"
+                    size="small"
+                    controls-position="right"
+                    placeholder="0"
+                  />
+                </div>
+                <div class="retry-cell">
+                  <span class="retry-cap">超时ms(≤600000)</span>
+                  <el-input-number
+                    v-model="node.data.timeoutMs"
+                    :min="0"
+                    :max="600000"
+                    :step="1000"
+                    size="small"
+                    controls-position="right"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+            </el-form-item>
           </template>
         </el-form>
       </div>
@@ -1352,7 +1500,7 @@ import { formApi } from '@/api/form'
 import { columnOptionLabel } from '@/utils/columnOption'
 import type { ColumnConfigItem } from '@/api/bizData'
 import { nodeTypeLabel as typeLabel } from '../utils/nodeMeta'
-import { defaultConfig, type DataUpdateNodeConfig, type DataUpdateTableUpdate, type DataUpdateWhereOp, type DataUpsertNodeConfig, type DataUpsertUpsertItem, type DataQueryNodeConfig, type DataInsertNodeConfig, type DataDeleteNodeConfig, type NotifyNodeConfig, type DelayNodeConfig, type TransformNodeConfig, type AggregateNodeConfig, type LlmNodeConfig, type FlowNode, type FlowEdge, type HttpNodeConfig, type SqlScriptNodeConfig, OUTPUT_VAR_TYPES, type ResultVarDef } from '../utils/dsl'
+import { defaultConfig, hasExecutionMeta as hasExecutionMetaByType, type DataUpdateNodeConfig, type DataUpdateTableUpdate, type DataUpdateWhereOp, type DataUpsertNodeConfig, type DataUpsertUpsertItem, type DataQueryNodeConfig, type DataInsertNodeConfig, type DataDeleteNodeConfig, type NotifyNodeConfig, type DelayNodeConfig, type TransformNodeConfig, type AggregateNodeConfig, type LlmNodeConfig, type FlowNode, type FlowEdge, type HttpNodeConfig, type SqlScriptNodeConfig, OUTPUT_VAR_TYPES, type ResultVarDef } from '../utils/dsl'
 import type { HashFieldOption } from '@/components/expression/cm6'
 import { makeGroovyBeanCompletionSource, makeSqlSchemaCompletionSource } from '@/components/expression/cm6'
 import { parseSqlScriptPreview } from '../utils/sqlScript'
@@ -1368,6 +1516,13 @@ const OPERATORS = [
   { label: '小于等于（LTE）', value: 'LTE' },
   { label: '为空（EMPTY）', value: 'EMPTY' },
   { label: '不为空（NOT_EMPTY）', value: 'NOT_EMPTY' },
+  { label: '包含（CONTAINS）', value: 'CONTAINS' },
+  { label: '不包含（NOT_CONTAINS）', value: 'NOT_CONTAINS' },
+  { label: '前缀（STARTS_WITH）', value: 'STARTS_WITH' },
+  { label: '后缀（ENDS_WITH）', value: 'ENDS_WITH' },
+  { label: '属于列表（IN）', value: 'IN' },
+  { label: '不属于列表（NOT_IN）', value: 'NOT_IN' },
+  { label: '正则匹配（REGEX）', value: 'REGEX' },
 ] as const
 
 const props = defineProps<{
@@ -1394,13 +1549,9 @@ const node = computed(() => props.node ?? null)
 /** 隐式输出变量名（未声明 results 时引擎写入的变量 = 节点 id） */
 const nodeId = computed(() => node.value?.id ?? '')
 const nodeTypeLabel = computed(() => (node.value ? typeLabel(node.value.data.nodeType) : ''))
+// 执行型节点名单单一来源（utils/dsl.hasExecutionMeta）：新增节点类型只改一处，避免名单漂移
 const hasExecutionMeta = computed(
-  () =>
-    !!node.value &&
-    [
-      'HTTP', 'BEAN', 'SCRIPT', 'BATCH', 'SUBFLOW', 'DATA_UPDATE', 'DATA_UPSERT', 'SQL_SCRIPT',
-      'DATA_QUERY', 'DATA_INSERT', 'DATA_DELETE', 'NOTIFY', 'DELAY', 'TRANSFORM', 'AGGREGATE', 'LLM',
-    ].includes(node.value.data.nodeType)
+  () => !!node.value && hasExecutionMetaByType(node.value.data.nodeType)
 )
 
 /**
@@ -1498,7 +1649,15 @@ const resultWarnings = computed<string[]>(() => {
   })
   return warns
 })
-const conditionCfg = computed(() => ensureConfig<{ variable: string; operator: string; value?: string }>())
+const conditionCfg = computed(() =>
+  ensureConfig<{
+    variable: string
+    operator: string
+    value?: string
+    conditions?: { variable: string; operator: string; value?: string }[]
+    logic?: 'ALL' | 'ANY'
+  }>()
+)
 const batchCfg = computed(() =>
   ensureConfig<{
     collection: string
@@ -2207,9 +2366,49 @@ onMounted(async () => {
 
 /** 循环体在画布上编辑（拖节点到循环虚线），面板仅展示步数提示 */
 
+const switchCfg = computed(() => ensureConfig<{ variable: string; cases: { value: string }[] }>())
+
 const isEmptyOperator = computed(
   () => conditionCfg.value.operator === 'EMPTY' || conditionCfg.value.operator === 'NOT_EMPTY'
 )
+
+// ===== CONDITION 多条件组合（conditions[] + logic=ALL|ANY，与引擎 ConditionEvaluator 语义一致） =====
+const isMultiCondition = computed(
+  () => Array.isArray(conditionCfg.value.conditions) && conditionCfg.value.conditions.length > 0
+)
+
+/** legacy 单条件升级为多条件：首条由现有单条件字段迁移而来 */
+function upgradeToMultiCondition() {
+  const cfg = conditionCfg.value
+  cfg.conditions = [{ variable: cfg.variable || '', operator: cfg.operator || 'EQ', value: cfg.value }]
+  if (!cfg.logic) cfg.logic = 'ALL'
+}
+
+function addConditionRow() {
+  const cfg = conditionCfg.value
+  if (!Array.isArray(cfg.conditions)) cfg.conditions = []
+  cfg.conditions.push({ variable: '', operator: 'EQ', value: '' })
+}
+
+function removeConditionRow(index: number) {
+  const cfg = conditionCfg.value
+  if (!Array.isArray(cfg.conditions)) return
+  cfg.conditions.splice(index, 1)
+  if (cfg.conditions.length === 0) backToSingleCondition()
+}
+
+/** 退回 legacy 单条件：首条迁回顶层字段，清理 conditions/logic */
+function backToSingleCondition() {
+  const cfg = conditionCfg.value
+  const first = cfg.conditions?.[0]
+  if (first) {
+    cfg.variable = first.variable || ''
+    cfg.operator = first.operator || 'EQ'
+    cfg.value = first.value
+  }
+  delete cfg.conditions
+  delete cfg.logic
+}
 
 // ===== Headers：Record<string,string> ↔ 键值对动态行 =====
 interface KvRow {
@@ -2600,6 +2799,27 @@ async function copyNodeId() {
   min-width: 0;
 }
 
+/* 两行式写入字段行：首行 字段下拉(+删除)，次行 值表达式占满整行 */
+.du-row-stack {
+  display: block;
+}
+
+.du-row-stack .du-row-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.du-row-stack .du-row-line .du-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.du-row-stack .du-value.du-value-line {
+  width: 100%;
+  margin-top: 6px;
+}
+
 .du-row .el-button {
   flex-shrink: 0;
   padding: 4px;
@@ -2842,5 +3062,79 @@ async function copyNodeId() {
 .mapping-row .el-button {
   flex-shrink: 0;
   padding: 4px;
+}
+
+/* CONDITION 多条件行：变量 / 运算符 / 比较值 / 删除 四段布局 */
+.condition-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.condition-row :deep(.el-select),
+.condition-row :deep(.el-input) {
+  min-width: 0;
+}
+
+.condition-row-var {
+  flex: 1.1;
+}
+
+.condition-row-op {
+  width: 128px;
+  flex-shrink: 0;
+}
+
+.condition-row-value {
+  flex: 1.1;
+}
+
+.condition-row .el-button {
+  flex-shrink: 0;
+  padding: 4px;
+}
+
+/* SWITCH case 行：匹配值 + 删除 */
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.switch-row-value {
+  flex: 1;
+  min-width: 0;
+}
+
+.switch-row .el-button {
+  flex-shrink: 0;
+  padding: 4px;
+}
+
+/* 节点级重试/退避/超时 三列网格 */
+.retry-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.retry-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.retry-cell .el-input-number {
+  width: 100%;
+}
+
+.retry-cap {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+  line-height: 1.4;
 }
 </style>

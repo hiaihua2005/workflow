@@ -70,6 +70,7 @@ export const NODE_CONTRACTS: Record<LogicNodeType, NodeContractOutput[]> = {
   START: [],
   END: [],
   CONDITION: [],
+  SWITCH: [],
 }
 
 /** 节点类型的契约输出（无契约类型返回空数组） */

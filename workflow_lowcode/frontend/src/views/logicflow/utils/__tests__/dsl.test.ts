@@ -5,9 +5,10 @@ import {
   createNodeId,
   defaultConfig,
   defaultNodeName,
+  hasExecutionMeta,
   isDslEqual,
 } from '../dsl'
-import type { FlowNode, FlowEdge } from '../dsl'
+import type { FlowNode, FlowEdge, LogicNodeType } from '../dsl'
 
 /** 构造画布节点的便捷工厂 */
 function makeNode(
@@ -815,5 +816,71 @@ describe('DATA_UPSERT 数据写入节点', () => {
     expect(batch.config.body).toHaveLength(1)
     expect(batch.config.body[0].type).toBe('DATA_UPSERT')
     expect(batch.config.body[0].config.formKey).toBe('warehouse')
+  })
+})
+
+describe('HTTP 重试收敛（config.retryCount 下线，统一走节点级 retryCount）', () => {
+  /** 造一份带 HTTP 节点的 DSL（legacy 的 config.retryCount 可选，节点级 retryCount 可选） */
+  function httpDsl(legacyRetry?: number, nodeRetry?: number): string {
+    const http: Record<string, unknown> = {
+      id: 'http_1',
+      type: 'HTTP',
+      name: '调用风控',
+      x: 220,
+      y: 160,
+      config: {
+        url: 'http://a/b',
+        method: 'GET',
+        headers: {},
+        queryParams: [],
+        bodyParams: [],
+        connTimeoutMs: 3000,
+        readTimeoutMs: 5000,
+        ...(legacyRetry == null ? {} : { retryCount: legacyRetry }),
+      },
+    }
+    if (nodeRetry != null) http.retryCount = nodeRetry
+    return JSON.stringify({
+      nodes: [{ id: 'start_1', type: 'START', name: '开始', x: 100, y: 80 }, http],
+      edges: [{ source: 'start_1', target: 'http_1' }],
+    })
+  }
+
+  it('旧 DSL 的 config.retryCount 迁移到节点级，并从 config 抹除', () => {
+    const graph = parseDsl(httpDsl(2))
+    const http = graph.nodes[1]
+    expect(http.data.retryCount).toBe(2)
+    expect((http.data.config as Record<string, unknown>).retryCount).toBeUndefined()
+    // 再次序列化：重试只出现在节点级，config 里不再有遗留键（迁移后往返稳定）
+    const once = serializeDsl(graph.nodes, graph.edges, graph.inputVars)
+    const raw = JSON.parse(once)
+    expect(raw.nodes[1].retryCount).toBe(2)
+    expect(raw.nodes[1].config.retryCount).toBeUndefined()
+    const twice = serializeDsl(parseDsl(once).nodes, parseDsl(once).edges, graph.inputVars)
+    expect(isDslEqual(once, twice)).toBe(true)
+  })
+
+  it('节点级已配置时丢弃 config 遗留值，不叠加成双重重试', () => {
+    const graph = parseDsl(httpDsl(5, 3))
+    expect(graph.nodes[1].data.retryCount).toBe(3)
+    expect((graph.nodes[1].data.config as Record<string, unknown>).retryCount).toBeUndefined()
+  })
+
+  it('二者都未配置时无重试元信息；默认 HTTP 配置不再含 retryCount', () => {
+    const graph = parseDsl(httpDsl())
+    expect(graph.nodes[1].data.retryCount).toBeUndefined()
+    expect(defaultConfig('HTTP')).not.toHaveProperty('retryCount')
+  })
+})
+
+describe('hasExecutionMeta（执行型节点名单单一来源）', () => {
+  it('覆盖全部执行型节点，排除 START/END/CONDITION/SWITCH', () => {
+    const execution: LogicNodeType[] = [
+      'HTTP', 'BEAN', 'SCRIPT', 'BATCH', 'SUBFLOW', 'DATA_UPDATE', 'DATA_UPSERT', 'SQL_SCRIPT',
+      'DATA_QUERY', 'DATA_INSERT', 'DATA_DELETE', 'NOTIFY', 'DELAY', 'TRANSFORM', 'AGGREGATE', 'LLM',
+    ]
+    execution.forEach((t) => expect(hasExecutionMeta(t)).toBe(true))
+    const plain: LogicNodeType[] = ['START', 'END', 'CONDITION', 'SWITCH']
+    plain.forEach((t) => expect(hasExecutionMeta(t)).toBe(false))
   })
 })

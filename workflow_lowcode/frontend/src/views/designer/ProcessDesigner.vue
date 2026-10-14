@@ -437,6 +437,7 @@ function handleDrop(event: DragEvent) {
   if (!nodeType) return
 
   const nodeRole = event.dataTransfer?.getData('node-role')
+  const eventDefType = event.dataTransfer?.getData('node-event-def')
 
   const modeler = getModeler()
   const canvas = (modeler as any).get('canvas')
@@ -459,6 +460,26 @@ function handleDrop(event: DragEvent) {
   // 父容器：按落点命中「展开态子流程」（保持 bpmn-js 内建界面语义），
   // 未命中任何展开子流程则取当前 plane 根元素（主流程 plane→主流程；子流程 plane→子流程）
   const rootElement = resolveDropParent({ x: canvasX, y: canvasY }, elementRegistry, canvas.getRootElement())
+
+  // 边界事件：必须拖到任务/子流程上方，附着到命中的活动上
+  if (eventDefType) {
+    const host = findActivityAt({ x: canvasX, y: canvasY }, elementRegistry)
+    if (!host) {
+      ElMessage.warning('边界事件需拖到任务/服务任务/子流程的上方，附着到该节点')
+      return
+    }
+    try {
+      const boundary = elementFactory.createShape({
+        type: 'bpmn:BoundaryEvent',
+        eventDefinitionType: eventDefType
+      })
+      // createShape 第 4 参 isAttach=true：附着到 host（bpmn-js Modeling API）
+      modeling.createShape(boundary, { x: canvasX, y: canvasY }, host, true)
+    } catch {
+      ElMessage.error('创建边界事件失败，请重试')
+    }
+    return
+  }
 
   // 校验：当前容器作用域内只能有一个开始事件（子流程可有自己的开始事件）
   if (nodeType === 'bpmn:StartEvent') {
@@ -500,6 +521,25 @@ function handleDrop(event: DragEvent) {
       'wf:nodeRole': nodeRole
     })
   }
+}
+
+/** 落点命中的可附着活动（边界事件 host）：UserTask/ServiceTask/CallActivity/SubProcess */
+function findActivityAt(
+  point: { x: number; y: number },
+  elementRegistry: { filter(fn: (el: any) => boolean): any[] }
+): any | null {
+  const candidates = elementRegistry.filter((el: any) => {
+    if (!el.businessObject || !el.businessObject.$instanceOf) return false
+    const isActivity = ['bpmn:UserTask', 'bpmn:ServiceTask', 'bpmn:CallActivity', 'bpmn:SubProcess']
+      .some((t) => el.businessObject.$instanceOf(t))
+    if (!isActivity) return false
+    return point.x >= el.x && point.x <= el.x + el.width
+      && point.y >= el.y && point.y <= el.y + el.height
+  })
+  // 命中多个（如子流程内的任务）时取最上层的最小元素（面积小者优先）
+  if (candidates.length === 0) return null
+  return candidates.reduce((smallest: any, el: any) =>
+    el.width * el.height < smallest.width * smallest.height ? el : smallest)
 }
 </script>
 

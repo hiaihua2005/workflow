@@ -8,7 +8,7 @@
       <div class="collapsed-icons">
         <div
           v-for="node in allNodes"
-          :key="node.type + (node.nodeRole || '')"
+          :key="node.type + (node.nodeRole || '') + (node.eventDefinitionType || '')"
           class="collapsed-item"
           draggable="true"
           @dragstart="handleDragStart($event, node)"
@@ -38,7 +38,7 @@
           <div class="group-items">
             <div
               v-for="node in group.items"
-              :key="node.type + (node.nodeRole || '')"
+              :key="node.type + (node.nodeRole || '') + (node.eventDefinitionType || '')"
               class="palette-item"
               draggable="true"
               @dragstart="handleDragStart($event, node)"
@@ -71,6 +71,8 @@ interface PaletteNode {
   description: string
   iconClass: string
   nodeRole?: string
+  /** 边界事件的事件定义类型（bpmn:TimerEventDefinition / bpmn:ErrorEventDefinition） */
+  eventDefinitionType?: string
   category: 'event' | 'activity' | 'gateway'
 }
 
@@ -104,7 +106,9 @@ const nodeGroups: PaletteGroup[] = [
     title: '事件',
     items: [
       { type: 'bpmn:StartEvent', label: '开始事件', description: '流程开始', iconClass: 'bpmn-icon-start-event-none', category: 'event' },
-      { type: 'bpmn:EndEvent', label: '结束事件', description: '流程结束', iconClass: 'bpmn-icon-end-event-none', category: 'event' }
+      { type: 'bpmn:EndEvent', label: '结束事件', description: '流程结束', iconClass: 'bpmn-icon-end-event-none', category: 'event' },
+      { type: 'bpmn:BoundaryEvent', eventDefinitionType: 'bpmn:TimerEventDefinition', label: '定时边界事件', description: '附着在任务/子流程上，超时后触发分支（中断或非中断）', iconClass: 'bpmn-icon-intermediate-event-catch-timer', category: 'event' },
+      { type: 'bpmn:BoundaryEvent', eventDefinitionType: 'bpmn:ErrorEventDefinition', label: '错误边界事件', description: '附着在服务任务/子流程上，捕获 BpmnError 后走兜底分支', iconClass: 'bpmn-icon-intermediate-event-catch-error', category: 'event' }
     ]
   },
   {
@@ -143,6 +147,9 @@ function handleDragStart(event: DragEvent, node: PaletteNode) {
   event.dataTransfer.setData('node-type', node.type)
   if (node.nodeRole) {
     event.dataTransfer.setData('node-role', node.nodeRole)
+  }
+  if (node.eventDefinitionType) {
+    event.dataTransfer.setData('node-event-def', node.eventDefinitionType)
   }
   event.dataTransfer.effectAllowed = 'copy'
 }

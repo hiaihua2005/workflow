@@ -135,6 +135,65 @@
   stroke-width: 4px !important;
 }
 
+/* ============================================================
+ * 边界事件 — 定时（青，对齐开始事件）/ 错误（红，对齐结束事件）
+ * 1. 视觉整体缩放 0.62：附着在任务边缘时不再遮挡任务名称与图标
+ *    （布局盒仍为 36×36，点击/吸附/对齐不受影响，仅视觉缩小；
+ *    视觉直径 ≈ 22px，明显小于普通事件节点，符合"附属"层级）
+ * 2. 半透明表面色底：即使与节点文字重叠也能透出笔画
+ * 3. 描边/图标随「青墨/经典 × 明暗」四态主题色自动切换
+ * ============================================================ */
+.djs-element.boundary-event .djs-visual {
+  transform: scale(0.62);
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+/* 圆圈：半透明表面色底 + 类型色描边（默认/定时/错误分档）
+   描边 2.4px × 0.62 缩放 ≈ 视觉 1.5px，小尺寸下仍清晰 */
+.djs-element.boundary-event .djs-visual circle {
+  fill: color-mix(in srgb, var(--el-bg-color) 88%, transparent) !important;
+  stroke: var(--el-color-primary) !important;
+  stroke-width: 2.4px !important;
+}
+
+.djs-element.boundary-timer .djs-visual circle {
+  stroke: var(--brand-bright, #2ca7b5) !important;
+}
+
+.djs-element.boundary-error .djs-visual circle {
+  stroke: #f56c6c !important;
+}
+
+/* 时钟指针/刻度等描边类图标 — 跟随定时主题色 */
+.djs-element.boundary-timer .djs-visual path {
+  stroke: var(--brand-bright, #2ca7b5) !important;
+}
+
+/* 错误锯齿填充图标 — 跟随错误主题色 */
+.djs-element.boundary-error .djs-visual path {
+  fill: #f56c6c !important;
+  stroke: #f56c6c !important;
+}
+
+/* ---- 暗色档：提亮描边/图标，保证深色画布上可辨识 ---- */
+html.dark .djs-element.boundary-timer .djs-visual circle {
+  stroke: #4fc3cf !important;
+}
+
+html.dark .djs-element.boundary-timer .djs-visual path {
+  stroke: #4fc3cf !important;
+}
+
+html.dark .djs-element.boundary-error .djs-visual circle {
+  stroke: #f89898 !important;
+}
+
+html.dark .djs-element.boundary-error .djs-visual path {
+  fill: #f89898 !important;
+  stroke: #f89898 !important;
+}
+
 /* ===== 网关 — 主色洗底 + 主色描边 2px（对齐 X6） ===== */
 .djs-element.exclusive-gateway .djs-visual polygon,
 .djs-element.parallel-gateway .djs-visual polygon,

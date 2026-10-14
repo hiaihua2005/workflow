@@ -11,7 +11,10 @@ package com.workflow.engine.logic.config;
  * {
  *   "prompt": "请把以下请假事由归类为 事假/病假/年假/其他 之一，只输出类别词：{{formData.reason}}",
  *   "system": "你是严谨的分类助手，只输出一个词。",
- *   "temperature": 0.2
+ *   "temperature": 0.2,
+ *   "model": "glm-4-flash",
+ *   "maxTokens": 1024,
+ *   "responseFormat": "json_object"
  * }
  * }</pre>
  *
@@ -19,6 +22,10 @@ package com.workflow.engine.logic.config;
  *   <li>prompt：用户提示词，支持 {@code {{var}}} 与点路径取值插值；</li>
  *   <li>system：可选系统提示词（同样支持插值）；</li>
  *   <li>temperature：0~2（可空，空则用平台配置默认）；</li>
+ *   <li>model：单次调用模型覆盖（P2-13，可空=用平台动态配置的模型；须为端点侧可用模型名）；</li>
+ *   <li>maxTokens：单次输出 token 上限（可空=用平台配置默认；1~65536）；</li>
+ *   <li>responseFormat：可选结构化输出（"json_object"，OpenAI 兼容 response_format 透传），
+ *       需端点模型支持，不支持时端点报错走 errorAction；</li>
  *   <li>模型不保证可用性：网关异常 → 节点失败走 errorAction（可配失败分支）。</li>
  * </ul>
  *
@@ -26,9 +33,15 @@ package com.workflow.engine.logic.config;
  */
 public class BackendLlmConfig {
 
+    /** 单次输出 token 上限（P2-13）。 */
+    public static final int MAX_TOKENS_LIMIT = 65_536;
+
     private String prompt;
     private String system;
     private Double temperature;
+    private String model;
+    private Integer maxTokens;
+    private String responseFormat;
 
     public String getPrompt() { return prompt; }
     public void setPrompt(String prompt) { this.prompt = prompt; }
@@ -38,4 +51,13 @@ public class BackendLlmConfig {
 
     public Double getTemperature() { return temperature; }
     public void setTemperature(Double temperature) { this.temperature = temperature; }
+
+    public String getModel() { return model; }
+    public void setModel(String model) { this.model = model; }
+
+    public Integer getMaxTokens() { return maxTokens; }
+    public void setMaxTokens(Integer maxTokens) { this.maxTokens = maxTokens; }
+
+    public String getResponseFormat() { return responseFormat; }
+    public void setResponseFormat(String responseFormat) { this.responseFormat = responseFormat; }
 }

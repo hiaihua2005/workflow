@@ -36,7 +36,8 @@ export interface NodeConfigData {
       | 'form_user'
       | 'external'
       | 'expression'
-      // 兼容旧数据的历史类型（引擎不支持，运行时按「找不到办理人」策略处理）：
+      // ⚠️ 已废弃的历史类型（引擎不支持，运行时按「找不到办理人」策略兜底；
+      // 属性面板不再提供选项，仅存量数据兼容解析。T2 清理项。
       | 'post'
       | 'member_group'
       | 'dept_head'
@@ -61,7 +62,13 @@ export interface NodeConfigData {
       /** 节点配置的参数值表（面板按注册函数的参数声明渲染；运行时作为函数第二参传入） */
       params?: Record<string, unknown>
     }
-    multiMode?: 'countersign' | 'or_sign' | 'sequential' | ''
+    multiMode?: 'countersign' | 'or_sign' | 'sequential' | 'vote_sign' | ''
+    /** 会签通过比例（1-99 生效，缺省/100=全员通过） */
+    passRatio?: number
+    /** 票签通过权重比例（1-100，缺省 50） */
+    votePassRatio?: number
+    /** 票签权重表（userId → 权重，缺省权重 1；multiMode='vote_sign' 时生效） */
+    weights?: Record<string, number>
   }
   assigneeOptions?: {
     allowInitiatorAdjust?: boolean
@@ -88,6 +95,10 @@ export interface NodeConfigData {
     mustAddSign?: boolean
   }
   commentRequired?: boolean
+  /** 任务优先级（0-100；建议档位 普通 50 / 重要 75 / 加急 100，缺省 0=普通） */
+  priority?: number
+  /** 办理时限（小时，任务创建时刻 + N 小时 → dueDate；缺省不设） */
+  dueHours?: number
   /** 意见必填范围：REJECT_RETURN=拒绝/退回必填（缺省按 ALL 兼容旧数据）；ALL=全部操作必填 */
   commentRequiredScope?: 'REJECT_RETURN' | 'ALL'
   blockRecall?: boolean
@@ -127,6 +138,41 @@ export interface NodeConfigData {
   callActivity?: {
     calledElement?: string
     inParams?: ParamMapping[]
+    outParams?: ParamMapping[]
+  }
+  /** serviceTask（ServiceTask）配置块 */
+  serviceTask?: {
+    /** 服务类型：java=Bean 调用 / expression=表达式 / logicflow=调用逻辑流 / http（引擎无内置 Delegate，仅存档） */
+    serviceType?: 'java' | 'expression' | 'logicflow' | 'http'
+    beanName?: string
+    methodName?: string
+    /** UEL 表达式原文（serviceType='expression'） */
+    expression?: string
+    url?: string
+    httpMethod?: 'GET' | 'POST' | 'PUT' | 'DELETE'
+    /** 调用逻辑流配置（serviceType='logicflow'） */
+    logicFlow?: {
+      /** 已发布逻辑流 defKey */
+      flowKey?: string
+      /** 入参映射：source=流程变量名，target=逻辑流变量名 */
+      inParams?: ParamMapping[]
+      /** 出参映射：source=逻辑流输出变量，target=流程变量 */
+      outParams?: ParamMapping[]
+      /** 失败策略：FAIL_FLOW（默认，可被错误边界事件捕获）| IGNORE_CONTINUE */
+      errorAction?: 'FAIL_FLOW' | 'IGNORE_CONTINUE'
+    }
+    /** 异步执行（flowable:async，配置重试时强制开启） */
+    async?: boolean
+    /** 失败重试次数（0=不重试；>0 时自动异步） */
+    retryCount?: number
+    /** 重试间隔（分钟，缺省 10） */
+    retryIntervalMinutes?: number
+  }
+  /** 内嵌子流程变量绑定（subProcess.inParams/outParams → SubProcessVariableListener） */
+  subProcess?: {
+    /** 入参：source=父级流程变量，target=子流程内变量 */
+    inParams?: ParamMapping[]
+    /** 出参：source=子流程内变量，target=流程变量 */
     outParams?: ParamMapping[]
   }
   backendLogic?: BackendLogicItem[]

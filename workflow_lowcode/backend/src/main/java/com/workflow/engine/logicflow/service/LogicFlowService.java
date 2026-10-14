@@ -19,11 +19,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -54,19 +57,29 @@ public class LogicFlowService {
     private final LogicFlowEngine engine;
     private final LogicFlowDslValidator validator;
     private final BackendBeanRegistry backendBeanRegistry;
+    private final TransactionTemplate transactionTemplate;
+
+    /** 外部副作用/长耗时节点类型（AUTO_COMMIT 流在调用方事务内执行时的告警对象，P1-6）。 */
+    private static final Set<NodeType> TX_RISK_NODE_TYPES = Set.of(
+            NodeType.HTTP, NodeType.SUBFLOW, NodeType.NOTIFY, NodeType.LLM, NodeType.BATCH, NodeType.DELAY);
+
+    /** BATCH 循环体内嵌步骤中的外部副作用类型名（与 TX_RISK_NODE_TYPES 同口径，小写比较）。 */
+    private static final Set<String> TX_RISK_STEP_TYPES = Set.of("HTTP", "SUBFLOW", "NOTIFY", "LLM", "DELAY");
 
     public LogicFlowService(LogicFlowDefRepository repository,
                             LogicFlowRunRepository runRepository,
                             ObjectMapper objectMapper,
                             LogicFlowEngine engine,
                             LogicFlowDslValidator validator,
-                            BackendBeanRegistry backendBeanRegistry) {
+                            BackendBeanRegistry backendBeanRegistry,
+                            TransactionTemplate transactionTemplate) {
         this.repository = repository;
         this.runRepository = runRepository;
         this.objectMapper = objectMapper;
         this.engine = engine;
         this.validator = validator;
         this.backendBeanRegistry = backendBeanRegistry;
+        this.transactionTemplate = transactionTemplate;
     }
 
     /** 运行结果（service 层视图，控制器转 RunResultVO）。 */
@@ -195,8 +208,15 @@ public class LogicFlowService {
 
         LogicFlowEngine.RunOutcome outcome;
         try {
-            // 传入所属流 id：子流程环检测以当前流为链头（自引用即刻拒绝）
-            outcome = engine.run(dsl, inputVars, def.getId());
+            // P1-5 事务策略：WHOLE_IN_TX → 整流单事务（发布期已做本地节点白名单硬校验，
+            // 引擎异常时整体回滚、历史仍由外层落库）；AUTO_COMMIT（缺省）→ 维持逐节点提交现状。
+            if (dsl.isWholeInTx()) {
+                outcome = transactionTemplate.execute(tx -> engine.run(dsl, inputVars, def.getId()));
+            } else {
+                // P1-6：调用方事务内执行含外部副作用节点时告警（不可回滚 + 长占连接）
+                warnExternalNodesInCallerTransaction(dsl, def.getFlowKey());
+                outcome = engine.run(dsl, inputVars, def.getId());
+            }
         } catch (Exception e) {
             // 引擎设计为不抛异常；此处兜底保证失败运行同样留痕
             log.warn("Logic flow engine threw unexpectedly", e);
@@ -222,6 +242,41 @@ public class LogicFlowService {
         log.info("Logic flow '{}' run {} -> {} ({}ms)", def.getFlowKey(), run.getId(), outcome.status(), durationMs);
         return new RunResult(run.getId(), outcome.status(), outcome.outputVars(), outcome.traces(),
                 outcome.errorMessage(), durationMs);
+    }
+
+    /**
+     * P1-6：AUTO_COMMIT 流处于调用方活动事务内（如表单触发 SYNC_IN_TX 绑定）且包含
+     * 外部副作用/长耗时节点时告警——外部调用不可随事务回滚、长耗时占住数据库连接；
+     * 建议改 AFTER_COMMIT 调度或将外部调用移出事务。仅 WARN，不阻断（现状语义保持）。
+     */
+    private void warnExternalNodesInCallerTransaction(LogicFlowDsl dsl, String flowKey) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            return;
+        }
+        List<String> risky = new ArrayList<>();
+        for (LogicFlowDsl.NodeDef node : dsl.getNodes()) {
+            if (node == null || node.getType() == null) {
+                continue;
+            }
+            if (TX_RISK_NODE_TYPES.contains(node.getType())) {
+                risky.add(node.getId() + "(" + node.getType() + ")");
+            }
+            // BATCH 循环体步骤内嵌外部调用（HTTP/SUBFLOW/NOTIFY/LLM/DELAY）同样告警
+            if (node.getType() == NodeType.BATCH && node.getConfig() != null
+                    && node.getConfig().has("body") && node.getConfig().get("body").isArray()) {
+                for (JsonNode step : node.getConfig().get("body")) {
+                    String stepType = step != null && step.hasNonNull("type") ? step.get("type").asText() : null;
+                    if (stepType != null && TX_RISK_STEP_TYPES.contains(stepType.trim().toUpperCase())) {
+                        risky.add(node.getId() + "#body:" + stepType);
+                    }
+                }
+            }
+        }
+        if (!risky.isEmpty()) {
+            log.warn("Logic flow '{}' runs inside caller transaction with external-side-effect nodes {}: "
+                    + "external calls cannot roll back with the transaction and long calls hold the DB connection; "
+                    + "consider AFTER_COMMIT scheduling", flowKey, risky);
+        }
     }
 
     /** 运行历史：按 startedAt 倒序，limit 默认 20、上限 100。 */

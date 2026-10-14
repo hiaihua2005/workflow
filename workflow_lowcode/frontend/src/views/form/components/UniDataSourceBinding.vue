@@ -157,5 +157,5 @@ defineExpose({ value })
 <style scoped>
 .filter-row { display: flex; gap: 8px; margin-top: 8px; }
 .label-with-tip { display: inline-flex; align-items: center; }
-.tip-icon { margin-left: 4px; color: #909399; cursor: help; }
+.tip-icon { margin-left: 4px; color: var(--el-text-color-secondary); cursor: help; }
 </style>

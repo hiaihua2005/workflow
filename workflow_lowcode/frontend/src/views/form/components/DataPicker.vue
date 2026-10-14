@@ -165,7 +165,6 @@ import { bizDataApi } from '@/api/bizData'
 import { formApi } from '@/api/form'
 import { dataSourceApi } from '@/api/data-source'
 import { type DataSourceBindingContext, type LookupFilterConfig } from '@/components/business/types'
-import { mergeFilters } from '@/utils/filterMerge'
 import { activeDsBindings } from '@/utils/formDsBindingsStore'
 import DataPickerCreateDialog from './DataPickerCreateDialog.vue'
 import FormRenderer from './FormRenderer.vue'
@@ -225,7 +224,7 @@ const props = withDefaults(
     dependOnValue?: unknown
     /** 筛选条件（结构化 {logic, conditions}；v2 数组 / v1 dependOn 兼容归一化） */
     filters?: PickerFilters | LegacyFilterItem[]
-    /** 组件级筛选（新模式，与数据源级 filter 以 AND 合并） */
+    /** 组件级筛选（新模式：筛选统一在此配置） */
     filter?: LookupFilterConfig
     /** 依赖条件变化时是否清空已选值（默认 false：保留已选值，仅刷新选项） */
     clearOnCascadeChange?: boolean
@@ -340,7 +339,7 @@ const tagItems = computed(() => {
 
 /** 归一化筛选条件：新 filter prop（组件级）+ 旧 filters/dependOn（v1/v2 兼容） */
 const normalizedFilters = computed<PickerFilters>(() => {
-  // 新模式：filter prop（组件级，将与数据源级 filter 合并）
+  // 新模式：filter prop（组件级，筛选的唯一来源）
   const componentFilter = props.filter
   if (componentFilter && Array.isArray(componentFilter.conditions) && componentFilter.conditions.length > 0) {
     return { logic: componentFilter.logic || 'AND', conditions: componentFilter.conditions }
@@ -373,17 +372,15 @@ const normalizedFilters = computed<PickerFilters>(() => {
   return { logic: 'AND', conditions: [] }
 })
 
-/** 合并后的 filter（数据源级 + 组件级） */
-const mergedFilter = computed(() => {
+/** 生效的筛选条件：统一由组件级 filter 配置（数据源级 filter 已废弃） */
+const effectiveFilter = computed(() => {
   if (!props.dataSourceId) return normalizedFilters.value
-  const dsFilter = currentBinding.value?.filter
-  const merged = mergeFilters(dsFilter, props.filter)
-  return merged || normalizedFilters.value
+  return props.filter || normalizedFilters.value
 })
 
 /** 查询 filter：结构化 {logic, conditions}；field 型读当前表单字段值（空值跳过该条件） */
 const queryFilter = computed(() => {
-  const nf = mergedFilter.value
+  const nf = effectiveFilter.value
   const conds: Record<string, unknown>[] = []
   for (const c of nf.conditions) {
     const cond: Record<string, unknown> = { column: c.column, op: c.op || 'eq' }

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -60,9 +61,10 @@ public class TaskController {
             @RequestParam(required = false) String processName,
             @RequestParam(required = false) String initiator,
             @RequestParam(required = false) String createTimeStart,
-            @RequestParam(required = false) String createTimeEnd) {
+            @RequestParam(required = false) String createTimeEnd,
+            @RequestParam(required = false) String orderBy) {
 
-        TaskTodoFilter filter = new TaskTodoFilter(processName, initiator, createTimeStart, createTimeEnd);
+        TaskTodoFilter filter = new TaskTodoFilter(processName, initiator, createTimeStart, createTimeEnd, orderBy);
         int normalizedPage = Math.max(page, 1);
         Page<TaskTodoVO> result = taskService.listTodoTasksVO(assignee, PageRequest.of(normalizedPage - 1, size), filter);
 
@@ -131,8 +133,19 @@ public class TaskController {
     public R<Void> reject(@PathVariable String id, @RequestBody(required = false) RejectRequest request) {
         String userId = getCurrentUserId();
         String reason = request != null ? request.getReason() : null;
-        rejectService.reject(id, userId, reason);
+        String targetNodeId = request != null ? request.getTargetNodeId() : null;
+        rejectService.reject(id, userId, reason, targetNodeId);
         return R.ok();
+    }
+
+    /**
+     * 可退回的历史节点候选（chooseStartNode 退回模式）：
+     * 当前节点开启「由审批人选择重审的起始节点」时返回本实例历史节点列表（排除当前节点），
+     * 否则返回空列表（前端回落「退回发起人」默认行为）。
+     */
+    @GetMapping("/{id}/return-candidates")
+    public R<List<Map<String, String>>> returnCandidates(@PathVariable String id) {
+        return R.ok(rejectService.returnCandidates(id));
     }
 
     /**

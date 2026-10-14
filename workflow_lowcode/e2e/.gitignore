@@ -1,0 +1,4 @@
+# e2e 运行产物（*.log 已由根 .gitignore 忽略）
+# 流程 id / 断言快照每次跑批都会变，不入库
+*.id
+artifacts.json

@@ -213,7 +213,10 @@ public class OpenAiCompatibleChatModel implements ChatModel {
 
     private Map<String, Object> buildBody(List<ChatMessage> messages, ChatOptions options, boolean stream) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", properties.getModel());
+        // 单次调用模型覆盖（P2-13 LLM 节点 model），空则回退全局动态配置
+        String model = options != null && options.model() != null && !options.model().isBlank()
+                ? options.model().trim() : properties.getModel();
+        body.put("model", model);
         body.put("messages", buildMessages(messages));
 
         double temperature = options != null && options.temperature() != null

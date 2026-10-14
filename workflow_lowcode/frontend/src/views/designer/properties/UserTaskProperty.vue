@@ -108,7 +108,60 @@
             <el-radio value="countersign">会签（需要所有人同意）</el-radio>
             <el-radio value="or_sign">或签（仅需其中一人同意）</el-radio>
             <el-radio value="sequential">依次审批</el-radio>
+            <el-radio value="vote_sign">票签（按权重投票）</el-radio>
           </el-radio-group>
+
+          <!-- 会签通过比例：同意比例达到阈值即通过（100 = 全员通过） -->
+          <div v-if="ui.approval.multiMode === 'countersign'" class="checkbox-col sub-items">
+            <div class="ratio-row">
+              <span class="ratio-label">同意比例达到</span>
+              <el-input-number
+                v-model="ui.approval.passRatio"
+                :min="1"
+                :max="99"
+                :step="10"
+                :disabled="readOnly"
+                size="small"
+                @change="saveConfig"
+              />
+              <span class="ratio-label">% 即通过</span>
+            </div>
+            <div class="field-hint">默认 100% = 全员同意；低于 100% 时达到比例即通过，剩余审批自动通过</div>
+          </div>
+
+          <!-- 票签：权重投票配置 -->
+          <template v-if="ui.approval.multiMode === 'vote_sign'">
+            <div class="checkbox-col sub-items">
+              <div class="ratio-row">
+                <span class="ratio-label">同意权重达到</span>
+                <el-input-number
+                  v-model="ui.approval.votePassRatio"
+                  :min="1"
+                  :max="100"
+                  :step="10"
+                  :disabled="readOnly"
+                  size="small"
+                  @change="saveConfig"
+                />
+                <span class="ratio-label">% 即通过</span>
+              </div>
+              <div class="field-hint">每票默认权重 1；权重达标即通过，其余票自动作废。可在下方为指定人员设置不同权重</div>
+            </div>
+            <div v-if="ui.approval.type === 'user' && ui.approval.userIds.length > 0" class="checkbox-col sub-items">
+              <div class="section-title">投票权重（按人设置，缺省 1）</div>
+              <div v-for="uid in ui.approval.userIds" :key="uid" class="ratio-row weight-row">
+                <span class="weight-user">{{ userLabel(uid) }}</span>
+                <el-input-number
+                  :model-value="ui.approval.weights[String(uid)] ?? 1"
+                  :min="1"
+                  :max="99"
+                  :disabled="readOnly"
+                  size="small"
+                  @change="(v: number | undefined) => setVoteWeight(String(uid), v)"
+                />
+              </div>
+            </div>
+          </template>
 
           <div class="section-title">消息通知</div>
           <el-checkbox v-model="ui.notifySms" :disabled="readOnly" @change="saveConfig">
@@ -258,6 +311,23 @@
               <el-checkbox v-model="ui.signature.required" :disabled="readOnly">必须签名</el-checkbox>
             </div>
           </template>
+
+          <div class="section-title">任务优先级</div>
+          <el-radio-group v-model="ui.priority" :disabled="readOnly" @change="saveConfig">
+            <el-radio-button :value="50">普通</el-radio-button>
+            <el-radio-button :value="75">重要</el-radio-button>
+            <el-radio-button :value="100">加急</el-radio-button>
+          </el-radio-group>
+
+          <div class="section-title">
+            <FormLabelTip tip="任务创建后 N 小时到达截止时间（dueDate），用于待办超期提醒；0 = 不设置">
+              办理时限（小时）
+            </FormLabelTip>
+          </div>
+          <div class="inline-row">
+            <el-input-number v-model="ui.dueHours" :min="0" :max="8760" :disabled="readOnly" @change="saveConfig" />
+            <span class="inline-label">0 = 不设置</span>
+          </div>
         </div>
       </el-tab-pane>
 
@@ -274,6 +344,7 @@ import { computed, reactive, ref, onMounted, watch } from 'vue'
 import { useDesignerStore, type NodeConfigData, type ProcessTimeoutRule } from '@/stores/designerStore'
 import { getModeler } from '../utils/bpmnModeler'
 import { ApproverPicker } from '@/components/business'
+import { getUserBatch } from '@/api/user'
 import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
 import { UEL_FLOW_VARS } from '@/components/expression/uelVars'
 import FormPropertyTab from './FormPropertyTab.vue'
@@ -311,7 +382,13 @@ const ui = reactive({
     formUserField: '',
     externalResolver: '',
     externalParams: {} as Record<string, unknown>,
-    multiMode: '' as 'countersign' | 'or_sign' | 'sequential' | '',
+    multiMode: '' as 'countersign' | 'or_sign' | 'sequential' | 'vote_sign' | '',
+    /** 会签通过比例（1-99 生效，100=全员通过） */
+    passRatio: 100,
+    /** 票签通过权重比例（1-100，缺省 50） */
+    votePassRatio: 50,
+    /** 票签权重表（userId → 权重，仅 type=user 且 multiMode=vote_sign 时可配） */
+    weights: {} as Record<string, number>,
   },
   assignee: {
     allowInitiatorAdjust: false,
@@ -352,6 +429,10 @@ const ui = reactive({
     required: false,
   },
   notifySms: false,
+  /** 任务优先级（普通 50 / 重要 75 / 加急 100） */
+  priority: 50,
+  /** 办理时限（小时，0 = 不设置 → dueDate） */
+  dueHours: 0,
 })
 
 /** 自动通过/自动拒绝：无需配置审批人，tabs 内容整体禁用 */
@@ -437,6 +518,42 @@ function onApprovalTypeChange(value: string) {
   saveConfig()
 }
 
+// ---- 票签权重（multiMode=vote_sign）----
+
+/** 审批人姓名缓存（userId → nickname），用于权重表展示 */
+const userNames = ref<Record<string, string>>({})
+
+function userLabel(uid: number | string): string {
+  const key = String(uid)
+  return userNames.value[key] || key
+}
+
+function setVoteWeight(uid: string, value: number | undefined) {
+  const w = Math.max(1, Math.round(value ?? 1))
+  ui.approval.weights = { ...ui.approval.weights, [uid]: w }
+  saveConfig()
+}
+
+// 审批人列表变化时拉取姓名（type=user）
+watch(
+  () => ui.approval.userIds,
+  async (ids) => {
+    const missing = ids.map(String).filter((id) => !userNames.value[id])
+    if (missing.length === 0) return
+    try {
+      const res = await getUserBatch(ids)
+      const map: Record<string, string> = {}
+      for (const u of res.data) {
+        map[String(u.id)] = u.nickname
+      }
+      userNames.value = { ...userNames.value, ...map }
+    } catch {
+      // 拉取失败回退显示 ID
+    }
+  },
+  { deep: true },
+)
+
 function loadConfig() {
   const modeler = getModeler()
   const elementRegistry = (modeler as any).get('elementRegistry')
@@ -458,6 +575,9 @@ function loadConfig() {
   ui.approval.externalResolver = ''
   ui.approval.externalParams = {}
   ui.approval.multiMode = ''
+  ui.approval.passRatio = 100
+  ui.approval.votePassRatio = 50
+  ui.approval.weights = {}
   ui.assignee.allowInitiatorAdjust = false
   ui.assignee.noAssigneePolicy = ''
   ui.assignee.toUserIds = []
@@ -482,6 +602,8 @@ function loadConfig() {
   ui.signature.allowUpload = false
   ui.signature.required = false
   ui.notifySms = false
+  ui.priority = 50
+  ui.dueHours = 0
 
   // 加载已有配置覆盖默认值
   const existing = designerStore.getNodeConfig(designerStore.selectedNodeId!)
@@ -499,6 +621,9 @@ function loadConfig() {
       ui.approval.externalResolver = existing.approval.external?.resolver || ''
       ui.approval.externalParams = { ...(existing.approval.external?.params ?? {}) }
       ui.approval.multiMode = existing.approval.multiMode || ''
+      ui.approval.passRatio = existing.approval.passRatio ?? 100
+      ui.approval.votePassRatio = existing.approval.votePassRatio ?? 50
+      ui.approval.weights = { ...(existing.approval.weights ?? {}) }
     }
     if (existing.assigneeOptions) {
       ui.assignee.allowInitiatorAdjust = existing.assigneeOptions.allowInitiatorAdjust ?? false
@@ -550,6 +675,8 @@ function loadConfig() {
     if (existing.notify) {
       ui.notifySms = existing.notify.sms ?? false
     }
+    ui.priority = existing.priority ?? 50
+    ui.dueHours = existing.dueHours ?? 0
   }
 
   // nextTick 后恢复，确保 watch 不捕获加载期间的变更
@@ -599,6 +726,24 @@ function saveConfig() {
             }
           : undefined,
       multiMode: ui.approval.multiMode,
+      // 会签通过比例（100 = 全员通过，不落盘保持旧配置形状）
+      ...(ui.approval.multiMode === 'countersign' && ui.approval.passRatio > 1
+        ? { passRatio: ui.approval.passRatio }
+        : {}),
+      // 票签：权重比例 + 按人权重表（仅保留当前已选用户，剔除已移除人员）
+      ...(ui.approval.multiMode === 'vote_sign'
+        ? {
+            votePassRatio: ui.approval.votePassRatio,
+            ...(Object.keys(ui.approval.weights).length > 0
+              ? {
+                  weights: Object.fromEntries(
+                    Object.entries(ui.approval.weights).filter(([uid, w]) =>
+                      ui.approval.userIds.map(String).includes(uid) && w > 0),
+                  ),
+                }
+              : {}),
+          }
+        : {}),
     },
     assigneeOptions: {
       allowInitiatorAdjust: ui.assignee.allowInitiatorAdjust,
@@ -651,6 +796,8 @@ function saveConfig() {
     notify: {
       sms: ui.notifySms,
     },
+    priority: ui.priority,
+    dueHours: ui.dueHours > 0 ? ui.dueHours : undefined,
   }
 
   designerStore.setNodeConfig(designerStore.selectedNodeId, nodeConfig)
@@ -924,5 +1071,38 @@ watch(ui, () => {
 
 .to-user-picker {
   margin: 8px 0 4px;
+}
+
+/* 会签通过比例 / 票签权重行 */
+.ratio-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.ratio-label {
+  font-size: 12px;
+  color: var(--el-text-color-regular, #4b5169);
+  white-space: nowrap;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: var(--el-text-color-secondary, #8b91ab);
+  line-height: 1.4;
+}
+
+.weight-row {
+  justify-content: space-between;
+}
+
+.weight-user {
+  font-size: 12px;
+  color: var(--el-text-color-primary, #1f2437);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

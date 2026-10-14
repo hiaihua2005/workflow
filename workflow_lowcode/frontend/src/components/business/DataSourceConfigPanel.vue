@@ -50,38 +50,6 @@
               <span v-if="errors[index].id" class="error-text">{{ errors[index].id }}</span>
               <span v-if="errors[index].refId" class="error-text">{{ errors[index].refId }}</span>
             </div>
-            <!-- 数据源级筛选条件 -->
-            <div class="binding-filter" v-if="ds.refId">
-              <div class="filter-row" v-for="(fc, fi) in ds.filter?.conditions || []" :key="fi">
-                <el-select v-model="fc.column" placeholder="列名" size="small" style="width: 22%" filterable allow-create>
-                  <el-option v-for="col in getDsColumns(ds.refId)" :key="col.key" :label="columnOptionLabel(col)" :value="col.key" />
-                </el-select>
-                <el-select v-model="fc.op" style="width: 20%" size="small">
-                  <el-option label="等于" value="eq" />
-                  <el-option label="不等于" value="ne" />
-                  <el-option label="包含" value="like" />
-                  <el-option label="属于" value="in" />
-                  <el-option label="为空" value="isEmpty" />
-                  <el-option label="不为空" value="isNotEmpty" />
-                </el-select>
-                <el-select v-model="fc.source" style="width: 20%" size="small">
-                  <el-option label="固定值" value="fixed" />
-                  <el-option label="表单字段" value="field" />
-                </el-select>
-                <el-select v-if="fc.source === 'field'" v-model="fc.field" placeholder="当前表单字段" size="small" style="width: 24%">
-                  <el-option v-for="f in currentFormFields" :key="f" :label="f" :value="f" />
-                </el-select>
-                <el-input v-else :model-value="String(fc.value ?? '')" @update:model-value="fc.value = $event" placeholder="固定值" size="small" style="width: 24%" />
-                <el-button type="danger" link size="small" @click="ds.filter!.conditions.splice(fi, 1)">删</el-button>
-              </div>
-              <div style="display: flex; gap: 8px; margin-top: 4px; align-items: center">
-                <el-button type="primary" link size="small" @click="addDsFilter(index)">+ 添加筛选</el-button>
-                <el-radio-group v-if="(ds.filter?.conditions?.length || 0) > 1" v-model="ds.filter!.logic" size="small">
-                  <el-radio-button value="AND">且</el-radio-button>
-                  <el-radio-button value="OR">或</el-radio-button>
-                </el-radio-group>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -144,9 +112,6 @@
 import { ref, watch } from 'vue'
 import { Plus, InfoFilled } from '@element-plus/icons-vue'
 import type { DataSourceDTO } from '@/api/data-source'
-import { columnOptionLabel } from '@/utils/columnOption'
-import { dataSourceApi } from '@/api/data-source'
-import type { LookupFilterConfig } from './types'
 
 /** 数据源绑定类型 */
 export interface DataSourceBinding {
@@ -158,12 +123,6 @@ export interface DataSourceBinding {
   refId: string
   /** 搜索字段（可选） */
   searchFields?: string[]
-  /**
-   * 数据源级筛选条件（可选）。
-   * 引用该数据源的组件（LookupPicker/DataPicker 等）查询时，
-   * 与组件级 filter 以 AND 合并后作为最终查询条件。
-   */
-  filter?: LookupFilterConfig
 }
 
 /** 动作步骤类型 */
@@ -207,8 +166,6 @@ const props = defineProps<{
   enabledDataSources: DataSourceDTO[]
   /** 动作配置 */
   actions?: Action[]
-  /** 当前表单字段 key 列表（筛选条件"表单字段"选项用） */
-  currentFormFields?: string[]
 }>()
 
 const emit = defineEmits<{
@@ -230,34 +187,12 @@ const localActions = ref<Action[]>([...(props.actions || [])])
 /** 验证错误 */
 const errors = ref<ValidationError[]>([])
 
-/** 各数据源的列元数据候选（用于筛选列名下拉） */
-const dsColumnsMap = ref<Record<string, { key: string; label: string }[]>>({})
-
-/** 按 refId 加载数据源列元数据，填充 dsColumnsMap */
-async function loadDsColumns(refId: string) {
-  if (!refId || dsColumnsMap.value[refId]) return
-  try {
-    const res = await dataSourceApi.getMetadata(refId)
-    const cols = (res.data?.columns || []).filter((c: any) => !c.hidden)
-    dsColumnsMap.value[refId] = cols.map((c: any) => ({ key: c.key, label: c.label || c.key }))
-  } catch {
-    dsColumnsMap.value[refId] = []
-  }
-}
-
-/** 获取指定数据源的列候选 */
-function getDsColumns(refId: string): { key: string; label: string }[] {
-  return dsColumnsMap.value[refId] || []
-}
-
 /** 监听外部数据源配置变化 */
 watch(
   () => props.dataSources,
   (newVal) => {
     localDataSources.value = [...newVal]
     validateAll()
-    // 加载所有已有 refId 的列元数据
-    newVal.forEach((ds) => { if (ds.refId) void loadDsColumns(ds.refId) })
   },
   { deep: true }
 )
@@ -331,15 +266,6 @@ function validateAll() {
   errors.value = localDataSources.value.map((_, index) => validateBinding(index))
 }
 
-/** 添加数据源级筛选条件 */
-function addDsFilter(bindingIndex: number) {
-  const ds = localDataSources.value[bindingIndex]
-  if (!ds.filter) {
-    ds.filter = { logic: 'AND', conditions: [] }
-  }
-  ds.filter.conditions.push({ column: '', op: 'eq', source: 'fixed', value: '' })
-}
-
 /** 外部调用：确认并提交所有变更 */
 function confirm() {
   validateAndEmit()
@@ -378,7 +304,7 @@ function emitActions() {
 .panel-title {
   font-size: 14px;
   font-weight: 500;
-  color: #303133;
+  color: var(--el-text-color-primary);
 }
 
 .binding-list {
@@ -388,10 +314,10 @@ function emitActions() {
 }
 
 .binding-item {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 4px;
   padding: 12px;
-  background: #fafafa;
+  background: var(--el-fill-color-lighter);
 }
 
 .binding-row {
@@ -416,21 +342,22 @@ function emitActions() {
 
 .error-text {
   font-size: 12px;
-  color: #f56c6c;
+  color: var(--el-color-danger);
 }
 
 .is-error :deep(.el-input__wrapper),
 .is-error :deep(.el-select__wrapper) {
-  border-color: #f56c6c;
+  border-color: var(--el-color-danger);
+  box-shadow: 0 0 0 1px var(--el-color-danger) inset;
 }
 
 .panel-tip {
   margin-top: 16px;
   padding: 8px 12px;
-  background: #f4f4f5;
+  background: var(--el-fill-color);
   border-radius: 4px;
   font-size: 12px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -438,11 +365,11 @@ function emitActions() {
 
 /* 动作总线样式 */
 .action-card {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 4px;
   padding: 12px;
   margin-bottom: 12px;
-  background: #fafafa;
+  background: var(--el-fill-color-lighter);
 }
 
 .action-row {
@@ -460,26 +387,4 @@ function emitActions() {
   margin-bottom: 8px;
 }
 
-/* 数据源级筛选样式 */
-.binding-filter {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px dashed #e4e7ed;
-}
-.binding-filter-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 6px;
-}
-.binding-filter-title {
-  font-size: 12px;
-  color: #606266;
-  font-weight: 500;
-}
-.filter-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  margin-bottom: 4px;
-}
 </style>
