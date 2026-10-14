@@ -7899,3 +7899,21 @@ Task: 轻量巡检 r56（覆盖 21:05/22:05/23:05/00:05/01:05/02:05 六轮）
 ### 收口
 - 终态：a/b/c/d=200×4 真绿，内存 1.9GB，oom=1（构建期压力），dump-db OK 且新快照已验证入库
 - 教训：dump-db.sh 的 gitignore 盲区 + 重供给清未跟踪文件 = 数据丢失组合拳；在授权修复前，每轮 dump-db 后需人工核验 git ls-tree
+
+---
+Task ID: r57-cron-202610150705
+Agent: main (cron ops)
+Task: 轻量巡检 r57（覆盖 03:05-07:05 五轮）
+
+Work Log:
+- 初探：a-d=200 但真伪核验=假绿 → 环境第 11 次重供给（oom 计数清零佐证）
+- 资产核验：dump 幸存良好（151633/181216 两份 git 跟踪件 + 本轮新 dump）；backups/jar 被清空（jar 未跟踪+被 ignore，重供给即失——r56 预判应验）
+- 冷启动钩子自动 recover：正确导入 181216 dump，但 mvn 因测试编译损坏失败（b642292a 测试类未同步 ExportRequest 4 参），jar=MISSING，Node 假绿占 8080
+- 按 r56 手册处置：前台 mvn -Dmaven.test.skip=true package（BUILD SUCCESS 7s，主代码缓存命中）→ jar 重存 backups/jar → kill Node 占位（pid 1211）→ 重跑 recover：jar 秒级恢复跳过构建，Java 拉起真绿
+- 重探：a/b/c/d=200×4 真绿；收口 dump-db OK（231621），已手动 add -f 补录入库推送（3f4db5da）
+- 内存：3.52GB 超 3.5GB 备案线 —— vite≈2.9GB/java=463MB 备案；oom_kill=0
+
+Stage Summary:
+- r57 恢复成功；r56 应急手册首次完整复用（mvn 跳测试编译 + jar 固化 + kill Node 假绿 + 手动补录 dump），全流程 ~10 分钟内完成
+- jar 备份在重供给下仍会丢失（121MB 超 GitHub 100MB 限制无法入 git），每次重供给仍需 ~7 分钟级重建/重下工具链 + mvn；待用户裁决持久化方案（如 git lfs / 分卷 / 对象存储）
+- 第六次授权申请持续待批：dump-db.sh L48 git add -A -f（本轮再次手动补救）
