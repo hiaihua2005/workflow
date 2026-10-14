@@ -7869,3 +7869,33 @@ Work Log:
 Stage Summary:
 - r55 全绿；git pack-objects OOM 已成慢性问题（每轮 dump-db 的 git 后台 repack 均 ~2.5GB 膨胀被杀，dump/push 本身靠重试侥幸成功）
 - r54 第五次脚本修复授权申请继续待批：git 内存护栏（pack.windowMemory/pack.threads）+ backups 归档清理 + jar 固化
+
+---
+Task ID: r56-cron-202610150205
+Agent: main (cron ops)
+Task: 轻量巡检 r56（覆盖 21:05/22:05/23:05/00:05/01:05/02:05 六轮）
+
+## 事故小节（重大）：dump 备份链 gitignore 盲区导致近期快照全损 + mvn 测试编译破坏
+
+### A. dump 全损事故（根因确诊）
+- 现象：第 10 次重供给后，backups/ 仅剩 5 个 10月8-9日 旧文件；20261013-151633 及之后所有全量 dump 在工作区与 git HEAD 双双消失
+- 根因链：dump-db.sh L48 `git add -A backups/` 受 .gitignore 盲区拦截（check-ignore 实证），新 dump（未跟踪+被忽略）永不入库，旧 dump 删除却正常提交 → r54 提交 d0caeb0c 只含删除 → 重供给清掉未跟踪文件 → 快照全损
+- 恢复：从历史提交 55c34e5a 提取 20261013-151633 双库全量 dump（r48-r52 四次恢复验证过）→ 恢复至 backups/ → add -f 提交并推送（642b73d1）
+- 本轮新快照 20261014-181216 已手动 add -f 入库推送（6919d5c3，git ls-tree 验证 2 文件在案）
+- 【第六次脚本修复授权申请（最紧迫）】dump-db.sh L48 `git add -A backups/` → `git add -A -f backups/`（一词之差，不改即每轮巡检都在制造丢失风险）；建议同时将 backups/db-workflow-*.sql 移出 .gitignore
+
+### B. mvn 构建被用户最新提交破坏（不改代码绕过）
+- 用户提交 b642292a（模块管理导出导入）将 ExportRequest record 增至 4 参，测试类 ModuleExportImportIntegrationTest 未同步（L172/L249 仍 3 参）→ testCompile 失败 → recover 的 mvn package（-DskipTests 仍编译测试）失败 jar=MISSING
+- 处置：前台 mvn -Dmaven.test.skip=true package（主代码编译通过，BUILD SUCCESS，jar 121MB）——未修改任何代码
+- 【提请用户知悉】：测试类需同步 ExportRequest 4 参签名，否则任何 -DskipTests 构建均失败
+
+### C. recover 幂等检查被 Node 假绿欺骗
+- start-services.sh 冷启动将 Node 后端（bun, PID 1132）拉到 8080 → recover-dplus.sh 检测 8080=200 即"全部健康，幂等退出"，跳过 DB 导入与 Java 拉起
+- 处置：kill Node 占位进程释放 8080 → 重跑 recover → 导入恢复的 dump → Java 拉起 → done: 8080=200 jar=ok 3306=ok 真绿
+
+### D. jar 备份固化（慢性缺口关闭）
+- 已将 121MB jar 存入 backups/jar/（四次重供给以来首次有 jar 备份）；但注意 jar 同样受 gitignore 盲区影响未入 git（backups/jar 是否被 ignore 待核验），重供给若清未跟踪文件仍可能丢失
+
+### 收口
+- 终态：a/b/c/d=200×4 真绿，内存 1.9GB，oom=1（构建期压力），dump-db OK 且新快照已验证入库
+- 教训：dump-db.sh 的 gitignore 盲区 + 重供给清未跟踪文件 = 数据丢失组合拳；在授权修复前，每轮 dump-db 后需人工核验 git ls-tree
