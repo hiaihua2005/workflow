@@ -47,6 +47,7 @@ import { Delete, Plus, View } from '@element-plus/icons-vue'
 import { formApi } from '@/api/form'
 import { dataSourceApi } from '@/api/data-source'
 import SqlEditor from './SqlEditor.vue'
+import type { SqlSchemaMeta } from '@/components/expression/cm6'
 import { emptyJoin, type FormJoinConfigValue, type JoinConfigItem } from './FormJoinConfig.vue'
 import { extractFormColumns, isSystemJoinTarget, SYSTEM_JOIN_TARGET_COLUMNS, targetFormColumns, type ColumnOption } from './joinColumns'
 
@@ -58,8 +59,10 @@ const props = withDefaults(
     /** targetFormKey 下拉候选（enabled 的 FORM 类型数据源） */
     targetFormOptions: { key: string; name: string }[]
     disabled?: boolean
+    /** SQL schema 元数据（透传给 SqlEditor：SQL 模板的表名/字段名提示与自动完成） */
+    schemaMeta?: SqlSchemaMeta | null
   }>(),
-  { mainFormKey: '', targetFormOptions: () => [], disabled: false }
+  { mainFormKey: '', targetFormOptions: () => [], disabled: false, schemaMeta: null }
 )
 
 const emit = defineEmits<{
@@ -427,6 +430,7 @@ watch(
         v-model:columns="declaredColumns"
         v-model:params="declaredParams"
         :disabled="disabled"
+        :schema-meta="schemaMeta"
       />
     </template>
 

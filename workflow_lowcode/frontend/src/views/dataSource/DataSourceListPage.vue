@@ -237,6 +237,7 @@
                     v-model:columns="sqlConfig.declaredColumns"
                     v-model:params="sqlConfig.declaredParams"
                     :disabled="isReadonlyForm"
+                    :schema-meta="sqlSchemaMeta"
                     @update:model-value="markSqlEdited"
                   />
                 </div>
@@ -268,6 +269,7 @@
                     :main-form-key="form.formKey"
                     :target-form-options="formJoinTargets"
                     :disabled="formJoinDisabled"
+                    :schema-meta="sqlSchemaMeta"
                   />
                 </template>
               </template>
@@ -578,7 +580,8 @@ import { Plus, View, Edit, Delete, Close, QuestionFilled, Grid } from '@element-
 import { clearHttpCache } from '@/utils/http'
 import { SearchTable } from '@/components/business'
 import type { SearchField, TableColumn, ActionButton } from '@/components/business/types'
-import { dataSourceApi, type DataSourceDTO, type DataSourceMetadataDTO } from '@/api/data-source'
+import { dataSourceApi, type DataSourceDTO, type DataSourceMetadataDTO, type DbSchemaColumn } from '@/api/data-source'
+import type { SqlSchemaMeta } from '@/components/expression/cm6'
 import type { ColumnConfigItem, BizDataVO } from '@/api/bizData'
 import { formApi, type FormDefinitionDTO } from '@/api/form'
 import VisualQueryBuilder, { type VisualQueryConfig } from './components/VisualQueryBuilder.vue'
@@ -778,18 +781,63 @@ watch(() => sqlConfig.declaredColumns, (cols) => {
 
 /** SQL 可视化：主表/JOIN 目标表字段懒加载缓存（表名 → 字段 key 列表） */
 const sqlTableFields = ref<Record<string, string[]>>({})
+/** 同一次懒加载的完整列定义缓存（补全源用：字段名 + DB 类型标注） */
+const sqlTableColumns = ref<Record<string, DbSchemaColumn[]>>({})
+/** 已发起过字段加载的表（含失败）：补全 miss 时不重复请求 */
+const sqlTableRequested = new Set<string>()
 
 /** 按数据库真实表结构懒加载字段（information_schema 列，不再剥前缀查表单定义） */
 async function ensureTableFields(table: string) {
-  if (!table || sqlTableFields.value[table]) return
+  if (!table || sqlTableRequested.has(table)) return
+  sqlTableRequested.add(table)
   try {
     const res = await dataSourceApi.getDbSchemaColumns(table)
-    const cols = res.data || []
-    sqlTableFields.value[table] = cols.map((c) => c.key).filter(Boolean)
+    const cols = (res.data || []).filter((c) => !!c.key)
+    sqlTableColumns.value[table] = cols
+    sqlTableFields.value[table] = cols.map((c) => c.key)
   } catch {
-    // 列加载失败不阻断主流程
+    // 列加载失败不阻断主流程：留空缓存，后续补全不再重复请求
   }
 }
+
+/** SQL 模板补全的 schema 元数据：表名取全库表清单，字段名取表列缓存（miss 触发懒加载）。
+ *  getter 闭包实时读响应式缓存，故补全源只需构造一次。 */
+const sqlSchemaMeta: SqlSchemaMeta = {
+  getTables: () => dbTables.value,
+  getColumns: (t) => (sqlTableColumns.value[t] ?? []).map((c) => ({ key: c.key, type: c.columnType })),
+  onMiss: (t) => {
+    // 非库表（CTE/子查询别名/笔误）不请求后端
+    if (dbTables.value.length && !dbTables.value.includes(t)) return
+    void ensureTableFields(t)
+  },
+}
+
+/** 从 SQL 模板文本抽取引用表（FROM/JOIN/UPDATE/INTO 后首个标识符） */
+function referencedSqlTables(text: string): string[] {
+  const out: string[] = []
+  const words = (text || '').replace(/--[^\n]*/g, ' ').match(/[A-Za-z_][\w$]*/g) || []
+  for (let i = 0; i < words.length; i++) {
+    if (['FROM', 'JOIN', 'INTO', 'UPDATE'].includes(words[i].toUpperCase())) {
+      const nx = words[i + 1]
+      if (nx) out.push(nx)
+    }
+  }
+  return out
+}
+
+/** SQL 模式：模板内引用表预取字段（命中库表才请求），使首次补全即有字段候选 */
+watch(
+  () => [sqlConfig.queryMode, sqlConfig.queryText, formJoin.value.query] as const,
+  () => {
+    const texts = [sqlConfig.queryText, formJoin.value.query]
+    for (const text of texts) {
+      for (const t of referencedSqlTables(text)) {
+        if (dbTables.value.includes(t)) void ensureTableFields(t)
+      }
+    }
+  },
+  { immediate: true },
+)
 
 // 主表变化 → 懒加载字段
 watch(
@@ -816,9 +864,9 @@ const metadata = ref<DataSourceMetadataDTO | null>(null)
 const metadataLoading = ref(false)
 const metadataError = ref<string | null>(null)
 
-/** 布尔值图标样式：true 蓝色，false 灰色 */
+/** 布尔值图标样式：true 主色，false 占位灰（一律走语义变量，暗色下自动换值） */
 function boolIconStyle(v: boolean | undefined): Record<string, string> {
-  return { color: v ? '#409EFF' : '#c0c4cc', cursor: 'default' }
+  return { color: v ? 'var(--el-color-primary)' : 'var(--el-text-color-placeholder)', cursor: 'default' }
 }
 
 /** 查询方式选项（按列类型裁剪）：数值/日期 → 等值/范围；文本 → 等值/模糊 */
@@ -1761,7 +1809,7 @@ onMounted(async () => {
 .sql-key-hint-icon {
   margin-left: 4px;
   cursor: help;
-  color: #909399;
+  color: var(--el-text-color-secondary);
 }
 .ops-scroll {
   /* 内层不再滚动：由页签内容区（.el-tabs__content）统一承接滚动 */
@@ -1781,18 +1829,19 @@ onMounted(async () => {
 }
 .op-row code {
   font-family: 'Courier New', monospace;
-  background: #f4f6f8;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-regular);
   padding: 2px 6px;
   border-radius: 3px;
 }
 .op-label {
-  color: #909399;
+  color: var(--el-text-color-secondary);
   font-size: 12px;
 }
 .op-meta {
-  color: #909399;
+  color: var(--el-text-color-secondary);
   font-size: 12px;
-  background: #f4f6f8;
+  background: var(--el-fill-color-light);
   padding: 1px 6px;
   border-radius: 3px;
 }
@@ -1814,7 +1863,8 @@ onMounted(async () => {
   position: absolute;
   inset: 0;
   z-index: 100;
-  background: #fff;
+  /* 暗色适配：跟随 Element 背景令牌（亮色 #fff / 暗色 #181d1b），不再写死白底 */
+  background: var(--el-bg-color);
   display: flex;
   flex-direction: column;
 }
@@ -1838,14 +1888,14 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--el-border-color-lighter);
   margin-bottom: 16px;
   flex-shrink: 0;
 }
 .inline-form-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--el-text-color-primary);
 }
 .inline-form-body {
   flex: 1;
@@ -1874,7 +1924,7 @@ onMounted(async () => {
   justify-content: flex-end;
   gap: 8px;
   padding-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--el-border-color-lighter);
   margin-top: 16px;
   flex-shrink: 0;
 }

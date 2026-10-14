@@ -7,6 +7,8 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { nextTick, h } from 'vue'
 import ElementPlus from 'element-plus'
 import type { EditorView } from '@codemirror/view'
+import { EditorState } from '@codemirror/state'
+import { CompletionContext, type CompletionSource } from '@codemirror/autocomplete'
 import SqlEditor from '../SqlEditor.vue'
 import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
 import type { ColumnConfigItem } from '@/api/bizData'
@@ -143,5 +145,84 @@ describe('SqlEditor', () => {
     const wrapper = mountEditor({ disabled: true })
     expect(wrapper.find('[data-testid="sqleditor-add-column"]').attributes('disabled')).toBeDefined()
     expect(wrapper.find('[data-testid="sqleditor-parse-sql"]').attributes('disabled')).toBeDefined()
+  })
+
+  // ==================== 数据表/字段代码提示（schemaMeta → 补全源） ====================
+
+  /** 取注入 ExpressionEditor 的优先补全源 */
+  function prioritySources(wrapper: ReturnType<typeof mountEditor>): CompletionSource[] {
+    const ed = wrapper.findComponent(ExpressionEditor)
+    return ed.props('prioritySources') as CompletionSource[]
+  }
+
+  /** 构造补全上下文：doc 末尾请求补全（explicit = 手动呼出） */
+  function contextAtEnd(doc: string): CompletionContext {
+    const state = EditorState.create({ doc })
+    return new CompletionContext(state, doc.length, true)
+  }
+
+  function stubSchemaMeta() {
+    return {
+      getTables: () => ['wf_biz_order', 'wf_biz_customer'],
+      getColumns: (t: string) =>
+        t === 'wf_biz_order'
+          ? [{ key: 'order_no', type: 'VARCHAR' }, { key: 'amount', type: 'DECIMAL' }]
+          : [{ key: 'id', type: 'VARCHAR' }],
+      onMiss: vi.fn(),
+    }
+  }
+
+  it('未注入 schemaMeta 时不追加补全源（保持仅关键字补全）', async () => {
+    const wrapper = mountEditor()
+    await nextTick()
+    expect(prioritySources(wrapper)).toHaveLength(0)
+  })
+
+  it('注入 schemaMeta 时向 SQL 编辑器传入 1 个表/字段补全源', async () => {
+    const wrapper = mountEditor({ schemaMeta: stubSchemaMeta() })
+    await nextTick()
+    const sources = prioritySources(wrapper)
+    expect(sources).toHaveLength(1)
+    expect(typeof sources[0]).toBe('function')
+  })
+
+  it('FROM 后补全数据表名', async () => {
+    const wrapper = mountEditor({ schemaMeta: stubSchemaMeta() })
+    await nextTick()
+    const res = prioritySources(wrapper)[0](contextAtEnd('SELECT * FROM '))
+    expect(res).toBeTruthy()
+    expect(res!.options.map((o) => o.label)).toEqual(['wf_biz_order', 'wf_biz_customer'])
+  })
+
+  it('列位置补全已引用表的字段（带类型标注）', async () => {
+    const wrapper = mountEditor({ schemaMeta: stubSchemaMeta() })
+    await nextTick()
+    const res = prioritySources(wrapper)[0](contextAtEnd('SELECT * FROM wf_biz_order WHERE '))
+    expect(res).toBeTruthy()
+    const labels = res!.options.map((o) => o.label)
+    expect(labels).toContain('order_no')
+    expect(labels).toContain('amount')
+    expect(res!.options.find((o) => o.label === 'amount')?.detail).toBe('DECIMAL')
+  })
+
+  it('别名限定：别名. 后只补该表字段', async () => {
+    const wrapper = mountEditor({ schemaMeta: stubSchemaMeta() })
+    await nextTick()
+    const res = prioritySources(wrapper)[0](contextAtEnd('SELECT * FROM wf_biz_order o WHERE o.'))
+    expect(res).toBeTruthy()
+    expect(res!.options.map((o) => o.label)).toEqual(['order_no', 'amount'])
+  })
+
+  it('字段缓存缺失时经 onMiss 预取（本次不弹候选）', async () => {
+    const meta = {
+      getTables: () => ['wf_biz_order'],
+      getColumns: () => [],
+      onMiss: vi.fn(),
+    }
+    const wrapper = mountEditor({ schemaMeta: meta })
+    await nextTick()
+    const res = prioritySources(wrapper)[0](contextAtEnd('SELECT * FROM wf_biz_order WHERE '))
+    expect(res).toBeNull()
+    expect(meta.onMiss).toHaveBeenCalledWith('wf_biz_order')
   })
 })

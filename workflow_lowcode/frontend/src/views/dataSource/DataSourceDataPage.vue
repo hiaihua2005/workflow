@@ -108,5 +108,5 @@ function statusLabel(s: string): string {
 <style scoped>
 .ds-data-page { padding: 16px; }
 .page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-.page-title { font-size: 16px; font-weight: 600; color: #303133; }
+.page-title { font-size: 16px; font-weight: 600; color: var(--el-text-color-primary); }
 </style>

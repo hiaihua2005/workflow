@@ -468,7 +468,7 @@ const previewSql = computed(() => {
             <el-table-column label="关联条件" min-width="220">
               <template #default="{ row, $index }">
                 <div style="display: flex; gap: 4px; align-items: center">
-                  <span style="color: #303133">当</span>
+                  <span style="color: var(--el-text-color-primary)">当</span>
                   <el-select
                     :data-testid="`vqb-join-main-col-${$index}`"
                     v-model="rowFields[$index].mainField"
@@ -482,7 +482,7 @@ const previewSql = computed(() => {
                   >
                     <el-option v-for="c in mainFieldOptions" :key="c" :label="c" :value="c" />
                   </el-select>
-                  <span style="color: #909399">=</span>
+                  <span style="color: var(--el-text-color-secondary)">=</span>
                   <el-select
                     :data-testid="`vqb-join-target-col-${$index}`"
                     v-model="rowFields[$index].targetField"

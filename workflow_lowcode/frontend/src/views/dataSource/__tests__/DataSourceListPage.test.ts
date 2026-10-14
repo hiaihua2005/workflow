@@ -8,6 +8,7 @@ import { nextTick, defineComponent, h } from 'vue'
 import ElementPlus from 'element-plus'
 import DataSourceListPage from '../DataSourceListPage.vue'
 import VisualQueryBuilder from '../components/VisualQueryBuilder.vue'
+import SqlEditor from '../components/SqlEditor.vue'
 import FieldMappingPreview from '../components/FieldMappingPreview.vue'
 
 vi.mock('@/api/data-source', () => ({
@@ -570,6 +571,33 @@ describe('DataSourceListPage', () => {
     expect(cands.some((t) => t === 'wf_biz_wf_biz_order')).toBe(false)
     // 已选主表去重（dbTables 中的 wf_biz_order 不重复出现）
     expect(cands.filter((t) => t === 'wf_biz_order')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('SQL 模式：SqlEditor 收到 schemaMeta（全库表清单 + 表字段缓存），模板内引用表自动预取字段', async () => {
+    stubList()
+    ;(dataSourceApi.getDbSchemaColumns as any).mockResolvedValue({ data: [{ key: 'order_no', columnType: 'VARCHAR' }] })
+    const wrapper = createWrapper()
+    await nextTick()
+    await flushPromises()
+    ;(wrapper.vm as any).openCreate()
+    await nextTick()
+    await flushPromises()
+    const component: any = wrapper.vm as any
+    component.form.type = 'SQL'
+    component.sqlConfig.queryMode = 'sql'
+    component.sqlConfig.queryText = 'SELECT order_no FROM wf_biz_order WHERE tenant_id = :tenantId'
+    await nextTick()
+    await flushPromises()
+
+    // SQL 文本引用的库表 → 预取字段（首次补全即有候选）
+    expect(dataSourceApi.getDbSchemaColumns).toHaveBeenCalledWith('wf_biz_order')
+
+    const se = wrapper.findComponent(SqlEditor)
+    expect(se.exists()).toBe(true)
+    const meta = se.props('schemaMeta') as any
+    expect(meta.getTables()).toContain('wf_biz_order')
+    expect(meta.getColumns('wf_biz_order')).toEqual([{ key: 'order_no', type: 'VARCHAR' }])
     wrapper.unmount()
   })
 

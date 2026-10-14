@@ -66,9 +66,11 @@ export function parseSelectColumns(sql: string): string[] {
 </script>
 
 <script setup lang="ts">
-import { ref, toRaw, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
+import type { CompletionSource } from '@codemirror/autocomplete'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import ExpressionEditor from '@/components/expression/ExpressionEditor.vue'
+import { makeSqlSchemaCompletionSource, type SqlSchemaMeta } from '@/components/expression/cm6'
 
 const props = withDefaults(
   defineProps<{
@@ -76,8 +78,11 @@ const props = withDefaults(
     columns: ColumnConfigItem[]
     params?: string[]
     disabled?: boolean
+    /** SQL schema 元数据（数据库表清单 + 表字段缓存）：注入后 SQL 模板支持表名/字段名提示与自动完成；
+     *  不传则仅关键字补全（保持旧行为） */
+    schemaMeta?: SqlSchemaMeta | null
   }>(),
-  { params: () => [], disabled: false }
+  { params: () => [], disabled: false, schemaMeta: null }
 )
 
 const emit = defineEmits<{
@@ -101,6 +106,13 @@ watch(
 )
 
 const newParamName = ref('')
+
+/** 表名/字段名补全源（优先于 SQL 关键字源，否则被关键字源恒真匹配屏蔽）。
+ *  schemaMeta 的 getTables/getColumns 是父级闭包，实时读响应式缓存；
+ *  列缓存未就绪时由父级 onMiss 异步预取，下次补全即有数据。 */
+const sqlSchemaSources = computed<CompletionSource[]>(() =>
+  props.schemaMeta ? [makeSqlSchemaCompletionSource(props.schemaMeta)] : [],
+)
 
 /** 同引用 emit：不克隆行对象，保证 WeakMap row-key 稳定（输入不失焦的关键）；
  *  父级 v-model 存回同引用后由上方回声守卫跳过重建。 */
@@ -162,6 +174,7 @@ function parseFromSql() {
           :rows="10"
           placeholder="SELECT ... FROM wf_biz_<formKey> WHERE tenant_id = :tenantId"
           :disabled="disabled"
+          :priority-sources="sqlSchemaSources"
           @update:model-value="emit('update:modelValue', $event)"
         />
         <div style="margin-top: 8px">
