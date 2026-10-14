@@ -7807,3 +7807,19 @@ Stage Summary:
 - r51 冷启动已自动恢复（后台 recover 全链路，mvn 增量构建明显快于前两轮）
 - git 备份链路两次被重供给回滚，均为 ff-only pull 修复；远端合并提交 50da4547 已收录全部 cron 备份提交
 - 本轮 mvn 构建耗时缩短（maven 缓存可能已持久化），jar 备份固化建议仍然有效
+
+---
+Task ID: r52-cron-202610141305
+Agent: main (cron ops)
+Task: 轻量巡检 r52
+
+Work Log:
+- 初探：四链路 000×4 + 3306 离线 + 无 vite/java 进程 → 环境第 9 次重供给（完全冷机）
+- 冷启动波折：/home/z/tools 目录随重供给消失，首次 nohup 重定向失败未拉起；mkdir 补建后 start-services.sh 正常执行（vite 拉起 + 自动触发 recover）
+- 后台 recover 快速完成（mvn 缓存热，~1 分钟级）：done: 8080=200 jar=ok 3306=ok 真绿
+- 复核 a/b/c/d=200×4，真绿；内存 3.50GB（vite≈2.9GB 高位/java=464MB），oom_kill=0
+- 收口 dump-db OK（git 推送正常）
+
+Stage Summary:
+- r52 冷启动已自动恢复；教训：/home/z/tools 非持久区，冷启动引导脚本自身依赖它时需先 mkdir -p
+- vite RSS 持续 650MB+，内存常驻 3.4-3.5GB 边缘，oom 风险仍在
