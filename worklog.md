@@ -7855,3 +7855,17 @@ Task: 轻量巡检 r54
 Stage Summary:
 - r54 服务侧全绿（a/b/c/d=200×4 真绿，内存 1.29GB 恢复低位，vite=1，无 postcss）
 - OOM 事故已处置并记录；git 备份链路每轮仍在产生 OOM 风险源，待授权修复
+
+---
+Task ID: r55-cron-202610142005
+Agent: main (cron ops)
+Task: 轻量巡检 r55
+
+Work Log:
+- 服务侧全绿：a/b/c/d=200×4 真绿，dump-db OK 且推送成功，内存 1.32GB，vite=1（458MB），java=438MB，postcss 0
+- oom_kill 3→4（较 r54 再 +1）：dmesg 确认第 4 名受害者仍为 git pack-objects（pid 2804，RSS 2.5GB）；vite/java 未受波及
+- 当前无 git 进程残留，无需干预；服务连续 3 轮（r53-r55）未重供给
+
+Stage Summary:
+- r55 全绿；git pack-objects OOM 已成慢性问题（每轮 dump-db 的 git 后台 repack 均 ~2.5GB 膨胀被杀，dump/push 本身靠重试侥幸成功）
+- r54 第五次脚本修复授权申请继续待批：git 内存护栏（pack.windowMemory/pack.threads）+ backups 归档清理 + jar 固化
