@@ -7837,3 +7837,21 @@ Work Log:
 Stage Summary:
 - r53 全绿无干预（服务侧）；git 备份链路 rebase 修复，本地与远端已同步
 - 注意：重供给若再次回滚本地 repo，将重演分叉模式，rebase 为标准处置
+
+---
+Task ID: r54-cron-202610141905
+Agent: main (cron ops)
+Task: 轻量巡检 r54
+
+## 事故小节：git pack-objects 触发 OOM（oom_kill 0→3）
+
+- 现象：本轮四链路 200×4 真绿、dump-db OK，但 memory.oom_control oom_kill=3（基线 0）
+- 受害者（dmesg）：git pack-objects（pid 2399，RSS 2.5GB）被内核 OOM 杀死；结合历史 ps 记录，r48/r49 起每轮 dump-db 的 git 提交均伴随 pack-objects 700MB→2.3GB 膨胀
+- 根因：backups/ 累积大量全量 .sql dump（含 workflow+workflow_v6 历史快照），git gc/repack 时 pack-objects 全量重打包，内存失控
+- 干预：发现又一 pack-objects（pid 1880，RSS 2.3GB）膨胀中，为防内核 OOM 误伤 vite/java，按内存减压规程 kill（与内核 OOM 竞态，最终 oom_kill=3）
+- 影响面：vite/java 未受波及（kill 后复核 a=200 d=200 真绿）；repo 完整性无损（.tmp pack 为临时产物）
+- 遗留与建议（第五次脚本修复授权申请）：①dump-db.sh 设置 git 内存护栏（git config pack.threads 1 + core.packedGitLimit，或 -c pack.windowMemory=128m）；②backups/ 定期归档清理旧 dump（保留近 N 份）；③backups/jar 固化（第四次申请仍未采纳，连续 4 次重供给依赖 mvn 重建）
+
+Stage Summary:
+- r54 服务侧全绿（a/b/c/d=200×4 真绿，内存 1.29GB 恢复低位，vite=1，无 postcss）
+- OOM 事故已处置并记录；git 备份链路每轮仍在产生 OOM 风险源，待授权修复
