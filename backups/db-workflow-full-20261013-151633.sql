@@ -2007,11 +2007,11 @@ INSERT INTO `flyway_schema_history` VALUES
 (3,'1','workflow','SQL','V1__workflow.sql',-1390981594,'root','2026-10-09 00:05:46',255,1),
 (4,'39','builtin data sources','SQL','V39__builtin_data_sources.sql',-473665810,'root','2026-10-09 00:05:46',7,1),
 (5,'40','create engine notify','SQL','V40__create_engine_notify.sql',-61291012,'root','2026-10-09 00:05:46',2,1),
-(6,'41','add task comment signature','SQL','V41__add_task_comment_signature.sql',-317086640,'root','2026-10-09 00:05:46',2,1),
+(6,'41','add task comment signature','SQL','V41__add_task_comment_signature.sql',-1263894200,'root','2026-10-09 00:05:46',2,1),
 (7,'49','menu trio and posts recovery','SQL','V49__menu_trio_and_posts_recovery.sql',1233929668,'root','2026-10-09 00:05:46',34,1),
 (8,'50','member group dedicated tables','SQL','V50__member_group_dedicated_tables.sql',143610301,'root','2026-10-09 00:05:46',7,1),
 (9,'51','sys attachment','SQL','V51__sys_attachment.sql',-1828141019,'root','2026-10-09 00:05:46',2,1),
-(10,'52','sys attachment image meta','SQL','V52__sys_attachment_image_meta.sql',1003945511,'root','2026-10-09 00:05:46',1,1),
+(10,'52','sys attachment image meta','SQL','V52__sys_attachment_image_meta.sql',66136558,'root','2026-10-09 00:05:46',1,1),
 (11,'53','add logic flow menu','SQL','V53__add_logic_flow_menu.sql',-1564541405,'root','2026-10-09 00:05:46',1,1),
 (12,'3','grant admin menus','SQL','V3__grant_admin_menus.sql',810571147,'root','2026-10-11 22:17:35',6,1),
 (13,'4','create wf node config','SQL','V4__create_wf_node_config.sql',479091283,'root','2026-10-11 22:17:35',3,1),
@@ -4159,4 +4159,4 @@ SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*M!100616 SET NOTE_VERBOSITY=@OLD_NOTE_VERBOSITY */;
 
--- Dump completed on 2026-10-13  4:35:53
+-- Dump completed on 2026-10-13 15:16:33
