@@ -7917,3 +7917,20 @@ Stage Summary:
 - r57 恢复成功；r56 应急手册首次完整复用（mvn 跳测试编译 + jar 固化 + kill Node 假绿 + 手动补录 dump），全流程 ~10 分钟内完成
 - jar 备份在重供给下仍会丢失（121MB 超 GitHub 100MB 限制无法入 git），每次重供给仍需 ~7 分钟级重建/重下工具链 + mvn；待用户裁决持久化方案（如 git lfs / 分卷 / 对象存储）
 - 第六次授权申请持续待批：dump-db.sh L48 git add -A -f（本轮再次手动补救）
+
+---
+Task ID: r58-cron-202610151005
+Agent: main (cron ops)
+Task: 轻量巡检 r58（覆盖 08:05/09:05/10:05 三轮）
+
+Work Log:
+- 初探：000×4 + 3306 离线 + 无进程 → 环境第 12 次重供给（全冷）；backups/jar 再次被清（未跟踪+ignore，第 12 次应验）
+- 冷启动：mkdir /home/z/tools 后 start-services.sh 拉起 vite + 后台 recover；recover 正确导入最新 dump（231621，git 跟踪件幸存验证有效）但 mvn 再因测试编译损坏失败 jar=MISSING
+- 应急手册处置：mvn -Dmaven.test.skip=true package（BUILD SUCCESS）→ jar 重固化 backups/jar → kill Node 占位（pid 1121）→ recover 复跑：jar 秒级恢复，Java 拉起真绿
+- 重探：a/b/c/d=200×4 真绿；收口 dump-db OK（021805）→ 手动 add -f 补录推送（5b813c6f）
+- 内存 3.53GB 超 3.5GB 备案线（vite≈2.9GB/java 正常水位），oom_kill=0
+
+Stage Summary:
+- r58 恢复成功（第 12 次重供给，全冷）；应急手册第三次完整复用，流程已稳定可复制
+- 每次重供给的标准损耗：工具链重下 + mvn 跳测试构建 + jar 重固化 + dump 手动补录，~12 分钟
+- 待批事项不变：①dump-db.sh L48 git add -A -f（第六次）；②jar 持久化方案（超 GitHub 100MB 限制）；③用户侧测试类 ModuleExportImportIntegrationTest 需同步 ExportRequest 4 参签名
