@@ -7934,3 +7934,19 @@ Stage Summary:
 - r58 恢复成功（第 12 次重供给，全冷）；应急手册第三次完整复用，流程已稳定可复制
 - 每次重供给的标准损耗：工具链重下 + mvn 跳测试构建 + jar 重固化 + dump 手动补录，~12 分钟
 - 待批事项不变：①dump-db.sh L48 git add -A -f（第六次）；②jar 持久化方案（超 GitHub 100MB 限制）；③用户侧测试类 ModuleExportImportIntegrationTest 需同步 ExportRequest 4 参签名
+
+---
+Task ID: r61
+Agent: main
+Task: r61 批量巡检（2026-10-16 01:05-06:05 六轮合并）
+
+Work Log:
+- 第 15 次重供给+全冷：四链路 000、MariaDB 离线、无业务进程；git 仓库被回滚至历史快照（backups/jar-parts 消失）
+- 【jar 分卷机制首次实战成功】git fetch 发现 origin/main 完好（r60 推送的 jar-parts 在远端）；本地与远端分叉（重供给快照期低价值提交），reset --hard origin/main 恢复 4 卷 → 重组 jar（首次重组仅 25.5MB 因 part 未完整落盘，显式四卷重拼后 md5=e369839b 校验通过）
+- nohup start-services 静默失败一次；改前台 recover（590s 超时截断但 java/mariadb 已拉起）；补跑 start-services.sh 完成 bun install + vite 拉起
+- 真绿确认；收口 dump 20261015-222342 自动提交推送成功（本次无 push FAILED）
+- 内存 3.12GB，oom_kill=0
+
+Stage Summary:
+- 全绿 200×4 真绿；jar 分卷入 git 方案完整闭环（远端持有 = 重供给免疫），本轮恢复未需 mvn 构建（省 8 分钟）
+- 教训：reset --hard 后 part 文件落盘与重组间需校验 md5；nohup 后台启动有静默失败风险，前台+超时截断后核查进度更可靠
