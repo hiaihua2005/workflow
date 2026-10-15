@@ -7950,3 +7950,18 @@ Work Log:
 Stage Summary:
 - 全绿 200×4 真绿；jar 分卷入 git 方案完整闭环（远端持有 = 重供给免疫），本轮恢复未需 mvn 构建（省 8 分钟）
 - 教训：reset --hard 后 part 文件落盘与重组间需校验 md5；nohup 后台启动有静默失败风险，前台+超时截断后核查进度更可靠
+
+---
+Task ID: r62
+Agent: main
+Task: r62 巡检（2026-10-16 07:05）
+
+Work Log:
+- 第 16 次重供给：假绿 no such table；vite 幸存（1162），mariadbd 冷启动拉起但库空；node 占 8080
+- jar 分卷恢复流水化：git HEAD 完好但工作树 parts 被物理删（重供给清 untracked）→ git checkout -- backups/jar-parts/ 恢复 → 四卷显式重拼 md5=e369839b 校验通过 → recover 秒复 jar 拉起 java（无 mvn）
+- recover 前台 580s 截断（MariaDB 重建+导入耗时），截断前 java 已拉起；真绿确认
+- 收口 dump 20261015-231613 提交推送成功（70dc84f2..f37bc358）；内存 3.36GB，oom_kill=0
+
+Stage Summary:
+- 全绿 200×4 真绿；jar 分卷恢复已成标准动作（checkout parts → 重拼 → md5 校验 → recover），本轮恢复 ~12 分钟
+- 备案：dump-db.sh 的 gitignore 盲区仍待授权修复（每轮需手动 add -f）；git pack 慢性 OOM 待裁决
