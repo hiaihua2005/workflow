@@ -99,7 +99,7 @@
 
       <!-- 错误状态 -->
       <div v-else-if="error" class="error-state">
-        <el-icon :size="48" style="color: #ff4d4f"><Warning /></el-icon>
+        <el-icon :size="48" style="color: var(--el-color-danger)"><Warning /></el-icon>
         <div class="error-message">{{ error }}</div>
         <el-button v-if="!designMode" type="primary" @click="retry" class="retry-btn">重试</el-button>
       </div>
@@ -536,14 +536,14 @@ defineExpose({ fetchData, refresh, retry })
   .search-card + .card-toolbar { margin-top: 0; }
  .card-pagination { align-self: flex-end; flex-shrink: 0; margin: 0 16px 16px; }
 .card-group + .card-group { margin-top: 24px; }
-.card-group-title { margin-bottom: 12px; font-size: 15px; font-weight: 600; color: #303133; }
+.card-group-title { margin-bottom: 12px; font-size: 15px; font-weight: 600; color: var(--el-text-color-primary); }
 .card-group-title.is-collapsible { cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none; }
-.card-group-toggle { display: inline-flex; align-items: center; justify-content: center; color: #909399; }
+.card-group-toggle { display: inline-flex; align-items: center; justify-content: center; color: var(--el-text-color-secondary); }
 .card-group-toggle .el-icon { transition: transform 0.2s; }
 .card-group-title.is-collapsed .card-group-toggle .el-icon { transform: rotate(-90deg); }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 16px; }
-.card-item { background: var(--card-bg, #fff); border: 1px solid var(--card-border-color, transparent); border-radius: var(--card-radius, 8px); padding: var(--card-padding, 16px); box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; min-height: 120px; display: flex; flex-direction: column; }
-.card-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: translateY(-1px); }
+.card-item { background: var(--card-bg, var(--el-bg-color)); border: 1px solid var(--card-border-color, var(--el-border-color-lighter)); border-radius: var(--card-radius, 8px); padding: var(--card-padding, 16px); box-shadow: var(--el-box-shadow-lighter); cursor: pointer; min-height: 120px; display: flex; flex-direction: column; }
+.card-item:hover { box-shadow: var(--el-box-shadow); transform: translateY(-1px); }
 /* 卡片内容主体：flex column 下占据弹性空间 */
 .card-content { flex: 1; min-width: 0; }
 /* 操作区：bottom 时在内容下方（默认，order 2） */
@@ -555,10 +555,10 @@ defineExpose({ fetchData, refresh, retry })
 .card-item.actions-placement-right { flex-direction: row; align-items: stretch; }
 .card-item.actions-placement-right .card-content { order: 0; flex: 1; }
 .card-item.actions-placement-right .card-actions { order: 1; margin-top: 0; margin-left: 12px; flex-direction: column; align-items: flex-end; gap: 8px; }
-.card-title { font-size: var(--card-title-font-size, 16px); font-weight: var(--card-title-font-weight, 600); color: var(--card-title-color, #303133); margin-bottom: 8px; }
+.card-title { font-size: var(--card-title-font-size, 16px); font-weight: var(--card-title-font-weight, 600); color: var(--card-title-color, var(--el-text-color-primary)); margin-bottom: 8px; }
 .card-header { margin-bottom: 12px; display: flex; align-items: center; }
 .card-header-icon { display: inline-flex; align-items: center; justify-content: center; }
-.card-subtitle { font-size: 14px; color: #909399; margin-bottom: 12px; }
+.card-subtitle { font-size: 14px; color: var(--el-text-color-secondary); margin-bottom: 12px; }
 .card-tags { margin-bottom: 12px; }
 .card-fields { margin-bottom: 12px; }
 /* 字段区域布局（grid/list）由 --fields-* CSS 变量驱动 */
@@ -569,16 +569,16 @@ defineExpose({ fetchData, refresh, retry })
 }
 /* --fields-layout: grid 且指定列数时按列栅格排布 */
 .card-fields[data-layout='grid'] { grid-template-columns: repeat(var(--fields-columns, 1), minmax(0, 1fr)); }
-.card-metric { font-size: 18px; font-weight: 600; color: var(--card-title-color, #409eff); margin-top: 8px; }
+.card-metric { font-size: 18px; font-weight: 600; color: var(--card-title-color, var(--el-color-primary)); margin-top: 8px; }
 .card-field { margin-bottom: 8px; }
 .card-fields[data-layout='grid'] .card-field { margin-bottom: 0; }
 .card-field.label-position-left,
 .card-field.label-position-right { display: flex; align-items: baseline; gap: 8px; }
 .card-field.label-position-right { justify-content: flex-end; }
 .card-field.label-position-top { display: block; }
-.field-label { display: block; font-size: 12px; color: var(--card-field-label-color, #909399); margin-bottom: 4px; }
-.field-value { font-size: var(--card-field-font-size, 14px); color: var(--card-field-value-color, #303133); }
+.field-label { display: block; font-size: 12px; color: var(--card-field-label-color, var(--el-text-color-secondary)); margin-bottom: 4px; }
+.field-value { font-size: var(--card-field-font-size, 14px); color: var(--card-field-value-color, var(--el-text-color-primary)); }
 .error-state { display: flex; flex-direction: row; align-items: center; justify-content: center; padding: 40px 20px; }
-.error-message { color: #909399; margin: 0 12px; }
+.error-message { color: var(--el-text-color-secondary); margin: 0 12px; }
 .retry-btn { min-width: 100px; }
 </style>

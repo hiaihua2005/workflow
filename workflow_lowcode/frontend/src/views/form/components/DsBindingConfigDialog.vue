@@ -3,6 +3,7 @@
     <template v-if="isListMode">
       <el-alert v-if="effectiveListMode === 'card'" title="卡片列表配置" type="info" :closable="false" show-icon class="card-mode-tip">
         可配置卡片分组、列字体和卡片操作区；点击每列的“高级配置”设置字体样式。
+        “排序字段”仅决定卡片数据默认加载顺序——卡片无表头，不提供运行时点击排序；需要排序交互请使用数据表格。
       </el-alert>
       <el-tabs v-model="activeTab" type="border-card">
         <!-- Tab 1: 数据源 + 组件级数据筛选（统一组件） -->

@@ -134,7 +134,10 @@ export interface ListCardsColumn {
   minWidth?: number | string
   align?: 'left' | 'center' | 'right'
   fixed?: 'left' | 'right'
-  sortable?: boolean
+  // 设计决策（有意省略 sortable）：卡片列表不提供运行时点击排序——
+  // 卡片无表头，排序入口无法自然安放（点卡片字段与打开详情动作冲突且不可发现）；
+  // 排序交互属于数据表格（PageDataTable 点列头）。卡片的数据顺序由数据源/视图级
+  // "可排序字段"配置决定默认加载顺序（服务端 sort/order），此处不再保留列级 sortable 残留。
   formatter?: (row: any, column: any, cellValue: any, index?: number) => any
   showOverflowTooltip?: boolean
   cellClassName?: string

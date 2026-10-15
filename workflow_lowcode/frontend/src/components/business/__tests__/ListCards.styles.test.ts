@@ -43,6 +43,18 @@ describe('CARD_THEMES — 内置主题', () => {
     expect(theme.fieldLabelColor).toBeDefined()
     expect(theme.fieldValueColor).toBeDefined()
   })
+
+  // 明暗自适应防回归：跟随系统主题禁止硬编码十六进制（html.dark 下须随 --el-* 变量切换）；
+  // borderless 背景为 transparent（跟随宿主底色，天然自适应）例外
+  it.each(['default', 'compact', 'loose', 'borderless'] as const)('%s 主题配色引用 Element Plus 语义变量（明暗自适应）', (name) => {
+    const theme = CARD_THEMES[name]
+    expect(theme.backgroundColor).toMatch(/^(var\(--el-.+|transparent)$/)
+    expect(theme.titleColor).toMatch(/^var\(--el-/)
+    expect(theme.fieldLabelColor).toMatch(/^var\(--el-/)
+    expect(theme.fieldValueColor).toMatch(/^var\(--el-/)
+    expect(theme.backgroundColor).not.toMatch(/^#/)
+    expect(theme.titleColor).not.toMatch(/^#/)
+  })
 })
 
 describe('mergeCardStyle — 主题与样式合并', () => {

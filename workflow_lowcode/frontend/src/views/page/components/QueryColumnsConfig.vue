@@ -6,11 +6,16 @@
       <el-button link type="primary" :icon="Plus" @click="openCustomColumn">添加自定义列</el-button>
     </div>
 
-    <!-- 可排序字段（视图级收窄；候选受数据源 metadata 上限约束） -->
+    <!-- 排序字段（视图级收窄；候选受数据源 metadata 上限约束） -->
     <div v-if="sortableCandidates && sortableCandidates.length" class="sortable-config">
       <span class="config-title">
-        可排序字段
-        <el-tooltip content="排序入口仅对勾选字段开放；数据源不可排字段不可配置" placement="top">
+        排序字段
+        <el-tooltip
+          :content="mode === 'card'
+            ? '决定卡片数据默认加载顺序（服务端排序）；卡片列表无表头，不提供运行时点击排序，需要排序交互请使用数据表格'
+            : '运行时点击列头排序的入口仅对勾选字段开放；数据源不可排字段不可配置'"
+          placement="top"
+        >
           <el-icon class="config-tip-icon"><QuestionFilled /></el-icon>
         </el-tooltip>
       </span>
@@ -554,7 +559,7 @@ function removeCustomColumn(key: string) {
 }
 .config-hint {
   font-size: 14px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
 }
 .sortable-config {
   display: flex;
@@ -562,9 +567,9 @@ function removeCustomColumn(key: string) {
   gap: 12px;
   margin-bottom: 12px;
   padding: 10px 12px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--el-border-color-light);
   border-radius: 4px;
-  background: #fafafa;
+  background: var(--el-fill-color-light);
 }
 .sortable-config .config-title {
   flex-shrink: 0;
@@ -575,7 +580,7 @@ function removeCustomColumn(key: string) {
 }
 .config-tip-icon {
   margin-left: 4px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   cursor: help;
 }
 .label-with-tip {
@@ -586,10 +591,10 @@ function removeCustomColumn(key: string) {
 }
 .tip-icon {
   margin-left: 4px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   cursor: help;
 }
 .muted {
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
 }
 </style>

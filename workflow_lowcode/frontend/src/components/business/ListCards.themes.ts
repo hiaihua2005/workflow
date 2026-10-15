@@ -1,26 +1,32 @@
 /**
  * ListCards 内置主题。
  *
- * 5 个预设主题：default / compact / loose / dark / borderless。
+ * 5 个预设主题：default / compact / loose / dark / borderless（+ techBlue）。
  * 用户可通过 import CARD_THEMES 扩展自定义主题。
+ *
+ * 配色规则（明/暗自适应）：
+ * - default / compact / loose / borderless 为「跟随系统」主题，颜色一律引用
+ *   Element Plus 语义 CSS 变量（--el-bg-color / --el-text-color-* 等），
+ *   系统 html.dark 切换时自动适配，不写死十六进制；
+ * - dark / techBlue 为显式选择的皮肤，保留硬编码深色（不受系统明暗影响）。
  */
 
 import type { CardStyle, CardTheme } from './ListCards.types'
 
 export const CARD_THEMES: Record<CardTheme, CardStyle> = {
   default: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e4e7ed',
+    backgroundColor: 'var(--el-bg-color)',
+    borderColor: 'var(--el-border-color-light)',
     hoverShadowColor: 'rgba(0, 0, 0, 0.1)',
     borderRadius: 8,
     padding: 16,
     gap: 16,
     titleFontSize: 16,
     titleFontWeight: 600,
-    titleColor: '#303133',
+    titleColor: 'var(--el-text-color-primary)',
     fieldFontSize: 14,
-    fieldLabelColor: '#909399',
-    fieldValueColor: '#303133',
+    fieldLabelColor: 'var(--el-text-color-secondary)',
+    fieldValueColor: 'var(--el-text-color-primary)',
     fields: {
       layout: 'grid',
       columns: 2,
@@ -36,18 +42,18 @@ export const CARD_THEMES: Record<CardTheme, CardStyle> = {
   },
 
   compact: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e4e7ed',
+    backgroundColor: 'var(--el-bg-color)',
+    borderColor: 'var(--el-border-color-light)',
     hoverShadowColor: 'rgba(0, 0, 0, 0.08)',
     borderRadius: 6,
     padding: 12,
     gap: 12,
     titleFontSize: 14,
     titleFontWeight: 600,
-    titleColor: '#303133',
+    titleColor: 'var(--el-text-color-primary)',
     fieldFontSize: 13,
-    fieldLabelColor: '#909399',
-    fieldValueColor: '#303133',
+    fieldLabelColor: 'var(--el-text-color-secondary)',
+    fieldValueColor: 'var(--el-text-color-primary)',
     fields: {
       layout: 'grid',
       columns: 2,
@@ -63,18 +69,18 @@ export const CARD_THEMES: Record<CardTheme, CardStyle> = {
   },
 
   loose: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e4e7ed',
+    backgroundColor: 'var(--el-bg-color)',
+    borderColor: 'var(--el-border-color-light)',
     hoverShadowColor: 'rgba(0, 0, 0, 0.12)',
     borderRadius: 12,
     padding: 24,
     gap: 24,
     titleFontSize: 18,
     titleFontWeight: 600,
-    titleColor: '#303133',
+    titleColor: 'var(--el-text-color-primary)',
     fieldFontSize: 15,
-    fieldLabelColor: '#606266',
-    fieldValueColor: '#303133',
+    fieldLabelColor: 'var(--el-text-color-regular)',
+    fieldValueColor: 'var(--el-text-color-primary)',
     fields: {
       layout: 'grid',
       columns: 1,
@@ -125,10 +131,10 @@ export const CARD_THEMES: Record<CardTheme, CardStyle> = {
     gap: 12,
     titleFontSize: 16,
     titleFontWeight: 600,
-    titleColor: '#303133',
+    titleColor: 'var(--el-text-color-primary)',
     fieldFontSize: 14,
-    fieldLabelColor: '#909399',
-    fieldValueColor: '#303133',
+    fieldLabelColor: 'var(--el-text-color-secondary)',
+    fieldValueColor: 'var(--el-text-color-primary)',
     fields: {
       layout: 'grid',
       columns: 2,
