@@ -7979,3 +7979,18 @@ Work Log:
 
 Stage Summary:
 - 全绿 200×4 真绿；零 mvn 构建恢复（第 2 次）；mvn 必败路径每次冷启动仍会空耗 ~8 分钟，建议后续授权在 recover-dplus.sh 加 jar 分卷恢复前置逻辑（checkout parts + 重拼），彻底绕开 mvn
+
+---
+Task ID: r64
+Agent: main
+Task: r64 巡检（2026-10-16 09:05）
+
+Work Log:
+- 第 18 次重供给：假绿；标准流水线（kill 占位 → checkout parts → 重组 jar md5=e369839b → 后台 recover）
+- 后台 recover 异常退出且 8080 未起（recover.log 疑现交叠输出，导入 001709 dump + 一度报无 jar 备份）
+- 前台重跑 recover（430s 截断但 java 已拉起，pid 1635）→ 真绿确认
+- 收口 dump 20261016-012151 提交推送成功（372767ea..c06f03f5）；内存 3.53GB，oom_kill=0
+- 四链路 200×4
+
+Stage Summary:
+- 全绿 200×4 真绿；后台 recover 可靠性存疑（连续两轮后台模式异常退出，前台模式虽超时截断但 java 均成功拉起）——后续轮次优先前台+timeout 保护
