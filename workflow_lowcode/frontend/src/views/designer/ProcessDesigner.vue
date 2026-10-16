@@ -509,9 +509,10 @@ function handleDrop(event: DragEvent) {
   // 直接以父容器创建并放置元素（父容器已在开始事件校验前解析）
   modeling.createShape(shape, { x: canvasX, y: canvasY }, rootElement)
 
-  // 发起节点：设置 assignee 和 wf:nodeRole
+  // 发起节点：设置 assignee 和 wf:nodeRole（并写入默认名，避免属性面板加载期回写 BPMN）
   if (nodeRole === 'initiator') {
     modeling.updateProperties(shape, {
+      name: '发起节点',
       'flowable:assignee': '${initiator}',
       'wf:nodeRole': 'initiator'
     })

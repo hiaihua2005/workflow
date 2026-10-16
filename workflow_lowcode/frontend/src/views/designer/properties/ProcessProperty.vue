@@ -533,6 +533,10 @@ onMounted(async () => {
 })
 
 function syncToStore() {
+  // 内容比对后再写回：挂载回显时 config 与 store 现状一致 → 跳过写入，
+  // 避免「仅点选流程（画布空白）就标记未保存」。真实编辑因内容不同而写回并置脏。
+  const next = JSON.stringify(config)
+  if (next === JSON.stringify(designerStore.getProcessConfig())) return
   designerStore.setProcessConfig({ ...config })
 }
 </script>

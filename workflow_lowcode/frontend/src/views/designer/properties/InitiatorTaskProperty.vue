@@ -178,12 +178,11 @@ function loadConfig() {
     initiator.smsOnEnd = existing.initiator.smsOnEnd ?? false
   }
 
-  // BPMN element 无名称时写入默认值，确保持久化
-  if (!getNodeName(element) && config.name) {
-    const modeling = (modeler as any).get('modeling')
-    modeling.updateProperties(element, { name: config.name })
-  }
-
+  // 注意：此处**不得**回写 BPMN（modeling.updateProperties）。
+  // 早期版本在 BPMN name 为空时于加载期补写默认名「发起节点」，这会在
+  // commandStack 产生一次命令 → commandStack.changed → 设计器被标记「未保存」，
+  // 表现为「仅点选发起节点就变成未保存」。默认名改在节点创建时写入
+  // （见 ProcessDesigner.handleDrop），点选不再改动流程图。
   setTimeout(() => { isLoading = false }, 0)
 }
 

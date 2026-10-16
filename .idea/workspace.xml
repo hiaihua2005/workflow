@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="bb6f78df-0860-49c0-b958-dfed0d36129a" name="更改" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/_2026_10_16_10_31____.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/shelf/在进行更新之前于_2026_10_16_10_31_取消提交了更改_[更改]/shelved.patch" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sql/workflow.sql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/workflow_lowcode/backend/src/main/resources/db/migration-archive/V57__drop_stale_uk_node.sql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/workflow_lowcode/backend/src/main/resources/db/migration/V57__drop_stale_uk_node.sql" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/workflow_lowcode/frontend/src/views/designer/properties/__tests__/InitiatorTaskProperty.dirty.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/workflow_lowcode/frontend/src/views/designer/properties/__tests__/ProcessProperty.dirty.test.ts" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/workflow_lowcode/frontend/src/views/designer/properties/__tests__/UserTaskProperty.dirty.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/workflow_lowcode/backend/src/main/resources/application.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/agent/AiAgentServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/chat/AiChatControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/config/AiPropertiesTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/formgen/AiFormGenerationServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/formgen/FormSchemaPromptBuilderTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/formgen/FormSchemaValidatorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/formgen/GenerateFormSchemaToolTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/provider/OpenAiCompatibleChatModelTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/support/AiUsageRecorderTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/tool/AiToolRegistryTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/ai/tool/OpenPageToolTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/controller/DataSourceControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/controller/DataSourceReadOnlyTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/controller/DbSchemaControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/controller/MetadataProbeControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/controller/PageMenuControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/controller/PageQueryControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/controller/ProcessDefinitionControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/controller/ProcessInstanceControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/controller/SystemInternalControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/controller/TaskControllerVOTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/api/dto/CompleteTaskResponseTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/datasource/DataSourceDefinitionServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/datasource/InternalDataSourceRouterTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/datasource/SortableResolverTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/datasource/UnifiedDataSourceAdapterTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/datasource/VisualSqlGeneratorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/datasource/WorkflowFormDataQueryServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/datasource/listener/DataSourceSyncListenerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/FormDefinitionPublishBusinessTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/FormDefinitionServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/SerialNumberServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/AutoNumberHookTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/BizDataHandlerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/BizDataQueryBuilderTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/BizDataServiceAutoNumberTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/BizDataServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/FlowableFormProcessGuardTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/FormQueryConfigTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/JoinSqlGeneratorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/SqlMetadataProbeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/SqlQueryEngineTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/bizdata/SqlTemplateEngineTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/column/ColumnConfigTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/column/ColumnTypeMapperTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/column/DdlBuilderTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/column/DynamicTableManagerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/column/FormSchemaColumnExtractorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/mapping/FormDataMergerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/mapping/FormMappingParserTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/mapping/FormMappingResolverTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/mapping/FormMappingValidatorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/form/mapping/VariableMappingWriterTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/history/ProcessHistoryServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/history/TaskCommentWriteTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logic/BackendBeanRegistryTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logic/beans/ScriptToolkitBeanTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logic/executor/BackendLogicExecutorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logic/executor/GroovySandboxTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logic/executor/GroovyScriptLogicTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logic/executor/HttpLogicExecutorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logic/executor/ScriptBeanFacadeSandboxTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/dsl/ConditionEvaluatorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/engine/LogicFlowDataUpdateMultiTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/engine/LogicFlowDataUpsertTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/engine/LogicFlowEngineTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/engine/LogicFlowHttpRetryPolicyTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/engine/LogicFlowLastErrorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/engine/LogicFlowNewNodesTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/engine/LogicFlowSqlScriptTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/engine/SqlScriptSupportTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/engine/UpdateExprTranslatorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/logicflow/service/FormFieldSchemaServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/module/ModuleExportImportIntegrationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/module/ModulePackageCodecTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/page/PageAccessGuardTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/page/PageDataExcelControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/page/PageDefinitionPublishIntegrationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/page/PageDefinitionServicePublishTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/page/PageValidatorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/page/ViewCompilerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/page/ViewDataSourceMigratorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/process/ProcessDesignServiceDeployTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/process/ProcessInstanceServiceFilterTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/process/bpmn/InitiatorNodeResolverTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/process/bpmn/MultiInstanceBpmnRewriterTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/process/config/NodeOptionsFormUserParseTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/runtime/ProcessHighlightServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/runtime/ProcessTaskPredictionServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/runtime/ProcessVariableServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/AbstractFlowableSpikeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/AddSignSpikeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/BpmnXmlValidationSpikeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/EndToEndIntegrationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/ForwardSignSpikeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/MiRejectChangeActivityStateSpikeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/MultiInstanceCountersignSpikeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/MultiInstanceOrSignSpikeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/MultiInstanceRejectTerminateSpikeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/PredictionEndToEndSpikeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/spike/RejectChangeActivityStateSpikeTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/task/AddSignServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/task/AssigneeResolverRegistryTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/task/ForwardSignServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/task/RejectServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/task/TaskRemindServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/task/TransferServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/task/WorkflowTaskServiceCompleteTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/task/WorkflowTaskServiceDetailTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/task/WorkflowTaskServiceMappedDataTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/task/repository/WfTaskTransferRepositoryTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/tenant/TenantInterceptorTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/engine/tenant/TenantProviderTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/example/emp/EmpProfileHandlerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/example/join/FormJoinQueryIntegrationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/example/leave/LeaveBillWorkflowIntegrationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/example/sql/SqlDataSourceIntegrationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/MessageEndToEndTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/admin/AnnouncementControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/admin/ChannelControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/admin/DeliveryControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/admin/EventDefinitionControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/admin/NotificationAdminAuthorizationTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/admin/SubscriptionControllerTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/channel/ChannelDeliveryResultTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/channel/EncryptionUtilTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/channel/InAppChannelAdapterTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/channel/miniprogram/MiniprogramChannelAdapterTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/channel/sms/SmsChannelAdapterTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/channel/wechatwork/WechatWorkChannelAdapterTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/dispatch/MessageDispatcherTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/dispatch/MessageSenderTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/event/NotificationEventServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/model/MessageTemplateTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/model/MessageTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/model/RecipientTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/model/SubscriptionRuleTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/model/UserSubscriptionTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/retry/RetryTaskTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/store/MessageServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/subscription/SubscriptionServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/notification/template/TemplateServiceTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/system/repository/SysMenuRepositoryTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/system/service/AttachmentServiceImageTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/system/service/UserServiceBatchTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/java/com/workflow/system/service/UserServiceQueryTest.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/backend/src/test/resources/application-test.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/frontend/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/workflow_lowcode/frontend/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/frontend/src/views/designer/ProcessDesigner.vue" beforeDir="false" afterPath="$PROJECT_DIR$/workflow_lowcode/frontend/src/views/designer/ProcessDesigner.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/frontend/src/views/designer/properties/InitiatorTaskProperty.vue" beforeDir="false" afterPath="$PROJECT_DIR$/workflow_lowcode/frontend/src/views/designer/properties/InitiatorTaskProperty.vue" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/workflow_lowcode/frontend/src/views/designer/properties/ProcessProperty.vue" beforeDir="false" afterPath="$PROJECT_DIR$/workflow_lowcode/frontend/src/views/designer/properties/ProcessProperty.vue" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;hiaihua2005&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/liaoweimin74/workflow&quot;,
+    &quot;accountId&quot;: &quot;976f015d-5d51-4fc8-9431-9868da5245f0&quot;
+  }
+}</component>
+  <component name="MavenRunner">
+    <option name="skipTests" value="true" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 5
+}</component>
+  <component name="ProjectId" id="3JaLsXk8n5Gtz3qeiQ9u8kec4qb" />
+  <component name="ProjectViewState">
+    <option name="flattenModules" value="true" />
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="false" />
+    <option name="showLibraryContents" value="true" />
+    <option name="sortKey" value="BY_TIME_ASCENDING" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Maven.workflow-platform [clean].executor": "Run",
+    "Maven.workflow-platform [install].executor": "Run",
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RequestMappingsPanelOrder0": "0",
+    "RequestMappingsPanelOrder1": "1",
+    "RequestMappingsPanelWidth0": "75",
+    "RequestMappingsPanelWidth1": "75",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "Spring Boot.WorkflowApplication.executor": "Debug",
+    "git-widget-placeholder": "dev-shiaihua",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/nh/workflow",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "项目",
+    "project.structure.proportion": "0.15",
+    "project.structure.side.proportion": "0.0",
+    "settings.editor.selected.configurable": "reference.projectsettings.compiler.javacompiler",
+    "vue.rearranger.settings.migration": "true",
+    "应用程序.WorkflowApplication.executor": "Debug"
+  }
+}]]></component>
+  <component name="ReactorSettings">
+    <option name="notificationShown" value="true" />
+  </component>
+  <component name="RunManager" selected="Spring Boot.WorkflowApplication">
+    <configuration name="WorkflowApplication" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.workflow.WorkflowApplication" />
+      <module name="workflow-platform" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.workflow.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="WorkflowApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="FRAME_DEACTIVATION_UPDATE_POLICY" value="UpdateClassesAndResources" />
+      <module name="workflow-platform" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.workflow.WorkflowApplication" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="应用程序.WorkflowApplication" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-9823dce3aa75-bf35d07a577b-intellij.indexing.shared.core-IU-252.27397.103" />
+        <option value="bundled-js-predefined-d6986cc7102b-3aa1da707db6-JavaScript-IU-252.27397.103" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="默认任务">
+      <changelist id="bb6f78df-0860-49c0-b958-dfed0d36129a" name="更改" comment="" />
+      <created>1789894440908</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1789894440908</updated>
+      <workItem from="1789894441996" duration="3492000" />
+      <workItem from="1789976066233" duration="2925000" />
+      <workItem from="1789984428814" duration="996000" />
+      <workItem from="1790042814383" duration="4949000" />
+      <workItem from="1790231224000" duration="4427000" />
+      <workItem from="1791538288982" duration="337000" />
+      <workItem from="1791626383121" duration="204000" />
+      <workItem from="1791786832732" duration="514000" />
+      <workItem from="1791942824311" duration="2180000" />
+      <workItem from="1792046528186" duration="3136000" />
+      <workItem from="1792117821096" duration="7609000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/backend/src/main/java/com/workflow/engine/datasource/DataSourceDefinitionService.java</url>
+          <line>635</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>
