@@ -7965,3 +7965,17 @@ Work Log:
 Stage Summary:
 - 全绿 200×4 真绿；jar 分卷恢复已成标准动作（checkout parts → 重拼 → md5 校验 → recover），本轮恢复 ~12 分钟
 - 备案：dump-db.sh 的 gitignore 盲区仍待授权修复（每轮需手动 add -f）；git pack 慢性 OOM 待裁决
+
+---
+Task ID: r63
+Agent: main
+Task: r63 巡检（2026-10-16 08:05）
+
+Work Log:
+- 第 17 次重供给：假绿；冷启动后台 recover 走 mvn 路径（-DskipTests 必败，日志见 MojoFailureException）
+- 接管：kill recover+mvn → git checkout parts → 重组 jar（md5=e369839b 通过）→ recover 二次运行秒复 jar 拉起 java → 真绿
+- 收口 dump 20261016-001709 提交推送成功（099b3bda..6d329732）；内存 3.43GB，oom_kill=0
+- 四链路 200×4
+
+Stage Summary:
+- 全绿 200×4 真绿；零 mvn 构建恢复（第 2 次）；mvn 必败路径每次冷启动仍会空耗 ~8 分钟，建议后续授权在 recover-dplus.sh 加 jar 分卷恢复前置逻辑（checkout parts + 重拼），彻底绕开 mvn
