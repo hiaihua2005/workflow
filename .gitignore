@@ -69,3 +69,5 @@ tmp/
 .vscode/
 cases.yaml
 login.yaml
+/.idea/workspace.xml
+.idea
