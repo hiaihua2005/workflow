@@ -180,7 +180,7 @@ html, body, #app {
 .sidebar-ink .el-menu-item,
 .sidebar-ink .el-sub-menu__title {
   color: var(--ink-text);
-  margin: 2px 10px;
+  margin: 0;
   border-radius: 8px;
 }
 .sidebar-ink .el-menu-item:hover,
@@ -208,6 +208,26 @@ html, body, #app {
 }
 .sidebar-ink .el-sub-menu.is-active > .el-sub-menu__title .el-sub-menu__icon-arrow {
   color: var(--brand-glow);
+}
+
+/* 折叠态居中（须为全局非 scoped：SubMenu 渲染的 el-menu-item/子菜单标题不带 AdminLayout scope id，
+   scoped :deep 无法作用到；且必须置于 @layer utilities —— Tailwind 的 !mx-2 位于 utilities 层，
+   important 声明时分层样式优先于未分层样式，故需同层且声明在其后覆盖，
+   并显式清零 margin-inline，避免逻辑属性与物理 margin 竞争） */
+@layer utilities {
+  .sidebar-ink .el-menu--collapse .el-menu-item,
+  .sidebar-ink .el-menu--collapse .el-sub-menu__title {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin: 0 auto !important;
+    margin-inline: 0 !important;
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .sidebar-ink .el-menu--collapse .el-menu-item .el-icon,
+  .sidebar-ink .el-menu--collapse .el-sub-menu__title .el-icon {
+    margin-right: 0 !important;
+  }
 }
 
 /* 表格：表头暖灰、行悬浮青雾 */

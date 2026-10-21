@@ -350,7 +350,7 @@ onUnmounted(() => {
     <div class="flex flex-1 min-h-0">
       <!-- 左侧菜单：深墨松绿（明暗两态统一，形成纵向对比层次） -->
       <aside
-        :class="collapsed ? 'w-16' : 'w-56'"
+        :class="collapsed ? 'w-[64px]' : 'w-[240px]'"
         class="sidebar-ink flex flex-col bg-(--ink) border-r border-(--ink-border) transition-all duration-300 shrink-0"
       >
         <div class="flex-1 overflow-y-auto overflow-x-hidden py-3">
@@ -365,7 +365,7 @@ onUnmounted(() => {
             @select="handleMenuSelect"
           >
             <!-- 首页（固定） -->
-            <el-menu-item index="/dashboard" :class="collapsed ? '!my-0.5 !rounded-lg' : '!my-0.5 !mx-2 !rounded-lg'">
+            <el-menu-item index="/dashboard" :class="collapsed ? '!rounded-lg' : '!mx-2 !rounded-lg'">
               <el-icon><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg></el-icon>
               <template #title>
                 <span>首页</span>
@@ -549,26 +549,6 @@ html.dark[data-theme='classic'] .page-stage.is-fallback-fullscreen {
   z-index: 2000;
 }
 
-/* 折叠态下覆盖 SubMenu.vue 硬编码的 paddingLeft，使图标居中 */
-:deep(.el-menu--collapse .el-menu-item) {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  margin: 0 auto !important;
-  width: 100% !important;
-  justify-content: center !important;
-}
-:deep(.el-menu--collapse .el-sub-menu__title) {
-  padding-left: 0 !important;
-  padding-right: 0 !important;
-  margin: 0 auto !important;
-  width: 100% !important;
-  justify-content: center !important;
-}
-/* 折叠态下图标容器居中 */
-:deep(.el-menu--collapse .el-menu-item .el-icon) {
-  margin-right: 0 !important;
-}
-:deep(.el-menu--collapse .el-sub-menu__title .el-icon) {
-  margin-right: 0 !important;
-}
+/* 折叠态居中规则已统一收敛到 style.css（全局非 scoped，.sidebar-ink 作用域）：
+   SubMenu 渲染的菜单项不带本组件 scope id，scoped :deep 无法作用到，须全局覆盖 */
 </style>

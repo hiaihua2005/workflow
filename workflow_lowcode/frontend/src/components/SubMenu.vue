@@ -33,6 +33,7 @@ function renderableChildren(item: any): any[] {
         v-for="child in renderableChildren(item)"
         :key="child.id"
         :index="child.path"
+        class="!mx-2"
         :style="{ paddingLeft: `${(depth + 1) * 14 + 20}px` }"
       >
         <el-icon :size="16">
@@ -46,6 +47,7 @@ function renderableChildren(item: any): any[] {
     <el-menu-item
       v-else-if="item.menuType === 1"
       :index="item.path"
+      class="!mx-2"
       :style="{ paddingLeft: `${depth * 14 + 20}px` }"
     >
       <el-icon :size="16">
